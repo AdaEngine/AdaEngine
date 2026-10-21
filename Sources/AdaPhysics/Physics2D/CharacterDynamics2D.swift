@@ -42,7 +42,7 @@ extension CharacterRuntime2D {
         guard let world, position.x.isFinite, position.y.isFinite else { throw .invalidMotion }
         var definition = unsafe b2DefaultBodyDef()
         unsafe definition.type = b2_dynamicBody
-        unsafe definition.position = position.b2Position
+        unsafe definition.position = world.authoredPosition(entity, fallback: position) ?? world.nativePosition(position)
         unsafe definition.motionLocks.angularZ = true
         unsafe definition.enableSleep = false
         unsafe definition.enableContactRecycling = false
@@ -62,6 +62,7 @@ extension CharacterRuntime2D {
         shapeID = unsafe b2CreateCapsuleShape(body.bodyId, &shape, &capsule)
         guard b2Shape_IsValid(shapeID) else { destroy(); throw .invalidConfiguration }
         var anchor = unsafe b2DefaultBodyDef()
+        unsafe anchor.position = world.coordinateOrigin.native
         airAnchor = unsafe b2CreateBody(world.worldId, &anchor)
         updateBodySettings(controller)
     }
@@ -101,7 +102,7 @@ extension CharacterRuntime2D {
             if let hit = sweep.hit, hit.normal.y >= settings.minimumGroundNormalY { ground = hit }
         }
         if controller.jumping {
-            let floorY = ground.map { b2Body_GetWorldPointVelocity($0.body, $0.point.b2Position).y } ?? 0
+            let floorY = ground.map { b2Body_GetWorldPointVelocity($0.body, world.nativePosition($0.point)).y } ?? 0
             if ground != nil && velocityY - floorY > 0.1 {
                 return nil
             }
@@ -120,7 +121,7 @@ extension CharacterRuntime2D {
         var velocity = body.getLinearVelocity()
         var ground = support(&controller, position: body.getPosition(), velocityY: velocity.y)
         if controller.jumpRequested, let floor = ground {
-            velocity.y = controller.settings.jumpSpeed + b2Body_GetWorldPointVelocity(floor.body, floor.point.b2Position).y
+            velocity.y = controller.settings.jumpSpeed + b2Body_GetWorldPointVelocity(floor.body, world.nativePosition(floor.point)).y
             body.setLinearVelocity(velocity)
             controller.jumping = true
             ground = nil
@@ -130,7 +131,7 @@ extension CharacterRuntime2D {
         if contacts.contains(where: { $0.normal.y > 0 && $0.normal.y < controller.settings.minimumGroundNormalY && $0.normal.x * target < 0 }) { target = 0 }
         let a = ground?.body ?? airAnchor
         let floorVelocity = b2Body_GetLinearVelocity(a)
-        if let ground { target += b2Body_GetWorldPointVelocity(a, ground.point.b2Position).x - floorVelocity.x }
+        if let ground { target += b2Body_GetWorldPointVelocity(a, world.nativePosition(ground.point)).x - floorVelocity.x }
         let accelerating = abs(target) > abs(velocity.x - floorVelocity.x)
         let acceleration = accelerating ? controller.settings.acceleration : controller.settings.deceleration
         let force = min(controller.dynamics.maximumDriveForce, controller.dynamics.mass * acceleration)
@@ -161,7 +162,7 @@ extension CharacterRuntime2D {
             unsafe definition.base.bodyIdA = ground.body
             unsafe definition.base.bodyIdB = body.bodyId
             unsafe definition.base.collideConnected = true
-            unsafe definition.base.localFrameA = JointFrame2D(position: b2Body_GetLocalPoint(ground.body, ground.point.b2Position).asVector2).native
+            unsafe definition.base.localFrameA = JointFrame2D(position: b2Body_GetLocalPoint(ground.body, world.nativePosition(ground.point)).asVector2).native
             unsafe definition.base.localFrameB = JointFrame2D(position: [0, height * 0.5]).native
             unsafe definition.normal = ground.normal.b2Vec
             unsafe definition.restLength = height * 0.5 - radius + (radius + controller.settings.skinWidth) * ground.normal.y
@@ -196,5 +197,6 @@ extension CharacterRuntime2D {
         controller.groundEntityID = ground?.entity
         controller.velocity = controller.lastPosition.map { (position - $0) / deltaTime } ?? velocity
         controller.lastPosition = position
+        controller.lastGlobalPosition = PhysicsPosition2D(b2Body_GetPosition(body.bodyId))
     }
 }

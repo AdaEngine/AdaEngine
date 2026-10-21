@@ -8,13 +8,20 @@ extension RuntimeJoint2D {
         switch descriptor.joint {
         case let .hinge(_, _, value): settings = value; worldAnchor = nil
         case let .worldHinge(_, anchor, value): settings = value; worldAnchor = anchor
-        case .revolute: settings = .init(); worldAnchor = b2Body_GetPosition(b).asVector2
+        case let .globalHinge(_, _, value): settings = value; worldAnchor = nil
+        case .revolute: settings = .init(); worldAnchor = world.localPosition(b2Body_GetPosition(b))
         default: throw .invalidSettings
         }
         try settings.validate()
         if let worldAnchor {
             settings.frameA = JointFrame2D(position: worldAnchor, angle: b2Rot_GetAngle(b2Body_GetRotation(b)))
-            settings.frameB = JointFrame2D(position: b2Body_GetLocalPoint(b, worldAnchor.b2Position).asVector2)
+            settings.frameB = JointFrame2D(position: b2Body_GetLocalPoint(b, world.nativePosition(worldAnchor)).asVector2)
+        }
+        if case let .globalHinge(_, anchor, _) = descriptor.joint {
+            guard anchor.isFinite else { throw .invalidSettings }
+            let angle = b2Rot_GetAngle(b2Body_GetRotation(b))
+            settings.frameA = JointFrame2D(angle: angle)
+            settings.frameB = JointFrame2D(position: b2Body_GetLocalPoint(b, anchor.native).asVector2)
         }
         var definition = b2DefaultRevoluteJointDef()
         definition.base = connection(definition.base, a: a, b: b, frameA: settings.frameA, frameB: settings.frameB, collide: settings.collideConnected)

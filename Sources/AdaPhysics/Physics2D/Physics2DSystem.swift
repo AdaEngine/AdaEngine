@@ -67,7 +67,8 @@ public struct Physics2DSyncSystem: Sendable {
             if let body = physicsBody.runtimeBody {
                 let hasGlobalPosition = entity.components[PhysicsPosition2DComponent.self] != nil
                 let movedGlobally = PhysicsPosition2D(b2Body_GetPosition(body.bodyId)) != PhysicsPosition2D(position)
-                if physicsBody.mode == .static || (hasGlobalPosition && movedGlobally) {
+                let rotated = abs(Math.sin((body.getAngle().radians - transform.rotation.angle2D.radians) * 0.5)) > 0.00001
+                if (movedGlobally && (physicsBody.mode == .static || hasGlobalPosition)) || (physicsBody.mode == .static && rotated) {
                     b2Body_SetTransform(body.bodyId, position, b2MakeRot(transform.rotation.angle2D.radians))
                 }
 

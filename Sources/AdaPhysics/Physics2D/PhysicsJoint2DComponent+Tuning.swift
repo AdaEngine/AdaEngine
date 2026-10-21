@@ -56,9 +56,10 @@ extension PhysicsJoint2DComponent {
         switch jointDescriptor.joint {
         case let .hinge(a, b, _): updated = .hinge(a, b, settings)
         case let .worldHinge(b, anchor, _): updated = .worldHinge(b, anchor, settings)
+        case let .globalHinge(b, anchor, _): updated = .globalHinge(b, anchor, settings)
         case let .revolute(b):
-            let anchor = b2Body_GetWorldPoint(record.bodyA, b2Joint_GetLocalFrameA(id).p).asVector2
-            updated = .worldHinge(b, anchor, settings)
+            let anchor = PhysicsPosition2D(b2Body_GetWorldPoint(record.bodyA, b2Joint_GetLocalFrameA(id).p))
+            updated = .globalHinge(b, anchor, settings)
         default: throw .unsupportedControl
         }
         if record.ownedAnchor != nil {

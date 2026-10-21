@@ -58,3 +58,15 @@ extension PhysicsJoint2DDescriptor {
         return PhysicsJoint2DDescriptor(joint: .worldHinge(entity.id, worldAnchor, settings))
     }
 }
+
+@MainActor
+extension PhysicsJoint2DDescriptor {
+    /// Hinge to an exact global anchor, independent of later render-origin changes.
+    public static func revolute(
+        entity: Entity, globalAnchor: PhysicsPosition2D, settings: RevoluteJoint2DSettings = .init()
+    ) throws(PhysicsJoint2DError) -> PhysicsJoint2DDescriptor {
+        guard entity.world != nil, globalAnchor.isFinite else { throw .invalidSettings }
+        try settings.validate()
+        return PhysicsJoint2DDescriptor(joint: .globalHinge(entity.id, globalAnchor, settings))
+    }
+}

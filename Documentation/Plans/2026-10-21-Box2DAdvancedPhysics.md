@@ -58,7 +58,7 @@ All implementation rows are planned. Dependencies on the previous feature map ar
 | 17 | Enable one consistent native Double ABI and expose precise body positions and rays | 450–600 | 16 | A, complete precise API | locally validated |
 | 18 | Integrate authoritative Double ECS positions and nearby rendering for rigid/static bodies | 500–600 | 17 | A, opt-in coordinate components | locally validated |
 | 19 | Preserve precision across overlaps, shape casts, forces and contact positions | 450–600 | 18 | A, complete precise query overloads | locally validated |
-| 20 | Keep joints, both character modes and debug geometry consistent with the world origin | 500–600 | 18, 19 | A, complete origin-aware paths | planned |
+| 20 | Keep joints, both character modes and debug geometry consistent with the world origin | 500–600 | 18, 19 | A, complete origin-aware paths | locally validated |
 | 21 | Add bullet/CCD safety and linear/angular damping controls | 350–500 | prior stack | A, default-compatible settings | planned |
 | 22 | Add linear/angular motion locks and individual sleep controls | 350–500 | 21 | A, default-compatible settings | planned |
 | 23 | Add rolling resistance, conveyor speed and complete live material propagation | 400–550 | prior stack | A, default-compatible materials | planned |
@@ -215,3 +215,5 @@ All implementation rows are planned. Dependencies on the previous feature map ar
 - 2026-10-21: Slice 18 integrates authoritative Double root positions with rigid/static sync and writeback, projected camera/nonphysical transforms, explicit origin changes and root-only validation. 118 2D/query/joint/character tests pass in 20 suites; changed-file SwiftLint reports zero violations. Native IDs, exact positions and velocity survive origin changes.
 
 - 2026-10-21: Slice 19 adds exact global query inputs, nearby AABBs/proxies, global hit points and exact force/impulse arms. The 120-test 2D run passed all existing behavior but exposed an overstrict new small-radius/slop distance assertion; using a probe above native slop, both new precise-query tests pass. Changed files pass SwiftLint. Exact APIs use atGlobal/setGlobalPosition/atGlobalPoint labels to preserve existing shorthand .zero calls.
+
+- 2026-10-21: Slice 20 supports both controller modes, exact world hinges/retuning and nearby debug drawing across origin changes. Far-world testing exposed rounding being mistaken for query-controller teleport; publication now retains the projected/canonical state consistently. 122 tests in 22 suites pass after forced recompilation of AdaPhysics and @testable consumers. Earlier SIGSEGV runs used stale incremental struct-layout objects; refresh compilation timestamps after future component layout changes. SwiftLint: zero violations. No shared .build cache was deleted.

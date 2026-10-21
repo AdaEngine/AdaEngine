@@ -18,6 +18,7 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
         case distance(Entity.ID, Entity.ID, DistanceJoint2DSettings)
         case hinge(Entity.ID, Entity.ID, RevoluteJoint2DSettings)
         case worldHinge(Entity.ID, Vector2, RevoluteJoint2DSettings)
+        case globalHinge(Entity.ID, PhysicsPosition2D, RevoluteJoint2DSettings)
         case prismatic(Entity.ID, Entity.ID, PrismaticJoint2DSettings)
         case weld(Entity.ID, Entity.ID, WeldJoint2DSettings)
         case filter(Entity.ID, Entity.ID)
@@ -52,6 +53,10 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
         if case let .worldHinge(_, anchor, settings) = joint {
             try settings.validate()
             guard JointFrame2D(position: anchor).isValid else { throw PhysicsJoint2DError.invalidSettings }
+        }
+        if case let .globalHinge(_, anchor, settings) = joint {
+            try settings.validate()
+            guard anchor.isFinite else { throw PhysicsJoint2DError.invalidSettings }
         }
         if case let .rope(_, _, a, b) = joint {
             guard JointFrame2D(position: a).isValid, JointFrame2D(position: b).isValid else { throw PhysicsJoint2DError.invalidSettings }

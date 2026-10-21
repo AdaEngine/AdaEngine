@@ -7,6 +7,7 @@ import Math
 @PlainSystem(dependencies: [.after(Physics2DSyncSystem.self)])
 public struct DynamicCharacter2DSyncSystem {
     @FilterQuery<Entity, Ref<CharacterController2DComponent>, Ref<Transform>, And<Without<PhysicsBody2DComponent>, Without<Collision2DComponent>>> private var characters
+    @PhysicsCoordinateAccess2D private var coordinates
     @Res<Physics2DWorldHolder> private var physics
     public init(world _: World) {}
 
@@ -18,6 +19,11 @@ public struct DynamicCharacter2DSyncSystem {
             guard controller.mode == .dynamic else {
             return
         }
+            guard entity.components[PhysicsPosition2DComponent.self]?.lastError == nil else {
+                controller.lastError = .invalidMotion
+                controller.runtime = nil
+                return
+            }
             world.seenCharacters.insert(entity.id)
             do throws(CharacterController2DError) {
                 try controller.settings.validate()
@@ -29,7 +35,9 @@ public struct DynamicCharacter2DSyncSystem {
                     record.updateBodySettings(controller.wrappedValue)
                     if controller.resetMotion || controller.lastPosition != transform.position.xy {
                         record.clearDrive()
-                        body.setTransform(position: transform.position.xy, angle: 0)
+                        if let position = world.authoredPosition(entity, fallback: transform.position.xy) {
+                            b2Body_SetTransform(body.bodyId, position, b2MakeRot(0))
+                        }
                         body.setLinearVelocity(.zero)
                         controller.lastPosition = transform.position.xy
                         controller.jumping = false; controller.jumpRequested = false; controller.resetMotion = false

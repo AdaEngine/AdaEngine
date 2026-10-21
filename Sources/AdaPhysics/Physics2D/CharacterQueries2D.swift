@@ -31,7 +31,7 @@ final class CharacterRuntime2D {
     }
 
     func collide(position: Vector2, capsule: b2Capsule, filter: b2QueryFilter, horizontal: Float, minimumNormal: Float) {
-        var collector = CharacterPlaneCollector2D(owner: owner, horizontal: horizontal, minimumNormal: minimumNormal)
+        var collector = CharacterPlaneCollector2D(owner: owner, horizontal: horizontal, minimumNormal: minimumNormal, origin: world?.coordinateOrigin ?? .zero)
         swap(&collector.planes, &planes)
         swap(&collector.contacts, &contacts)
         collector.planes.removeAll(keepingCapacity: true)
@@ -41,7 +41,7 @@ final class CharacterRuntime2D {
         capsule.radius += 0.005 * b2GetLengthUnitsPerMeter()
         if let world {
             unsafe withUnsafeMutablePointer(to: &collector) {
-                unsafe b2World_CollideMover(world.worldId, position.b2Position, &capsule, filter, Character2D_Plane, $0)
+                unsafe b2World_CollideMover(world.worldId, world.nativePosition(position), &capsule, filter, Character2D_Plane, $0)
             }
         }
         swap(&collector.planes, &planes)
@@ -61,6 +61,7 @@ private struct CharacterPlaneCollector2D {
     let owner: Entity.ID?
     let horizontal: Float
     let minimumNormal: Float
+    let origin: PhysicsPosition2D
     var planes: [b2CollisionPlane] = []
     var contacts: [CharacterGround2D] = []
 }
@@ -93,7 +94,7 @@ private func Character2D_Plane(_ id: b2ShapeId, _ result: UnsafePointer<b2PlaneR
     default: radius = 0
     }
     // Box2D 3.2 shape.c leaves result.point in body-local core geometry; only its normal is rotated.
-    let point = b2Body_GetWorldPoint(shape.bodyId, hit.point).asVector2 + normal * radius
+    let point = unsafe PhysicsPosition2D(b2Body_GetWorldPoint(shape.bodyId, hit.point)).displacement(from: collector.pointee.origin) + normal * radius
     unsafe collector.pointee.contacts.append(CharacterGround2D(entity: entity.id, body: shape.bodyId, normal: normal, point: point))
     unsafe collector.pointee.planes.append(b2CollisionPlane(plane: hit.plane, pushLimit: .greatestFiniteMagnitude, push: 0, clipVelocity: true))
     if unsafe normal.y > 0 && normal.y < collector.pointee.minimumNormal && normal.x * collector.pointee.horizontal < 0 {
@@ -105,6 +106,7 @@ private func Character2D_Plane(_ id: b2ShapeId, _ result: UnsafePointer<b2PlaneR
 
 struct CharacterSweep2D {
     let owner: Entity.ID?
+    let origin: PhysicsPosition2D
     var fraction: Float = 1
     var hit: CharacterGround2D?
 }
@@ -112,13 +114,13 @@ struct CharacterSweep2D {
 @MainActor
 extension PhysicsWorld2D {
     func castCharacter(position: Vector2, capsule: b2Capsule, delta: Vector2, filter: b2QueryFilter, owner: Entity.ID?) -> CharacterSweep2D {
-        var collector = CharacterSweep2D(owner: owner)
+        var collector = CharacterSweep2D(owner: owner, origin: coordinateOrigin)
         var points = (capsule.center1, capsule.center2)
         var proxy = unsafe withUnsafePointer(to: &points) { tuple in
             unsafe tuple.withMemoryRebound(to: b2Vec2.self, capacity: 2) { unsafe b2MakeProxy($0, 2, capsule.radius) }
         }
         _ = unsafe withUnsafeMutablePointer(to: &collector) {
-            unsafe b2World_CastShape(worldId, position.b2Position, &proxy, delta.b2Vec, filter, Character2D_Cast, $0)
+            unsafe b2World_CastShape(worldId, nativePosition(position), &proxy, delta.b2Vec, filter, Character2D_Cast, $0)
         }
         return collector
     }
@@ -134,6 +136,7 @@ private func Character2D_Cast(_ id: b2ShapeId, _ point: b2Pos, _ normal: b2Vec2,
         return -1
     }
     unsafe collector.pointee.fraction = fraction
-    unsafe collector.pointee.hit = CharacterGround2D(entity: entity.id, body: shape.bodyId, normal: normal.asVector2, point: point.asVector2)
+    let position = unsafe PhysicsPosition2D(point).displacement(from: collector.pointee.origin)
+    unsafe collector.pointee.hit = CharacterGround2D(entity: entity.id, body: shape.bodyId, normal: normal.asVector2, point: position)
     return fraction
 }

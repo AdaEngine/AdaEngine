@@ -13,6 +13,7 @@ extension PhysicsWorld2D {
         excluding owner: Entity.ID? = nil
     ) throws(CharacterController2DError) {
         guard controller.mode == .query else { throw .dynamicRequiresECS }
+        controller.rebaseCoordinates(to: coordinateOrigin)
         let settings = controller.settings
         try settings.validate()
         guard deltaTime.isFinite, deltaTime > 0, position.x.isFinite, position.y.isFinite,
@@ -85,5 +86,6 @@ extension PhysicsWorld2D {
         controller.velocity = (position - start) / deltaTime
         controller.lastError = nil
         controller.lastPosition = position
+        controller.lastGlobalPosition = coordinateOrigin.offset(by: position)
     }
 }

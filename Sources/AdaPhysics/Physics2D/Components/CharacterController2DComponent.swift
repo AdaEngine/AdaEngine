@@ -64,6 +64,8 @@ public struct CharacterController2DComponent: Codable, Sendable {
     var verticalVelocity: Float = 0
     var jumping = false
     var lastPosition: Vector2?
+    var lastCoordinateOrigin: PhysicsPosition2D?
+    var lastGlobalPosition: PhysicsPosition2D?
 
     public init(radius: Float = 0.35, height: Float = 1.8) { settings = .init(radius: radius, height: height) }
     public init(settings: CharacterController2DSettings) { self.settings = settings }

@@ -53,6 +53,7 @@ public struct Physics2DPlugin: Plugin {
             .insertResource(PhysicsDebugOptions())
             .addSystem(PhysicsCoordinate2DSyncSystem.self, on: .physicsSync)
             .addSystem(Physics2DSyncSystem.self, on: .physicsSync)
+            .addSystem(CharacterCoordinate2DSyncSystem.self, on: .physicsSync)
             .addSystem(DynamicCharacter2DSyncSystem.self, on: .physicsSync)
             .addSystem(PhysicsJoint2DSyncSystem.self, on: .physicsSync)
             .addSystem(DynamicCharacter2DControlSystem.self, on: .physicsStep)
