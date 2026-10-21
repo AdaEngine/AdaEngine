@@ -200,6 +200,12 @@ final class BoxShape2D {
         bodyId: b2BodyId
     ) -> b2ShapeId {
         switch shape.fixture {
+        case let .segment(line):
+            return unsafe makeLine(line, kind: .segment, transform: transform, definition: shapeDef, body: bodyId)
+        case let .chain(line):
+            return unsafe makeLine(line, kind: .chain, transform: transform, definition: shapeDef, body: bodyId)
+        case let .chainSegment(line):
+            return unsafe makeLine(line, kind: .loose, transform: transform, definition: shapeDef, body: bodyId)
         case let .polygon(shape):
             guard let polygon = unsafe makePolygon(vertices: shape.verticies, offset: shape.offset, scale: transform.scale.xy) else {
                 return b2_nullShapeId

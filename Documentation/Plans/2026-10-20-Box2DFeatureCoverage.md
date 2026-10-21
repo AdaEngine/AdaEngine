@@ -52,7 +52,7 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 |---|---|---|---:|---|---|
 | 01 | Apply local shape offsets and box rotation correctly | A: complete compatibility fix | 300–450 | — | in-progress |
 | 02 | Add capsule and rounded convex colliders | A: additive factories/fixtures | 450–600 | 01 | in-progress |
-| 03 | Add segments and owned chain colliders | A: additive shapes, explicit lifetime | 500–600 | 01 | planned |
+| 03 | Add segments and owned chain colliders | A: additive shapes, explicit lifetime | 500–600 | 01 | in-progress |
 | 04 | Add point, AABB and convex-shape overlap queries | A: additive world queries | 450–600 | 02 | planned |
 | 05 | Add nearest/all convex shape casts | A: additive world queries | 450–600 | 02, 04 | planned |
 | 06 | Make distance/rope joints work through the ECS lifecycle | A: complete joint system + first constraint | 500–600 | — | planned |
@@ -214,3 +214,5 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 - 2026-10-21: Slice 01 is locally complete in e8e3196b5 (274 reviewable lines). Push was rejected by automatic approval review pending explicit user consent to publish to GitHub; no external mutation occurred. Slice 02 continues locally on a separate dependency branch; publication and merge remain gated.
 
 - 2026-10-21: Slice 02 is locally validated: capsule/rounded-box/rounded-polygon factories and Codable validation, native creation and conservative round scaling; 80 physics/event/fixed-step tests passed in 14 suites, SwiftLint zero violations. No remote publication performed.
+
+- 2026-10-21: Slice 03 locally validated: two-sided segments, one-sided loose/owned chains, loop ownership/freeing, mirrored winding, sensor chains, materials/filters and event flags. 87 targeted tests passed in 15 suites; changed Swift sources pass SwiftLint.

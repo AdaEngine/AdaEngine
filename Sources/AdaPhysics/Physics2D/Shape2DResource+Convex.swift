@@ -8,6 +8,7 @@ public enum Shape2DGeometryError: Error, Equatable, Sendable {
     case invalidRadius
     case invalidPolygon
     case degenerateCapsule
+    case invalidChain
 }
 
 extension Shape2DResource {
@@ -101,7 +102,7 @@ extension Shape2DResource {
     }
 }
 
-private enum Geometry2DValidation {
+enum Geometry2DValidation {
     static func point(_ value: Vector2) throws {
         guard value.x.isFinite, value.y.isFinite else { throw Shape2DGeometryError.nonFiniteGeometry }
     }

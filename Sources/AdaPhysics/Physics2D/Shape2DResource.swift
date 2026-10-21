@@ -54,12 +54,29 @@ public final class Shape2DResource: Codable, Sendable {
         case polygon(PolygonShape)
         case capsule(CapsuleShape)
         case roundedPolygon(RoundedPolygonShape)
+        case segment(LineShape)
+        case chain(LineShape)
+        case chainSegment(LineShape)
     }
 
     let fixture: Fixture
 
     init(fixture: Fixture) {
         self.fixture = fixture
+    }
+
+    private enum CodingKeys: CodingKey { case fixture }
+
+    public convenience init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let fixture = try values.decode(Fixture.self, forKey: .fixture)
+        switch fixture {
+        case let .segment(shape): try Geometry2DValidation.line(shape, kind: .segment)
+        case let .chain(shape): try Geometry2DValidation.line(shape, kind: .chain)
+        case let .chainSegment(shape): try Geometry2DValidation.line(shape, kind: .loose)
+        default: break
+        }
+        self.init(fixture: fixture)
     }
 
     /// Creates a circle shape with the specified radius.
@@ -95,6 +112,15 @@ public final class Shape2DResource: Codable, Sendable {
             shape.offset = [x, y]
 
             return Shape2DResource(fixture: .circle(shape))
+        case var .segment(shape):
+            shape.offset = [x, y]
+            return Shape2DResource(fixture: .segment(shape))
+        case var .chain(shape):
+            shape.offset = [x, y]
+            return Shape2DResource(fixture: .chain(shape))
+        case var .chainSegment(shape):
+            shape.offset = [x, y]
+            return Shape2DResource(fixture: .chainSegment(shape))
         case var .capsule(shape):
             shape.offset = [x, y]
             return Shape2DResource(fixture: .capsule(shape))

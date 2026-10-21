@@ -52,3 +52,21 @@ For capsules and rounded polygons, rounding remains circular: radius is multipli
 by the larger absolute XY scale. Nonuniform scale therefore gives a conservative
 round approximation, not an ellipse. Geometry collapsed by entity scale is not
 registered as an invalid native shape and does not trip native hull assertions.
+
+## Segments and chains
+
+`generateSegment(from:to:)` creates a two-sided zero-thickness collider.
+`generateChain(points:isLoop:ghostStart:ghostEnd:)` creates an owned one-sided
+chain; `generateChainSegment(from:to:ghostStart:ghostEnd:)` creates a loose
+one-sided segment. The front face lies on the right of each directed edge:
+write horizontal floor points from right to left to face upward. Closed loops
+must not repeat their first vertex. Ghosts default to linear extrapolation on
+open endpoints. Degenerate, duplicate and intersecting chain geometry is rejected.
+
+Offsets/scales are applied to points and ghosts. Mirrored entity scale reverses
+the sequence to preserve the authored front side. Native chains have zero mass
+and are intended for static terrain. They inherit material, filters and event
+flags; all child segments are destroyed with the owning body. A sensor chain
+uses body-owned loose sensor segments because native chain definitions cannot
+set `isSensor`. Compound/chain events and query hits remain per shape pair;
+several segments belonging to one entity can produce several hits.
