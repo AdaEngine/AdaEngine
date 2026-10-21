@@ -15,6 +15,8 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
         case rope(Entity.ID, Entity.ID, Vector2, Vector2)
         case revolute(Entity.ID)
         case distance(Entity.ID, Entity.ID, DistanceJoint2DSettings)
+        case hinge(Entity.ID, Entity.ID, RevoluteJoint2DSettings)
+        case worldHinge(Entity.ID, Vector2, RevoluteJoint2DSettings)
     }
 
     internal init(joint: Joint) {
@@ -27,6 +29,11 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         joint = try values.decode(Joint.self, forKey: .joint)
         if case let .distance(_, _, settings) = joint { try settings.validate() }
+        if case let .hinge(_, _, settings) = joint { try settings.validate() }
+        if case let .worldHinge(_, anchor, settings) = joint {
+            try settings.validate()
+            guard JointFrame2D(position: anchor).isValid else { throw PhysicsJoint2DError.invalidSettings }
+        }
         if case let .rope(_, _, a, b) = joint {
             guard JointFrame2D(position: a).isValid, JointFrame2D(position: b).isValid else { throw PhysicsJoint2DError.invalidSettings }
         }

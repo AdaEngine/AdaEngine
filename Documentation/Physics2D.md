@@ -118,3 +118,13 @@ owner/component/body releases the constraint; a recreated body reconnects on the
 next sync. Runtime records do not keep bodies or worlds alive, and native world
 destruction releases all remaining constraints. New distance factories and decoded
 settings reject nonfinite/invalid values before native calls.
+
+### Revolute hinges
+
+`revolute(entityA:entityB:settings:)` connects body-local frames with an optional
+angular spring target, angle limits and a bounded rotational motor. Angles and
+speeds use radians and radians/second; motor effort is torque. Limits must stay
+inside +/-0.99 pi. `revolute(entity:worldAnchor:...)` pins a body to a world point
+and measures angle from its orientation when resolved. The original one-entity
+`revolute(entityA:)` pins its origin at the initial world position. Both world
+variants own a static native anchor body, released when the joint is removed.

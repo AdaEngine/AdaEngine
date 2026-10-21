@@ -10,67 +10,71 @@ final class RuntimeJoint2D {
     private(set) var id: b2JointId
     let bodyA: b2BodyId
     let bodyB: b2BodyId
+    let ownedAnchor: b2BodyId?
 
-    init(world: PhysicsWorld2D, descriptor: PhysicsJoint2DDescriptor, id: b2JointId, bodyA: b2BodyId, bodyB: b2BodyId) {
+    init(world: PhysicsWorld2D, descriptor: PhysicsJoint2DDescriptor, id: b2JointId, bodyA: b2BodyId, bodyB: b2BodyId, ownedAnchor: b2BodyId? = nil) {
         self.world = world
         self.descriptor = descriptor
         self.id = id
         self.bodyA = bodyA
         self.bodyB = bodyB
+        self.ownedAnchor = ownedAnchor
     }
     var isConnected: Bool { world != nil && b2Joint_IsValid(id) }
     func destroy() {
         if isConnected { b2DestroyJoint(id) }
         id = b2_nullJointId
+        if world != nil, let ownedAnchor, b2Body_IsValid(ownedAnchor) { b2DestroyBody(ownedAnchor) }
     }
 
     static func body(_ entity: Entity?) -> Body2D? {
         entity?.components[PhysicsBody2DComponent.self]?.runtimeBody ?? entity?.components[Collision2DComponent.self]?.runtimeBody
     }
 
-    static func endpoints(_ descriptor: PhysicsJoint2DDescriptor) -> (Entity.ID, Entity.ID)? {
+    static func endpoints(_ descriptor: PhysicsJoint2DDescriptor) -> (Entity.ID?, Entity.ID)? {
         switch descriptor.joint {
-        case let .rope(a, b, _, _), let .distance(a, b, _): return (a, b)
-        case .revolute: return nil
+        case let .rope(a, b, _, _), let .distance(a, b, _), let .hinge(a, b, _): return (a, b)
+        case let .revolute(b), let .worldHinge(b, _, _): return (nil, b)
         }
     }
 
-    static func make(_ descriptor: PhysicsJoint2DDescriptor, a: Body2D, b: Body2D, world: PhysicsWorld2D) throws(PhysicsJoint2DError) -> RuntimeJoint2D {
-        guard b2StoreBodyId(a.bodyId) != b2StoreBodyId(b.bodyId), a.world === world, b.world === world,
-            b2Body_GetType(a.bodyId) == b2_dynamicBody || b2Body_GetType(b.bodyId) == b2_dynamicBody else {
-            throw PhysicsJoint2DError.invalidBodyPair
+    func matches(a: Body2D?, b: Body2D) -> Bool {
+        let sameA = a.map { b2StoreBodyId($0.bodyId) == b2StoreBodyId(bodyA) } ?? (ownedAnchor != nil)
+        return isConnected && sameA && b2StoreBodyId(bodyB) == b2StoreBodyId(b.bodyId)
+    }
+
+    static func connection(_ value: b2JointDef, a: b2BodyId, b: b2BodyId, frameA: JointFrame2D, frameB: JointFrame2D, collide: Bool) -> b2JointDef {
+        var result = value
+        result.bodyIdA = a
+        result.bodyIdB = b
+        result.localFrameA = frameA.native
+        result.localFrameB = frameB.native
+        result.collideConnected = collide
+        return result
+    }
+
+    static func make(_ descriptor: PhysicsJoint2DDescriptor, a: Body2D?, b: Body2D, world: PhysicsWorld2D) throws(PhysicsJoint2DError) -> RuntimeJoint2D {
+        guard b.world === world, a == nil || a?.world === world,
+            a == nil || b2StoreBodyId(a?.bodyId ?? b2_nullBodyId) != b2StoreBodyId(b.bodyId),
+            b2Body_GetType(b.bodyId) == b2_dynamicBody || (a != nil && b2Body_GetType(a?.bodyId ?? b2_nullBodyId) == b2_dynamicBody) else {
+            throw .invalidBodyPair
         }
-        let settings: DistanceJoint2DSettings
+        let ownedAnchor: b2BodyId?
+        if a == nil {
+            var definition = unsafe b2DefaultBodyDef()
+            ownedAnchor = unsafe b2CreateBody(world.worldId, &definition)
+        } else { ownedAnchor = nil }
+        let bodyA = a?.bodyId ?? ownedAnchor ?? b2_nullBodyId
+        var id = b2_nullJointId
+        defer {
+            if let ownedAnchor, !b2Joint_IsValid(id), b2Body_IsValid(ownedAnchor) { b2DestroyBody(ownedAnchor) }
+        }
         switch descriptor.joint {
-        case let .distance(_, _, value): settings = value
-        case let .rope(_, _, anchorA, anchorB):
-            let start = b2Body_GetWorldPoint(a.bodyId, anchorA.b2Vec).asVector2
-            let end = b2Body_GetWorldPoint(b.bodyId, anchorB.b2Vec).asVector2
-            let length = max((end - start).squaredLength.squareRoot(), 0.005 * b2GetLengthUnitsPerMeter())
-            settings = DistanceJoint2DSettings(length: length, frameA: .init(position: anchorA), frameB: .init(position: anchorB), limits: .init(lower: 0, upper: length))
-        case .revolute: throw PhysicsJoint2DError.invalidSettings
+        case .distance, .rope: id = try createDistance(descriptor, a: bodyA, b: b.bodyId, world: world)
+        case .hinge, .worldHinge, .revolute: id = try createRevolute(descriptor, a: bodyA, b: b.bodyId, world: world)
         }
-        try settings.validate()
-        var definition = b2DefaultDistanceJointDef()
-        definition.base.bodyIdA = a.bodyId
-        definition.base.bodyIdB = b.bodyId
-        definition.base.localFrameA = settings.frameA.native
-        definition.base.localFrameB = settings.frameB.native
-        definition.base.collideConnected = settings.collideConnected
-        definition.length = settings.length
-        // Box2D requires enableSpring for limits/motors; zero hertz disables the spring force.
-        definition.enableSpring = settings.spring != nil || settings.limits != nil || settings.motor != nil
-        definition.hertz = settings.spring?.hertz ?? 0
-        definition.dampingRatio = settings.spring?.dampingRatio ?? 1
-        definition.enableLimit = settings.limits != nil
-        definition.minLength = settings.limits?.lower ?? settings.length
-        definition.maxLength = settings.limits?.upper ?? settings.length
-        definition.enableMotor = settings.motor != nil
-        definition.motorSpeed = settings.motor?.speed ?? 0
-        definition.maxMotorForce = settings.motor?.maximumEffort ?? 0
-        let id = unsafe b2CreateDistanceJoint(world.worldId, &definition)
-        guard b2Joint_IsValid(id) else { throw PhysicsJoint2DError.nativeCreationFailed }
-        return RuntimeJoint2D(world: world, descriptor: descriptor, id: id, bodyA: a.bodyId, bodyB: b.bodyId)
+        guard b2Joint_IsValid(id) else { throw .nativeCreationFailed }
+        return RuntimeJoint2D(world: world, descriptor: descriptor, id: id, bodyA: bodyA, bodyB: b.bodyId, ownedAnchor: ownedAnchor)
     }
 }
 
@@ -88,15 +92,20 @@ public struct PhysicsJoint2DSyncSystem {
         joints.forEach { entity, component in
             world.seenJointOwners.insert(entity.id)
             guard let (aID, bID) = RuntimeJoint2D.endpoints(component.jointDescriptor),
-                let a = RuntimeJoint2D.body(context.world.getEntityByID(aID)),
                 let b = RuntimeJoint2D.body(context.world.getEntityByID(bID)) else {
                 world.jointRecords.removeValue(forKey: entity.id)?.destroy()
                 component.runtimeJoint = nil
                 component.jointError = .missingBody
                 return
             }
-            if let record = world.jointRecords[entity.id], record.descriptor === component.jointDescriptor, record.isConnected,
-                b2StoreBodyId(record.bodyA) == b2StoreBodyId(a.bodyId), b2StoreBodyId(record.bodyB) == b2StoreBodyId(b.bodyId) {
+            let a = aID.flatMap { RuntimeJoint2D.body(context.world.getEntityByID($0)) }
+            guard aID == nil || a != nil else {
+                world.jointRecords.removeValue(forKey: entity.id)?.destroy()
+                component.runtimeJoint = nil
+                component.jointError = .missingBody
+                return
+            }
+            if let record = world.jointRecords[entity.id], record.descriptor === component.jointDescriptor, record.matches(a: a, b: b) {
                 component.runtimeJoint = record
                 component.jointError = nil
                 return
