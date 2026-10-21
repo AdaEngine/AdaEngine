@@ -7,7 +7,7 @@ import Testing
 
 @MainActor @Suite("Shader Graph workbench", .serialized) struct EditorShaderGraphWorkbenchTests {
     @Test func templatesCompileAndRouteAsGraphAssets() throws {
-        for kind in [EditorNewFileKind.spriteShaderGraph, .pbrShaderGraph] {
+        for kind in [EditorNewFileKind.spriteShaderGraph, .pbrShaderGraph, .dissolveShaderGraph, .uvScrollShaderGraph] {
             let content = kind.initialContent(fileName: "Effect.shadergraph")
             let graph = try JSONDecoder().decode(ShaderGraph.self, from: Data(content.utf8))
             try graph.compileGLSL().validateGLSL()
@@ -41,6 +41,10 @@ import Testing
     }
 
     @Test func actualCanvasPointerEventsMoveAndConnectWithUndo() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            RenderWorldPlugin().setup(in: AppWorlds(main: World()))
+        }
         let url = try fixture()
         defer { try? FileManager.default.removeItem(at: url) }
         let model = EditorShaderGraphModel(url: url)

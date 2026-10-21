@@ -39,6 +39,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
     private var loadedTextures: [Int: Texture2D] = [:]
     private var revision: UInt64 = 0
     private var time: Float = 0
+    private var automaticTime = true
     private var issue: String?
     private struct Prepared {
         let device: RenderDevice
@@ -135,12 +136,22 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
     }
 
     public func setTime(_ seconds: Float) {
-        guard seconds.isFinite else {
+        guard seconds.isFinite, program.usesTime else {
             return
         }
         lock.lock()
         defer { lock.unlock() }
+        automaticTime = false
         if time != seconds { time = seconds; revision &+= 1 }
+    }
+
+    /// Renderer extraction advances animated graphs once per world frame. Manual
+    /// `setTime` takes ownership of the clock, as used by editor preview transport.
+    package func updateAutomaticTime(_ seconds: Float) {
+        guard program.usesTime, seconds.isFinite else { return }
+        lock.lock()
+        defer { lock.unlock() }
+        if automaticTime, time != seconds { time = seconds; revision &+= 1 }
     }
 
     /// Called on the renderer's owning context. A revision reuses one immutable snapshot per device.

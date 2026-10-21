@@ -34,6 +34,7 @@ public struct ShaderGraphProgram: Hashable, Sendable {
     public let parameters: [Parameter]
     public let textures: [Texture]
     public let sourceMap: [Int: Location]
+    public let usesTime: Bool
 }
 
 extension ShaderGraph.ValueType {
@@ -78,6 +79,13 @@ extension ShaderGraph {
         var lines = [
             "layout(set = \(ShaderGraphProgram.resourceSet), binding = \(ShaderGraphProgram.uniformBinding)) uniform AdaGraphUniforms { vec4 ada_graph_values[\(parameters.count + 1)]; };"
         ]
+        if ir.instructions.contains(where: { $0.operation == .noise2D }) {
+            lines += [
+                "float ada_graph_hash(uvec2 p) { uint h = p.x * 1664525u + p.y * 1013904223u; h = (h ^ (h >> 16u)) * 2246822519u; return float(h & 16777215u) / 16777215.0; }",
+                "float ada_graph_noise(vec2 p) { uvec2 i = uvec2(ivec2(floor(p))); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);",
+                "return mix(mix(ada_graph_hash(i), ada_graph_hash(i + uvec2(1u, 0u)), f.x), mix(ada_graph_hash(i + uvec2(0u, 1u)), ada_graph_hash(i + uvec2(1u)), f.x), f.y); }"
+            ]
+        }
         if !textures.isEmpty {
             lines.append("layout(set = \(ShaderGraphProgram.samplerSet), binding = \(ShaderGraphProgram.samplerBinding)) uniform sampler ada_graph_sampler;")
         }
@@ -94,7 +102,13 @@ extension ShaderGraph {
         var locations: [Int: ShaderGraphProgram.Location] = [:]
         func input(_ link: ShaderGraphIR.Input) -> String {
             let base = textureNames[link.source.node] ?? names[link.source.node] ?? "0.0"
-            let suffix = link.source.port == "rgb" ? ".rgb" : link.source.port == "alpha" ? ".a" : ""
+            let suffix: String
+            switch link.source.port {
+            case "rgb": suffix = ".rgb"
+            case "alpha": suffix = ".a"
+            case "x", "y", "z", "w": suffix = "." + link.source.port
+            default: suffix = ""
+            }
             let value = base + suffix
             return link.conversion == .scalarBroadcast ? "\(link.type.glslType)(\(value))" : value
         }
@@ -125,9 +139,29 @@ extension ShaderGraph {
                 default: expression = value
                 }
             case .uv: expression = "ada_graph_uv"
-            case .spriteTexture: expression = "texture(sampler2D(u_Texture, u_Sampler), ada_graph_uv)"
+            case .time: expression = "ada_graph_values[0].x"
+            case .spriteTexture: expression = "texture(sampler2D(u_Texture, u_Sampler), \(node.inputs["uv"].map(input) ?? "ada_graph_uv"))"
             case .add: expression = "(\(argument("a")) + \(argument("b")))"
             case .multiply: expression = "(\(argument("a")) * \(argument("b")))"
+            case .subtract: expression = "(\(argument("a")) - \(argument("b")))"
+            case .divide: expression = "((\(argument("a")) / max(abs(\(argument("b"))), \(type.glslType)(0.000001))) * sign(\(argument("b"))))"
+            case .power: expression = "pow(max(\(argument("a")), \(type.glslType)(0.000001)), \(argument("b")))"
+            case .minimum: expression = "min(\(argument("a")), \(argument("b")))"
+            case .maximum: expression = "max(\(argument("a")), \(argument("b")))"
+            case .clamp: expression = "clamp(\(argument("value")), \(argument("min")), \(argument("max")))"
+            case .saturate: expression = "clamp(\(argument("value")), \(type.glslType)(0.0), \(type.glslType)(1.0))"
+            case .oneMinus: expression = "(\(type.glslType)(1.0) - \(argument("value")))"
+            case .sine: expression = "sin(\(argument("value")))"
+            case .cosine: expression = "cos(\(argument("value")))"
+            case .absolute: expression = "abs(\(argument("value")))"
+            case .fraction: expression = "fract(\(argument("value")))"
+            case .floor: expression = "floor(\(argument("value")))"
+            case .step: expression = "step(\(argument("edge")), \(argument("value")))"
+            case .smoothstep: expression = "smoothstep(\(argument("edge0")), \(argument("edge1")), \(argument("value")))"
+            case .noise2D: expression = "ada_graph_noise(\(argument("uv")))"
+            case .combine2: expression = "vec2(\(argument("x")), \(argument("y")))"
+            case .combine3: expression = "vec3(\(argument("x")), \(argument("y")), \(argument("z")))"
+            case .combine4: expression = "vec4(\(argument("x")), \(argument("y")), \(argument("z")), \(argument("w")))"
             case .lerp: expression = "mix(\(argument("a")), \(argument("b")), \(argument("t")))"
             case .sampleTexture: expression = "texture(sampler2D(\(argument("texture")), ada_graph_sampler), \(argument("uv")))"
             case .texture, .output: continue
@@ -136,6 +170,14 @@ extension ShaderGraph {
             lines.append("\(type.glslType) \(name) = \(expression);")
         }
         lines += ["return surface;", "}"]
-        return ShaderGraphProgram(target: target, renderSettings: renderSettings, source: lines.joined(separator: "\n"), parameters: parameters, textures: textures, sourceMap: locations)
+        return ShaderGraphProgram(
+            target: target,
+            renderSettings: renderSettings,
+            source: lines.joined(separator: "\n"),
+            parameters: parameters,
+            textures: textures,
+            sourceMap: locations,
+            usesTime: ir.instructions.contains { $0.operation == .time }
+        )
     }
 }

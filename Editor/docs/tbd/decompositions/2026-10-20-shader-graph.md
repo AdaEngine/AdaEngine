@@ -69,9 +69,9 @@ budgets are estimates, not permission to hide implementation in generated files.
 | 9 | Edit graph documents with transactional history | Add document operations, stable selection and undo/redo independent of the visual canvas. | Additive unused authoring model | ~550 | 1 | implemented locally; document tests pass |
 | 10 | Draw a reusable AdaUI node canvas | Implement graph-space geometry, node/port layout, wires, pan/zoom and hit testing. | New unregistered component | ~600 | 9 | implemented locally; canvas geometry checks pass |
 | 11 | Connect and manipulate nodes on the canvas | Add compatible-port gestures, node movement, selection and transaction boundaries. | New unregistered interactive component | ~600 | 10 | implemented locally; AdaUI pointer events pass |
-| 12 | Open complete Shader Graph documents in Studio | Wire tab routing, creation, file IO, Inspector and parameter controls into the existing workbench. | Final small authoring registration | ~600 | 5, 7, 9, 11 | planned |
+| 12 | Open complete Shader Graph documents in Studio | Wire tab routing, creation, file IO, Inspector and parameter controls into the existing workbench. | Final small authoring registration | ~600 | 5, 7, 9, 11 | implemented locally; creation/routing/save/history/UI events pass |
 | 13 | Preview graph edits through the production renderer | Add revision-bound compilation, preview transport and visible diagnostic recovery. | Complete preview addition to working editor | ~600 | 8, 12 | implemented locally; CPU revision/recovery and real WebGPU pass |
-| 14 | Ship animated and procedural effect templates | Add Time/UV operations, base procedural noise, Dissolve and UV Scroll examples. | Independently runnable nodes/templates | ~550 | 13 | planned |
+| 14 | Ship animated and procedural effect templates | Add Time/UV operations, base procedural noise, Dissolve and UV Scroll examples. | Independently runnable nodes/templates | ~550 | 13 | implemented locally; effect compilation and templates pass |
 | 15 | Navigate and organize larger graphs | Add context-aware node search, copy/paste, groups, comments and error navigation. | Complete usability additions | ~600 | 12 | planned |
 | 16 | Change exposed graph values from AdaScript | Add typed parameter access through the real runtime and native AOT binding paths. | Additive scripting API | ~550 | 5, 7 | planned |
 | 17 | Package graph materials for exported games | Bake/collect shader variants and resources and reject unsupported targets explicitly. | Additive export support | ~600 | 8, 14, 16 | planned |
@@ -375,3 +375,10 @@ budgets are estimates, not permission to hide implementation in generated files.
   use virtual source 101 to preserve node/port mapping across target templates.
   New material instances read freshly saved graph assets; existing instances keep
   their authored values. Background preview validation is CPU-only.
+
+- Slice 14: Time, procedural integer-hash 2D value noise, scalar/vector math and
+  explicit vector channels/composition; Dissolve and UV Scroll use ordinary nodes.
+  Static graphs ignore clock changes; animated graphs use a world-relative clock
+  and preview transport takes explicit ownership. Persistent validation logs:
+  `.shader-graph-effects-tests.log` (32 CPU/GLSL/WebGPU tests),
+  `.shader-graph-editor-tests.log` (22 authoring/UI/localization checks).

@@ -14,7 +14,19 @@ extension ShaderGraph {
         if operation == .sampleTexture || operation == .spriteTexture {
             return ["value": operation == .spriteTexture ? .color : .vector4, "color": .color, "rgb": .vector3, "alpha": .float]
         }
-        return ["value": node.type]
+        var ports: [String: ValueType] = ["value": node.type]
+        if [.vector2, .vector3, .vector4, .color].contains(node.type) {
+            ports["x"] = .float
+            ports["y"] = .float
+            if node.type != .vector2 { ports["z"] = .float; ports["rgb"] = .vector3 }
+            if node.type == .vector4 || node.type == .color {
+                ports["w"] = .float
+                ports["alpha"] = .float
+                ports["color"] = .color
+                ports["vector"] = .vector4
+            }
+        }
+        return ports
     }
 
     /// Validates every authored node, then emits only computations reachable from the output.
@@ -50,7 +62,7 @@ extension ShaderGraph {
             }
             try validatePayload(node, operation: operation)
             if operation == .parameter, let reference = node.reference {
-                if let previous = parameters[reference], previous.type != node.type || previous.value != node.value {
+                if let previous = parameters[reference], previous.type != node.type || previous.value != node.value || previous.defaultTexture != node.defaultTexture {
                     throw ShaderGraphDiagnostic(code: .conflictingParameter, nodeID: node.id, expected: previous.type, actual: node.type)
                 }
                 parameters[reference] = node
@@ -67,7 +79,7 @@ extension ShaderGraph {
             for port in ports.keys.sorted() {
                 guard let expected = ports[port] else { continue }
                 guard let link = node.inputs[port] else {
-                    if operation == .output { continue }
+                    if operation == .output || operation == .spriteTexture { continue }
                     throw ShaderGraphDiagnostic(code: .missingInput, nodeID: node.id, port: port)
                 }
                 guard let source = lookup[link.node] else {
@@ -153,7 +165,12 @@ extension ShaderGraph {
         case .texture: expected = .texture2D
         case .sampleTexture: expected = .vector4
         case .uv: expected = .vector2
-        case .add, .multiply, .lerp:
+        case .combine2: expected = .vector2
+        case .combine3: expected = .vector3
+        case .combine4: expected = .vector4
+        case .time, .noise2D: expected = .float
+        case .add, .multiply, .lerp, .subtract, .divide, .power, .minimum, .maximum, .clamp, .saturate, .oneMinus,
+             .sine, .cosine, .absolute, .fraction, .floor, .step, .smoothstep:
             guard node.type.isNumeric else { throw ShaderGraphDiagnostic(code: .typeMismatch, nodeID: node.id, actual: node.type) }
             expected = nil
         default: expected = nil
@@ -165,8 +182,16 @@ extension ShaderGraph {
 
     private func inputTypes(for node: Node, operation: Operation) -> [String: ValueType] {
         switch operation {
-        case .add, .multiply: ["a": node.type, "b": node.type]
+        case .add, .multiply, .subtract, .divide, .power, .minimum, .maximum: ["a": node.type, "b": node.type]
         case .lerp: ["a": node.type, "b": node.type, "t": .float]
+        case .clamp: ["value": node.type, "min": node.type, "max": node.type]
+        case .step: ["edge": node.type, "value": node.type]
+        case .smoothstep: ["edge0": node.type, "edge1": node.type, "value": node.type]
+        case .saturate, .oneMinus, .sine, .cosine, .absolute, .fraction, .floor: ["value": node.type]
+        case .noise2D, .spriteTexture: ["uv": .vector2]
+        case .combine2: ["x": .float, "y": .float]
+        case .combine3: ["x": .float, "y": .float, "z": .float]
+        case .combine4: ["x": .float, "y": .float, "z": .float, "w": .float]
         case .sampleTexture: ["texture": .texture2D, "uv": .vector2]
         case .output:
             target == .sprite ? ["color": .color, "alpha": .float] : [

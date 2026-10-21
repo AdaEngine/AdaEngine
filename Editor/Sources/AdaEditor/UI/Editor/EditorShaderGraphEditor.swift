@@ -100,6 +100,10 @@ struct EditorShaderGraphEditor: View {
         case .spriteTexture: ["color"]
         case .texture: ["texture2D"]
         case .sampleTexture: ["vector4"]
+        case .time, .noise2D: ["float"]
+        case .combine2: ["vector2"]
+        case .combine3: ["vector3"]
+        case .combine4: ["vector4"]
         default: ["float", "vector2", "vector3", "vector4", "color"]
         }
     }
@@ -162,6 +166,10 @@ struct EditorShaderGraphEditor: View {
         case .spriteTexture: type = .color
         case .texture: type = .texture2D
         case .sampleTexture: type = .vector4
+        case .time, .noise2D: type = .float
+        case .combine2: type = .vector2
+        case .combine3: type = .vector3
+        case .combine4: type = .vector4
         default: type = ShaderGraph.ValueType(rawValue: availableTypes.contains(valueType) ? valueType : availableTypes[0]) ?? .float
         }
         model.addNode(op, type: type, at: (Vector2(140, 100) - canvas.pan) / canvas.zoom)

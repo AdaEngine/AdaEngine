@@ -136,7 +136,7 @@ public struct SpriteDrawData: Resource, DefaultValue {
 @System
 @inline(__always)
 public func ExtractSprite(
-    _: World,
+    _ world: World,
     _ sprites: Extract<
         Query<Entity, Sprite, GlobalTransform, Transform, Visibility>
     >,
@@ -164,6 +164,7 @@ public func ExtractSprite(
             anchor: sprite.anchor,
             imageMode: sprite.imageMode
         )
+        sprite.graphMaterial?.updateAutomaticTime(world.getResource(ShaderGraphClock.self)?.elapsed ?? 0)
         extractedSprite.graphMaterial = sprite.graphMaterial
         extracted[entity.id] = extractedSprite
     }

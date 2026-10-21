@@ -71,6 +71,7 @@ public struct Model3DPlugin: Plugin {
 
 @System
 func ExtractModel3D(
+    _ world: World,
     _ query: Extract<Query<Entity,
     Mesh3DComponent,
     GlobalTransform>>,
@@ -140,6 +141,9 @@ func ExtractModel3D(
     }
 
     query.wrappedValue.forEach { entity, mesh3d, transform in
+        for material in mesh3d.materials {
+            (material as? PBRMaterial)?.graphMaterial?.updateAutomaticTime(world.getResource(ShaderGraphClock.self)?.elapsed ?? 0)
+        }
         let lod = lodByEntity[entity.id]
         if isHidden(entity) { return }
         let noCulling = entity.components[NoFrustumCulling.self]

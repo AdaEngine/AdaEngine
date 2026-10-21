@@ -37,6 +37,8 @@ public struct ShaderGraph: Codable, Hashable, Sendable {
 
     public enum Operation: String, Codable, CaseIterable, Sendable {
         case constant, parameter, texture, sampleTexture, uv, spriteTexture, add, multiply, lerp, output
+        case time, subtract, divide, power, minimum, maximum, clamp, saturate, oneMinus, sine, cosine, absolute, fraction, floor, step, smoothstep, noise2D
+        case combine2, combine3, combine4
     }
 
     /// A stable reference to a node's output port. Port identifiers are never localized.
