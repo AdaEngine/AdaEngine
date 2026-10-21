@@ -129,6 +129,8 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
     @MainActor var jointRecords: [Entity.ID: RuntimeJoint2D] = [:]
     @MainActor var seenJointOwners: Set<Entity.ID> = []
     @MainActor var retiredJointOwners: [Entity.ID] = []
+    @MainActor var jointThresholdIDs: Set<UInt64> = []
+    @MainActor var jointThresholdNotices: [JointThresholdNotice2D] = []
     let worldId: b2WorldId
     private let defaultContactRecycleDistance: Float
     var eventManager: EventManager = .default
@@ -461,7 +463,7 @@ extension PhysicsWorld2D {
         return first + second
     }
 
-    private func send<T: Event>(_ event: T) {
+    func send<T: Event>(_ event: T) {
         ecsEventManager.send(event)
         if let eventSource {
             eventManager.send(event, source: eventSource)

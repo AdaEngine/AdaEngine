@@ -164,3 +164,19 @@ World hinges retain their original pivot/reference angle while retuning.
 A disconnected joint or a pending descriptor replacement throws `notConnected`;
 a settings type for another joint throws `unsupportedControl`. To defer changes
 until bodies exist, replace `jointDescriptor` instead.
+
+### Thresholds and breakable connections
+
+Use `descriptor.withBreakSettings(JointBreak2DSettings(...))` or live
+`component.updateBreakSettings(...)` to opt into force/torque thresholds.
+Nil thresholds disable reporting. `Joint2DEvents.ThresholdExceeded` reaches both
+world-scoped subscriptions and ECS `Events`. Reporting occurs once per contiguous
+run of native over-threshold reports; sleeping joints are not reported. Loads in
+the event are sampled at step end, while a threshold can be exceeded in a substep.
+With `removeOnBreak: true` the wrapper destroys the native joint, sets `isBroken`
+and keeps it broken across body recreation. Call `reconnect()` or replace the
+descriptor to reconnect on the next sync. `removeOnBreak: false` only notifies.
+Broken state is transient simulation state; configuration is serialized.
+All IDs/loads are snapshotted before removals and subscriber delivery, so a
+subscriber may safely remove connected entities. Box2D itself reports thresholds
+without destroying joints; removal is the wrapper's explicit policy.

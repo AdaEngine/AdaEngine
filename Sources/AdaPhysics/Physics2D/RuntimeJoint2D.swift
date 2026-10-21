@@ -11,6 +11,8 @@ final class RuntimeJoint2D {
     let bodyA: b2BodyId
     let bodyB: b2BodyId
     let ownedAnchor: b2BodyId?
+    var isBroken = false
+    var wasOverThreshold = false
 
     init(world: PhysicsWorld2D, descriptor: PhysicsJoint2DDescriptor, id: b2JointId, bodyA: b2BodyId, bodyB: b2BodyId, ownedAnchor: b2BodyId? = nil) {
         self.world = world
@@ -66,6 +68,7 @@ final class RuntimeJoint2D {
             b2Body_GetType(b.bodyId) == b2_dynamicBody || (a != nil && b2Body_GetType(a?.bodyId ?? b2_nullBodyId) == b2_dynamicBody) else {
             throw .invalidBodyPair
         }
+        try descriptor.breakSettings.validate()
         let ownedAnchor: b2BodyId?
         if a == nil {
             var definition = unsafe b2DefaultBodyDef()
@@ -83,6 +86,8 @@ final class RuntimeJoint2D {
         case .hinge, .worldHinge, .revolute: id = try createRevolute(descriptor, a: bodyA, b: b.bodyId, world: world)
         }
         guard b2Joint_IsValid(id) else { throw .nativeCreationFailed }
+        b2Joint_SetForceThreshold(id, descriptor.breakSettings.forceThreshold ?? .greatestFiniteMagnitude)
+        b2Joint_SetTorqueThreshold(id, descriptor.breakSettings.torqueThreshold ?? .greatestFiniteMagnitude)
         return RuntimeJoint2D(world: world, descriptor: descriptor, id: id, bodyA: bodyA, bodyB: b.bodyId, ownedAnchor: ownedAnchor)
     }
 }
@@ -100,6 +105,11 @@ public struct PhysicsJoint2DSyncSystem {
         world.seenJointOwners.removeAll(keepingCapacity: true)
         joints.forEach { entity, component in
             world.seenJointOwners.insert(entity.id)
+            if let record = world.jointRecords[entity.id], record.isBroken, record.descriptor === component.jointDescriptor {
+                component.runtimeJoint = record
+                component.jointError = nil
+                return
+            }
             guard let (aID, bID) = RuntimeJoint2D.endpoints(component.jointDescriptor),
                 let b = RuntimeJoint2D.body(context.world.getEntityByID(bID)) else {
                 world.jointRecords.removeValue(forKey: entity.id)?.destroy()

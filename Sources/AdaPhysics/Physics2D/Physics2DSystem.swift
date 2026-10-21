@@ -21,6 +21,7 @@ public func Physics2DUpdate(
     let deltaTime = fixedTime.deltaTime
     let world = physicsWorld.world
     world.updateSimulation(deltaTime)
+    world.processJointEvents()
     performance.wrappedValue?.recordPerformance(from: world)
     world.processContacts()
     world.processSensors()

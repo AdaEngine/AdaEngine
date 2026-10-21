@@ -92,8 +92,15 @@ func PhysicsEventProxy(
     _ collisionBeganSender: EventsSender<CollisionEvents.Began>,
     _ collisionEndSender: EventsSender<CollisionEvents.Ended>,
     _ collisionHitSender: EventsSender<CollisionEvents.Hit>,
+    _ jointThresholdSender: EventsSender<Joint2DEvents.ThresholdExceeded>,
     _ eventDisposeBag: Local<Set<AnyCancellable>> = .init([])
 ) {
+    physics.world.ecsEventManager
+        .subscribe(to: Joint2DEvents.ThresholdExceeded.self) { event in
+            jointThresholdSender(event)
+        }
+        .store(in: &eventDisposeBag.wrappedValue)
+
     physics.world.ecsEventManager
         .subscribe(to: CollisionEvents.Began.self) { event in
             collisionBeganSender(event)
