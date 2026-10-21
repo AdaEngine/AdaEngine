@@ -213,15 +213,9 @@ final class BoxShape2D {
                 unsafe b2CreateCircleShape(bodyId, shapeDefPtr, &circle)
             }
         case let .box(shape):
-            let polygon = unsafe makePolygon(
-                vertices: [
-                    [-shape.halfWidth, -shape.halfHeight], [shape.halfWidth, -shape.halfHeight],
-                    [shape.halfWidth, shape.halfHeight], [-shape.halfWidth, shape.halfHeight]
-                ],
-                offset: shape.offset,
-                scale: transform.scale.xy,
-                angle: shape.angle
-            )
+            guard let polygon = NativeBox2D.make(shape, scale: transform.scale.xy) else {
+                return b2_nullShapeId
+            }
 
             return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
                 unsafe withUnsafePointer(to: polygon) { polygonPtr in

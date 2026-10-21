@@ -27,6 +27,21 @@ struct Physics2DShapeTransformTests {
         }
     }
 
+    @Test(arguments: [Float(1), -2])
+    func thinBoxesSurviveRotationAndMirroredScale(_ scale: Float) async throws {
+        let app = try await makeWorld()
+        let target = spawn(
+            .generateBox(width: 0.01, height: 4, center: [1, 0], angle: .pi / 2),
+            in: app.main,
+            transform: Transform(scale: [scale, 1, 1], position: [4, 0, 0])
+        )
+        await app.main.runScheduler(.physicsSync)
+        let physics = try #require(app.main.physicsWorld2D)
+        let hit = try #require(physics.raycast(from: [4 + scale, 2], to: [4 + scale, -2]).first)
+        #expect(hit.entity === target)
+        #expect(abs(hit.point.y - 0.005) < 0.001)
+    }
+
     @Test(arguments: [false, true])
     func boxCenterAngleAndScaleAffectNativeGeometry(_ dynamic: Bool) async throws {
         let app = try await makeWorld()

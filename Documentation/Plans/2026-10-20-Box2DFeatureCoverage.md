@@ -208,3 +208,5 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 
 - 2026-10-21: Slice 01 adds backward-compatible box angles, scaled offsets/vertices, body rotation sync and consistent writeback. The writeback path also validates body IDs before reading buffered userData after a collision subscriber removes a body.
 - 2026-10-21: Local evidence: 70 targeted physics/event/fixed-step tests and both deterministic Physics2DDemo scenes passed; SwiftLint: zero violations. Full parallel package testing failed on navigation, golden reference naming, scratch-path tool lookup and a WindowFrameRequests assertion outside changed files. Base main Windows CI failed and its macOS CI was cancelled; full-suite/CI success remains unproven.
+
+- 2026-10-21: User authorized push and draft PR for slice 01; draft PR #167 created, no merge performed. A subsequent thin-obstacle sweep test exposed hull welding of thin boxes; analytic box construction was backported here with rotated/mirrored thin-box raycast regressions. The updated slice passes 83 physics/fixed-step tests in 18 suites.
