@@ -88,3 +88,14 @@ them, and `excluding: [entity.id]` to exclude an entity's complete compound shap
 `Overlap2DHit` is per shape, sorted by entity ID then shape ID. Its `shapeID` is
 an ephemeral native identifier within this world, not a persistent asset ID.
 Callers needing unique entities can deduplicate by entity ID explicitly.
+
+### Convex sweeps
+
+`try world.shapeCast(shape, from: pose, to: destination, query: .first)` sweeps
+one convex volume at fixed rotation and scale. `.all` returns every native
+shape hit in travel-distance order; `.first` clips at the closest accepted hit.
+The distance measures movement of the pose origin, not distance to the surface.
+The same masks, sensor option and entity exclusions apply as in overlap queries.
+Initial overlaps have fraction/distance zero and a zero normal; zero motion uses
+exact overlap. Chains can be targets but cannot be swept as query volumes.
+Thin boxes use analytic vertices so hull welding does not discard them.

@@ -27,6 +27,7 @@ enum NativeConvexQuery2D {
             points = [shape.start + shape.offset, shape.end + shape.offset]
             radius = shape.radius * roundingScale
         case let .box(shape):
+            guard NativeBox2D.make(shape, scale: scale) != nil else { throw Physics2DQueryError.invalidGeometry }
             let x = shape.halfWidth
             let y = shape.halfHeight
             let cosine = Math.cos(shape.angle)
@@ -51,7 +52,9 @@ enum NativeConvexQuery2D {
         }
         let native = points.map { b2RotateVector(bodyRotation, ($0 * scale).b2Vec) }
         guard native.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else { throw Physics2DQueryError.invalidPose }
-        if native.count >= 3 {
+        let isBox: Bool
+        if case .box = resource.fixture { isBox = true } else { isBox = false }
+        if native.count >= 3 && !isBox {
             var hull = unsafe native.withUnsafeBufferPointer { unsafe b2ComputeHull($0.baseAddress, Int32($0.count)) }
             guard hull.count >= 3 else { throw Physics2DQueryError.invalidGeometry }
             // Clang's imported tuple is the contiguous C b2Vec2[8] array. b2MakeProxy copies it.

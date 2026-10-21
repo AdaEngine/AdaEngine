@@ -218,3 +218,6 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 - 2026-10-21: Slice 03 locally validated: two-sided segments, one-sided loose/owned chains, loop ownership/freeing, mirrored winding, sensor chains, materials/filters and event flags. 87 targeted tests passed in 15 suites; changed Swift sources pass SwiftLint.
 
 - 2026-10-21: Slice 04 locally validated: exact point/convex overlaps, broad-phase AABB candidates, sensor/mask/exclusion options and per-shape IDs. Five new tests and all 92 targeted regressions (16 suites) passed; SwiftLint zero violations.
+
+- 2026-10-21: User explicitly authorized push and draft PR for slice 01. Published draft PR #167 at https://github.com/AdaEngine/Ada/pull/167; no merge performed.
+- 2026-10-21: Slice 05 locally validated: sorted convex sweeps, nearest clipping, sensor/mask/exclusion policy, explicit initial/zero-motion overlaps, chain-facing tests and analytic thin-box geometry. Five new tests passed; extended physics/fixed-step selection passed 109 tests in 22 suites; SwiftLint zero violations. The thin-box fix is also being backported to the slice 01 draft before review.
