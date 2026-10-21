@@ -73,6 +73,7 @@ public struct Physics2DSyncSystem: Sendable {
                 var def = unsafe b2DefaultBodyDef()
                 unsafe def.motionLocks.angularZ = physicsBody.fixedRotation
                 unsafe def.position = transform.position.xy.b2Vec
+                unsafe def.rotation = b2MakeRot(transform.rotation.angle2D.radians)
                 unsafe def.type = physicsBody.mode.b2Type
                 unsafe def.gravityScale = physicsBody.gravityScale
                 unsafe def.linearVelocity = physicsBody.linearVelocity.b2Vec
@@ -140,7 +141,8 @@ public struct Physics2DSyncSystem: Sendable {
     private func syncCollisionEntities(in world: PhysicsWorld2D) {
         collisionQuery.forEach { entity, collisionBody, transform in
             if let body = collisionBody.runtimeBody {
-                if body.getPosition() != transform.position.xy {
+                let angleDelta = body.getAngle().radians - transform.rotation.angle2D.radians
+                if body.getPosition() != transform.position.xy || abs(Math.sin(angleDelta * 0.5)) > 0.00001 {
                     body.setTransform(
                         position: transform.position.xy,
                         angle: transform.rotation.angle2D
@@ -149,6 +151,7 @@ public struct Physics2DSyncSystem: Sendable {
             } else {
                 var def = unsafe b2DefaultBodyDef()
                 unsafe def.position = transform.position.xy.b2Vec
+                unsafe def.rotation = b2MakeRot(transform.rotation.angle2D.radians)
                 unsafe def.type = b2_staticBody
 
                 let body = unsafe world.createBody(with: def, for: entity)

@@ -201,26 +201,26 @@ final class BoxShape2D {
     ) -> b2ShapeId {
         switch shape.fixture {
         case let .polygon(shape):
-            var hull = unsafe shape.verticies.withUnsafeBytes { ptr in
-                let baseAddress = unsafe ptr.assumingMemoryBound(to: b2Vec2.self).baseAddress
-                return unsafe b2ComputeHull(baseAddress, Int32(shape.verticies.count))
-            }
-
-            let polygon = unsafe b2MakeOffsetPolygon(&hull, shape.offset.b2Vec, b2Rot_identity)
+            let polygon = unsafe makePolygon(vertices: shape.verticies, offset: shape.offset, scale: transform.scale.xy)
             return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
                 unsafe withUnsafePointer(to: polygon) { polygonPtr in
                     unsafe b2CreatePolygonShape(bodyId, shapeDefPtr, polygonPtr)
                 }
             }
         case let .circle(shape):
-            var circle = b2Circle(center: Vector2.zero.b2Vec, radius: shape.radius * transform.scale.x)
+            var circle = b2Circle(center: (shape.offset * transform.scale.xy).b2Vec, radius: shape.radius * abs(transform.scale.x))
             return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
                 unsafe b2CreateCircleShape(bodyId, shapeDefPtr, &circle)
             }
         case let .box(shape):
-            let polygon = b2MakeBox(
-                transform.scale.x * shape.halfWidth,
-                transform.scale.y * shape.halfHeight
+            let polygon = unsafe makePolygon(
+                vertices: [
+                    [-shape.halfWidth, -shape.halfHeight], [shape.halfWidth, -shape.halfHeight],
+                    [shape.halfWidth, shape.halfHeight], [-shape.halfWidth, shape.halfHeight]
+                ],
+                offset: shape.offset,
+                scale: transform.scale.xy,
+                angle: shape.angle
             )
 
             return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
@@ -229,5 +229,18 @@ final class BoxShape2D {
                 }
             }
         }
+    }
+
+    private static func makePolygon(vertices: [Vector2], offset: Vector2, scale: Vector2, angle: Float = 0) -> b2Polygon {
+        let cosine = Math.cos(angle)
+        let sine = Math.sin(angle)
+        let vertices = vertices.map { vertex in
+            let rotated = Vector2(cosine * vertex.x - sine * vertex.y, sine * vertex.x + cosine * vertex.y)
+            return ((rotated + offset) * scale).b2Vec
+        }
+        var hull = unsafe vertices.withUnsafeBufferPointer { buffer in
+            unsafe b2ComputeHull(buffer.baseAddress, Int32(buffer.count))
+        }
+        return unsafe b2MakePolygon(&hull, 0)
     }
 }

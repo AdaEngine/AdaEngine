@@ -257,7 +257,9 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
 
         for index in unsafe 0..<Int(events.moveCount) {
             let event = unsafe moveEvents[index]
-            guard let userData = unsafe event.userData else {
+            // A collision subscriber may have destroyed this body after the step.
+            // The copied move-event userData is then dangling, even though the event remains buffered.
+            guard b2Body_IsValid(event.bodyId), let userData = unsafe event.userData else {
                 continue
             }
 
@@ -269,7 +271,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
             let position = unsafe event.transform.p.asVector2
             let rotation = unsafe Quat(
                 axis: [0, 0, 1],
-                angle: -b2Rot_GetAngle(event.transform.q)
+                angle: b2Rot_GetAngle(event.transform.q)
             )
 
             body(
