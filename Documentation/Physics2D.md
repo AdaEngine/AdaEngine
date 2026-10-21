@@ -180,3 +180,17 @@ Broken state is transient simulation state; configuration is serialized.
 All IDs/loads are snapshotted before removals and subscriber delivery, so a
 subscriber may safely remove connected entities. Box2D itself reports thresholds
 without destroying joints; removal is the wrapper's explicit policy.
+
+### Dynamic mover and pogo joints
+
+`mover(entityA:entityB:settings:)` controls relative world X/Y velocity with
+separate per-axis force caps and leaves rotation free. Its live settings overload
+updates velocity and force bounds in place. `pogo(entityA:entityB:settings:)`
+provides spring support: spring length is measured along frame B's local Y axis,
+while the normalized world normal sets the direction of support force. Tension
+and compression have independent bounds. Initial impulse/velocity allow carrying
+native state when rebuilding support. Native live pogo setters cover spring and
+rest length through `updatePogoSpring`; normal/bound changes use a new descriptor.
+Pogo is marked experimental upstream. Its position correction deliberately avoids
+injecting body velocity; keep an actively driven mover awake while correcting a
+target. Both types allow pair collision by default for physical character support.

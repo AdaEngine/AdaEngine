@@ -23,6 +23,8 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
         case filter(Entity.ID, Entity.ID)
         case wheel(Entity.ID, Entity.ID, WheelJoint2DSettings)
         case motor(Entity.ID, Entity.ID, MotorJoint2DSettings)
+        case mover(Entity.ID, Entity.ID, MoverJoint2DSettings)
+        case pogo(Entity.ID, Entity.ID, PogoJoint2DSettings)
     }
 
     internal init(joint: Joint, breakSettings: JointBreak2DSettings = .init()) {
@@ -45,6 +47,8 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
         if case let .weld(_, _, settings) = joint { try settings.validate() }
         if case let .wheel(_, _, settings) = joint { try settings.validate() }
         if case let .motor(_, _, settings) = joint { try settings.validate() }
+        if case let .mover(_, _, settings) = joint { try settings.validate() }
+        if case let .pogo(_, _, settings) = joint { try settings.validate() }
         if case let .worldHinge(_, anchor, settings) = joint {
             try settings.validate()
             guard JointFrame2D(position: anchor).isValid else { throw PhysicsJoint2DError.invalidSettings }

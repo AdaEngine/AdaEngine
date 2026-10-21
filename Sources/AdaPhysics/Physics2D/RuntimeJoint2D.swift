@@ -41,6 +41,7 @@ final class RuntimeJoint2D {
     static func endpoints(_ descriptor: PhysicsJoint2DDescriptor) -> (Entity.ID?, Entity.ID)? {
         switch descriptor.joint {
         case let .rope(a, b, _, _), let .distance(a, b, _), let .hinge(a, b, _): return (a, b)
+        case let .mover(a, b, _), let .pogo(a, b, _): return (a, b)
         case let .wheel(a, b, _), let .motor(a, b, _): return (a, b)
         case let .revolute(b), let .worldHinge(b, _, _): return (nil, b)
         case let .prismatic(a, b, _), let .weld(a, b, _), let .filter(a, b): return (a, b)
@@ -82,6 +83,7 @@ final class RuntimeJoint2D {
         switch descriptor.joint {
         case .prismatic, .weld, .filter: id = try createSlidingWeldFilter(descriptor, a: bodyA, b: b.bodyId, world: world)
         case .wheel, .motor: id = try createWheelMotor(descriptor, a: bodyA, b: b.bodyId, world: world)
+        case .mover, .pogo: id = try createMoverPogo(descriptor, a: bodyA, b: b.bodyId, world: world)
         case .distance, .rope: id = try createDistance(descriptor, a: bodyA, b: b.bodyId, world: world)
         case .hinge, .worldHinge, .revolute: id = try createRevolute(descriptor, a: bodyA, b: b.bodyId, world: world)
         }
