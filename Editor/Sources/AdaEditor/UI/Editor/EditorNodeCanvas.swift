@@ -9,6 +9,9 @@ struct EditorNodeCanvas: View {
     let state: EditorNodeCanvasState
     var revision: UInt64 = 0
     var interaction: EditorNodeCanvasInteraction?
+    var decorations: [EditorNodeCanvasDecoration] = []
+    var onKeyEvent: (KeyEvent) -> Void = { _ in }
+    var viewportSizeChanged: (Size) -> Void = { _ in }
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -17,11 +20,25 @@ struct EditorNodeCanvas: View {
             let geometry = EditorNodeCanvasGeometry(nodes: ordered, pan: state.pan, zoom: state.zoom)
             ZStack(anchor: .topLeading) {
                 RectangleShape().fill(theme.editorColors.background)
+                ForEach(decorations) { item in
+                    let point = geometry.screen([item.bounds.minX, item.bounds.minY])
+                    VStack(alignment: .leading) {
+                        Text(verbatim: item.title).font(.system(size: 12, weight: .semibold)).lineLimit(item.isNote ? 5 : 1).foregroundColor(theme.editorColors.text).padding(8)
+                        Spacer(minLength: 0)
+                    }.frame(width: item.bounds.width, height: item.bounds.height, alignment: .topLeading).background(
+                        RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.blue.opacity(item.isNote ? 0.16 : 0.06))
+                    ).overlay { RoundedRectangleShape(cornerRadius: 6).stroke(theme.editorColors.blue.opacity(0.35), lineWidth: 1) }.scaleEffect(
+                        [state.zoom, state.zoom],
+                        anchor: .topLeading
+                    ).offset(x: point.x, y: point.y).allowsHitTesting(false)
+                }
                 Canvas(drawingRevision: { revision &+ state.revision &+ (interaction?.revision ?? 0) }) { context, size in
                     drawGrid(context: &context, size: size)
                     for wire in wires {
                         if let start = geometry.port(wire.source), let end = geometry.port(wire.target) {
-                            Self.drawWire(context: &context, start: start, end: end, color: Self.portColor(wire.type))
+                            if max(start.y, end.y) >= -20, min(start.y, end.y) <= size.height + 20 {
+                                Self.drawWire(context: &context, start: start, end: end, color: Self.portColor(wire.type))
+                            }
                         }
                     }
                     if let interaction, let anchor = interaction.anchor, let point = geometry.port(anchor) {
@@ -55,7 +72,9 @@ struct EditorNodeCanvas: View {
                     let frame = proxy.frame(in: .global)
                     interaction?.end(at: [value.location.x - frame.minX, value.location.y - frame.minY], geometry: geometry)
                 }.onCancelled { interaction?.abort() }
-            ).accessibilityIdentifier("AdaEditor.NodeCanvas")
+            ).accessibilityIdentifier("AdaEditor.NodeCanvas").onFocusedKeyEvent(onKeyEvent)
+                .onAppear { viewportSizeChanged(proxy.size) }
+                .onChange(of: proxy.size) { _, size in viewportSizeChanged(size) }
         }
     }
 

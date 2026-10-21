@@ -4,9 +4,11 @@ import Foundation
 struct EditorShaderGraphEditor: View {
     let model: EditorShaderGraphModel
     var modelDocuments: [EditorAssetDocument] = []
-    @Environment(\.theme) private var theme
-    @State private var canvas = EditorNodeCanvasState()
-    @State private var interaction: EditorNodeCanvasInteraction?
+    @Environment(\.theme) var theme
+    @State var canvas = EditorNodeCanvasState()
+    @State var interaction: EditorNodeCanvasInteraction?
+    @State var search = EditorShaderGraphSearch()
+    @State var canvasViewportSize = Size(width: 480, height: 400)
     @State private var showsInspector = true
     @State private var showsSource = false
     @State private var operation = "constant"
@@ -18,7 +20,9 @@ struct EditorShaderGraphEditor: View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
                 toolbar(size: geometry.size)
+                if search.isPresented { nodeSearch }
                 HStack(spacing: 0) {
+                    if geometry.size.width >= 1_000 { parameterPanel.frame(width: 180) }
                     if showsSource {
                         ScrollView { Text(verbatim: (try? model.graph?.compileGLSL().source) ?? "").font(.system(size: 11)).foregroundColor(theme.editorColors.text).padding(12) }
                     } else {
@@ -28,21 +32,29 @@ struct EditorShaderGraphEditor: View {
                             selection: model.selection,
                             state: canvas,
                             revision: model.layoutRevision &+ model.semanticRevision,
-                            interaction: interaction
-                        )
+                            interaction: interaction,
+                            decorations: model.canvasDecorations,
+                            onKeyEvent: handleCanvasKey,
+                            viewportSizeChanged: { canvasViewportSize = $0 }
+                        ).contextMenu { graphContextMenu }
                     }
                     if showsInspector { inspector.frame(width: min(270, geometry.size.width * 0.45)) }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
                 if let message = model.diagnosticMessage {
                     Button {
-                        if let id = model.validation?.nodeID { model.selection = [id] }
+                        if let id = model.validation?.nodeID { model.reveal(id, canvas: canvas, size: canvasViewportSize) }
                     } label: {
                         Text(verbatim: message).font(.system(size: 11)).foregroundColor(.red).lineLimit(3)
                     }.buttonStyle(DefaultButtonStyle()).padding(8)
                 }
             }.frame(width: geometry.size.width, height: geometry.size.height)
         }.background(theme.editorColors.background).accessibilityIdentifier("AdaEditor.ShaderGraph.Editor").onAppear {
-            interaction = model.canvasInteraction()
+            let pointer = model.canvasInteraction()
+            pointer.emptyDrop = { [weak pointer] endpoint, point in
+                search.open(at: point, endpoint: endpoint)
+                search.replacedInput = pointer?.replacedInput
+            }
+            interaction = pointer
             preview.schedule(model.graph, basePath: model.url?.path)
         }.onChange(of: model.semanticRevision) { _, _ in preview.schedule(model.graph, basePath: model.url?.path) }.onDisappear {
             interaction?.abort()
@@ -51,11 +63,13 @@ struct EditorShaderGraphEditor: View {
     }
 
     private func toolbar(size: Size) -> some View {
+        ScrollView(.horizontal) {
         HStack(spacing: 8) {
             Button(L10n.text("Undo")) { model.undo() }.disabled(!model.canUndo)
             Button(L10n.text("Redo")) { model.redo() }.disabled(!model.canRedo)
             Button(L10n.text("Save")) { model.save() }.disabled(!model.isDirty || model.isReadOnly).accessibilityIdentifier("AdaEditor.ShaderGraph.Save")
             Button(L10n.text("Reload")) { model.reload() }
+            Button(L10n.text("Search Nodes")) { search.open(at: canvasPoint) }
             Spacer(minLength: 4)
             Button("−") { canvas.zoom(by: 0.8, around: [size.width / 2, size.height / 2]) }
             Button("+") { canvas.zoom(by: 1.25, around: [size.width / 2, size.height / 2]) }
@@ -65,6 +79,7 @@ struct EditorShaderGraphEditor: View {
             Button(L10n.text("Preview")) { showsPreview.toggle() }
             Button(L10n.text("Inspector")) { showsInspector.toggle() }
         }.buttonStyle(DefaultButtonStyle()).font(.system(size: 11)).foregroundColor(theme.editorColors.text).padding(.horizontal, 8).frame(height: 36)
+        }.frame(height: 36)
     }
 
     private var inspector: some View {
@@ -86,6 +101,7 @@ struct EditorShaderGraphEditor: View {
                 if let node = model.selectedNode { nodeInspector(node) } else { Text(L10n.text("Select a node to edit its properties.")).foregroundColor(theme.editorColors.muted) }
                 Divider()
                 if let graph = model.graph { outputInspector(graph) }
+                organizationPanel
             }.padding(12)
         }.font(.system(size: 12)).foregroundColor(theme.editorColors.text).buttonStyle(DefaultButtonStyle()).background(theme.editorColors.surface)
     }
@@ -222,7 +238,7 @@ struct EditorShaderGraphEditor: View {
         }.disabled(model.isReadOnly)
     }
 
-    private func field(_ title: String, value: String, set: @escaping (String) -> Void) -> some View {
+    func field(_ title: String, value: String, set: @escaping (String) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(L10n.tr(title))
             EditorUIDesignerField(placeholder: title, text: Binding(get: { value }, set: set))
