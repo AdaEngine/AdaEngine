@@ -82,6 +82,7 @@ public struct Physics2DSyncSystem: Sendable {
                 unsafe def.gravityScale = physicsBody.gravityScale
                 unsafe def.linearVelocity = physicsBody.linearVelocity.b2Vec
                 unsafe def.angularVelocity = physicsBody.angularVelocity
+                unsafe physicsBody.dynamics.apply(to: &def)
 
                 let body = unsafe world.createBody(with: def, for: entity)
                 physicsBody.runtimeBody = body
