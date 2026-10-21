@@ -68,7 +68,7 @@ All implementation rows are planned. Dependencies on the previous feature map ar
 | 27 | Attach safe contact snapshots to collision events and pre-solve data | 350–550 | 26 | A, backward-compatible events | locally validated |
 | 28 | Add validated live and serialized solver tuning | 400–550 | prior stack | A, old defaults retained | locally validated |
 | 29 | Add interactive body/material/contact/solver demonstration and native acceptance | 450–600 | 21–28 | A, complete standalone screen | locally validated + native GPU |
-| 30 | Add large-world origin/precision demonstration and native acceptance | 350–550 | 17–20 | A, complete standalone screen | planned |
+| 30 | Add large-world origin/precision demonstration and native acceptance | 350–550 | 17–20 | A, complete standalone screen | locally validated + native GPU |
 
 ## Slice details and acceptance
 
@@ -235,3 +235,15 @@ All implementation rows are planned. Dependencies on the previous feature map ar
 - 2026-10-21: Slice 28 exposes validated live/persisted contact tuning, restitution iterations/propagation, thresholds, speed cap and step flags. Authored recycle distance survives delegate overrides, while character per-body recycling stays disabled. Real overlap recovery/speed-cap and old/new world JSON tests pass; all 151 selected tests in 31 suites pass. SwiftLint: zero violations.
 
 - 2026-10-21: Slice 29 adds the Advanced playground and public API guide. Six deterministic scenes pass. Native UI verification passes all six screens, including wind/drag, sleep/locks, live materials, bullet on/off physical behavior, contact markers and solver controls. The actual Metal frame advanced-physics.png was visually reviewed; verification.json reports passed=true. Source review diff: 330 lines, below the 600-line target; changed Swift files pass SwiftLint.
+
+- 2026-10-21: Slice 30 adds the Large worlds playground at 1e9: exact ray readouts, millimeter nudge, camera/root origin shift, stable native contacts/hinges, both character modes/jumps, cleanup and re-entry. Seven deterministic scenes pass. All seven native Metal screens pass; before/shifted/dynamic GPU frames were visually reviewed and verification.json reports all large-world flags true. Source review diff: 285 lines.
+
+## Final local acceptance — 2026-10-21
+
+- All fifteen extension slices (16–30) are locally committed and validated; no new GitHub publication or merge was performed.
+- Final regression: 207 physics/fixed-step/2D+3D character tests in 46 suites passed. Log: /tmp/ada-box2d-advanced-final-regression.log.
+- Changed-file SwiftLint: 55 files, zero violations. Log: /tmp/ada-box2d-advanced-final-lint.log.
+- Seven headless scenes and seven native Metal scenes passed. Logs: /tmp/ada-box2d-30-validate.log and /tmp/ada-box2d-30-native.log. Actual reviewed captures and metadata are under the ignored Demos/Physics2D/dist/proof directory. The app remains open in a fresh Large worlds query scene.
+- Full package test run is not green: custom scratch tool lookup fails in AdaAssetsTests/FontConstantsBuilderTests, then AdaUIDebug3DTests.integrationBuildsLayoutFromUIContainerSnapshot traps at AdaRender/Texture2D.swift:84 on uninitialized RenderEngine.shared. These files are unchanged by this work. Log: /tmp/ada-box2d-advanced-full-suite.log. No claim that all remaining package tests or CI/platform checks passed.
+- Measured reviewable added+removed source/test lines: 16=47, 17=162, 18=248, 19=221, 20=244, 21=133, 22=163, 23=230, 24=159, 25=180, 26=244, 27=248, 28=201, 29=330, 30=285. Every slice is below 600; Markdown/vendor changes are excluded under the agreed metric.
+- Primary checkout remains on codex/shader-graph-effects with no task changes under Sources/AdaPhysics, Sources/box2d or Demos/Physics2D; unrelated dirty work was preserved. Implementation remains in the attached box2d-feature-coverage managed worktree.

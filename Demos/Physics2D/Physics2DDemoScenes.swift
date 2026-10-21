@@ -4,7 +4,7 @@ import Observation
 
 /// The same scenes run in the interactive window, offscreen capture and deterministic validation.
 enum PhysicsDemoScene: String, CaseIterable {
-    case raycast, events, queries, mechanisms, characters, advanced
+    case raycast, events, queries, mechanisms, characters, advanced, largeWorld
     var gravity: Vector2 { self == .raycast || self == .queries ? .zero : [0, -9.81] }
 }
 
@@ -13,6 +13,7 @@ enum PhysicsDemoScene: String, CaseIterable {
 final class PhysicsDemoSession: Resource {
     let scene: PhysicsDemoScene
     let rendering: Bool
+    var largeWorld = PhysicsLargeWorldState()
     var advanced = PhysicsAdvancedState()
     var mechanismOwners: [Entity] = []
     var mechanismStarts: [Vector2] = []
@@ -59,6 +60,7 @@ final class PhysicsDemoSession: Resource {
     var lastHits: [Raycast2DHit] = []
 
     func resetScene() {
+        largeWorld = PhysicsLargeWorldState()
         advanced = PhysicsAdvancedState()
         elapsed = 0
         mechanismOwners.removeAll(); mechanismStarts.removeAll()
@@ -120,7 +122,12 @@ func PhysicsDemoStartup(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoS
     if session.rendering {
         var camera = Camera()
         camera.backgroundColor = Color(0.035, 0.055, 0.10, 1)
-        world.spawn("Physics camera", bundle: Camera2D(camera: camera, orthographicProjection: OrthographicProjection(scale: 48)))
+        let entity = world.spawn("Physics camera", bundle: Camera2D(camera: camera, orthographicProjection: OrthographicProjection(scale: 48)))
+        if session.scene == .largeWorld { entity.components[PhysicsPosition2DComponent.self] = .init(session.largeWorld.base) }
+    }
+    if session.scene == .largeWorld {
+        do { try setupLargeWorld(in: world, session: session) } catch { session.rayStatus = "Large-world setup failed: \(error)" }
+        return
     }
     if session.scene == .advanced {
         do { try setupAdvanced(in: world, session: session) } catch { session.rayStatus = "Advanced setup failed: \(error)" }
@@ -195,6 +202,10 @@ func PhysicsDemoStartup(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoS
 func PhysicsDemoControls(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoSession>, _ time: Res<FixedTime>) {
     let session = state.wrappedValue
     session.elapsed += Float(time.deltaTime)
+    if session.scene == .largeWorld {
+        controlLargeWorld(in: context.world, session: session)
+        return
+    }
     if session.scene == .advanced {
         controlAdvanced(in: context.world, session: session)
         return
@@ -244,6 +255,10 @@ func PhysicsDemoFrame(
         if session.scene == .advanced { session.advanced.hitPoints = event.contact?.manifold.points.count ?? 0 }
     }
     session.sensor?.components[Sprite.self]?.tintColor = session.sensorOccupied ? Color(0.2, 1, 0.5, 0.8) : Color(0.15, 0.6, 0.4, 0.45)
+    if session.scene == .largeWorld {
+        frameLargeWorld(in: context.world, session: session)
+        return
+    }
     if session.scene == .advanced {
         frameAdvanced(in: context.world, session: session)
         return

@@ -57,3 +57,5 @@ receives the same events through the world-local ECS buffer on the next frame.
 The physics plugin installs the event lifecycle if it has not already been set up.
 
 The Advanced tab exercises live body settings, native CCD, conveyors, rolling and material mixing, wind/still-air drag, contact point snapshots and solver presets. `--validate` and native `--verify` include these controls; the latter writes `proof/advanced-physics.png` from the actual scene camera.
+
+The Large worlds tab demonstrates exact Double physics at 1e9, a one-millimeter target nudge, camera/render-origin shifts, stable contacts/global hinges and both character modes. Native `--verify` captures before/after origin frames and the dynamic character, and checks scene re-entry without stale contact handles.

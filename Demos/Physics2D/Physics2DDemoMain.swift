@@ -45,7 +45,9 @@ struct Physics2DDemoMain {
             app.main.insertResource(FixedTime(deltaTime: 1.0 / 60))
             await app.main.runScheduler(.startup)
             await advance(app, steps: 240)
-            if scene == .advanced {
+            if scene == .largeWorld {
+                try await validateLargeWorld(app, session)
+            } else if scene == .advanced {
                 try await validateAdvanced(app, session)
             } else if scene == .mechanisms {
                 guard session.connectedJoints == 9 else { throw Failure.mechanisms }
@@ -295,11 +297,17 @@ struct Physics2DDemoMain {
         report("PASS: native characters · move / stop / both jumps / physical push / mode cleanup / re-entry")
         try await verifyAdvanced(to: directory, tap: tap)
         verification["advancedPhysics"] = true
+        try await verifyLargeWorld(to: directory, tap: tap)
+        verification["largeWorldPrecision"] = true
+        verification["largeWorldMillimeterNudge"] = true
+        verification["largeWorldOriginShift"] = true
+        verification["largeWorldCharacters"] = true
+        verification["largeWorldSceneReentry"] = true
         try JSONSerialization.data(withJSONObject: verification, options: [.prettyPrinted, .sortedKeys])
             .write(to: URL(fileURLWithPath: directory + "/verification.json"), options: .atomic)
     }
 
-    private static func waitForGround(_ source: SceneViewFrameSource, _ session: PhysicsDemoSession) async throws {
+    static func waitForGround(_ source: SceneViewFrameSource, _ session: PhysicsDemoSession) async throws {
         for _ in 0..<150 {
             if session.character?.components[CharacterController2DComponent.self]?.isGrounded == true {
                 return
@@ -309,7 +317,7 @@ struct Physics2DDemoMain {
         throw Failure.character
     }
 
-    private static func waitForJump(_ source: SceneViewFrameSource, _ session: PhysicsDemoSession) async throws {
+    static func waitForJump(_ source: SceneViewFrameSource, _ session: PhysicsDemoSession) async throws {
         for _ in 0..<30 {
             _ = try await nextFrames(source, count: 1)
             if session.character?.components[CharacterController2DComponent.self]?.isGrounded == false {
@@ -319,7 +327,7 @@ struct Physics2DDemoMain {
         throw Failure.character
     }
 
-    private static func hasCharacterCollider(_ source: SceneViewFrameSource, _ session: PhysicsDemoSession) -> Bool {
+    static func hasCharacterCollider(_ source: SceneViewFrameSource, _ session: PhysicsDemoSession) -> Bool {
         guard let player = session.character, let bottom = player.components[Transform.self]?.position.xy, let physics = source.world?.physicsWorld2D else {
             return false
         }
@@ -351,6 +359,6 @@ struct Physics2DDemoMain {
     }
 
     enum Failure: Error {
-        case raycast, events, queries, mechanisms, character, advanced, sceneUnavailable, emptyFrame
+        case raycast, events, queries, mechanisms, character, advanced, largeWorld, sceneUnavailable, emptyFrame
     }
 }

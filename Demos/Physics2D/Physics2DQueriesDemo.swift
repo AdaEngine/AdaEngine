@@ -71,7 +71,11 @@ func PhysicsDemoProbeExtract(
     _ sorted: Res<SortedRenderItems<Transparent2DRenderItem>?>
 ) {
     let session = state.wrappedValue.wrappedValue
-    if session.scene == .characters {
+    if session.scene == .largeWorld {
+        let state = session.largeWorld
+        shapes.wrappedValue.addLine(from: state.probeStart, to: state.probeEnd, color: Color(1, 0.8, 0.2, 1))
+    }
+    if session.scene == .characters || session.scene == .largeWorld {
         if let character = session.character, let controller = character.components[CharacterController2DComponent.self],
             controller.mode == .query, let bottom = character.components[Transform.self]?.position.xy {
             shapes.wrappedValue.addCapsule(
