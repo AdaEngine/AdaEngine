@@ -41,7 +41,7 @@ final class CharacterRuntime2D {
         capsule.radius += 0.005 * b2GetLengthUnitsPerMeter()
         if let world {
             unsafe withUnsafeMutablePointer(to: &collector) {
-                unsafe b2World_CollideMover(world.worldId, position.b2Vec, &capsule, filter, Character2D_Plane, $0)
+                unsafe b2World_CollideMover(world.worldId, position.b2Position, &capsule, filter, Character2D_Plane, $0)
             }
         }
         swap(&collector.planes, &planes)
@@ -118,7 +118,7 @@ extension PhysicsWorld2D {
             unsafe tuple.withMemoryRebound(to: b2Vec2.self, capacity: 2) { unsafe b2MakeProxy($0, 2, capsule.radius) }
         }
         _ = unsafe withUnsafeMutablePointer(to: &collector) {
-            unsafe b2World_CastShape(worldId, position.b2Vec, &proxy, delta.b2Vec, filter, Character2D_Cast, $0)
+            unsafe b2World_CastShape(worldId, position.b2Position, &proxy, delta.b2Vec, filter, Character2D_Cast, $0)
         }
         return collector
     }

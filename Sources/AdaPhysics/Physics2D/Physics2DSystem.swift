@@ -70,7 +70,7 @@ public struct Physics2DSyncSystem: Sendable {
             } else {
                 var def = unsafe b2DefaultBodyDef()
                 unsafe def.motionLocks.angularZ = physicsBody.fixedRotation
-                unsafe def.position = transform.position.xy.b2Vec
+                unsafe def.position = transform.position.xy.b2Position
                 unsafe def.rotation = b2MakeRot(transform.rotation.angle2D.radians)
                 unsafe def.type = physicsBody.mode.b2Type
                 unsafe def.gravityScale = physicsBody.gravityScale
@@ -152,7 +152,7 @@ public struct Physics2DSyncSystem: Sendable {
                 }
             } else {
                 var def = unsafe b2DefaultBodyDef()
-                unsafe def.position = transform.position.xy.b2Vec
+                unsafe def.position = transform.position.xy.b2Position
                 unsafe def.rotation = b2MakeRot(transform.rotation.angle2D.radians)
                 unsafe def.type = b2_staticBody
 

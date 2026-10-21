@@ -14,7 +14,7 @@ extension RuntimeJoint2D {
         try settings.validate()
         if let worldAnchor {
             settings.frameA = JointFrame2D(position: worldAnchor, angle: b2Rot_GetAngle(b2Body_GetRotation(b)))
-            settings.frameB = JointFrame2D(position: b2Body_GetLocalPoint(b, worldAnchor.b2Vec).asVector2)
+            settings.frameB = JointFrame2D(position: b2Body_GetLocalPoint(b, worldAnchor.b2Position).asVector2)
         }
         var definition = b2DefaultRevoluteJointDef()
         definition.base = connection(definition.base, a: a, b: b, frameA: settings.frameA, frameB: settings.frameB, collide: settings.collideConnected)

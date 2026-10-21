@@ -50,7 +50,7 @@ extension PhysicsWorld2D {
         filter.maskBits = mask.rawValue
         // Box2D copies neither pointer beyond this synchronous traversal.
         _ = unsafe withUnsafeMutablePointer(to: &collector) {
-            unsafe b2World_CastShape(worldId, pose.position.xy.b2Vec, &proxy, translation.b2Vec, filter, PhysicsWorld2D_ShapeCast, $0)
+            unsafe b2World_CastShape(worldId, pose.position.xy.b2Position, &proxy, translation.b2Vec, filter, PhysicsWorld2D_ShapeCast, $0)
         }
         return collector.hits.sorted { $0.distance == $1.distance ? $0.shapeID < $1.shapeID : $0.distance < $1.distance }
     }

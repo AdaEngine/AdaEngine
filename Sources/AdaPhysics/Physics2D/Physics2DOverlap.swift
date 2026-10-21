@@ -82,7 +82,7 @@ extension PhysicsWorld2D {
         filter.categoryBits = UInt64.max
         filter.maskBits = mask.rawValue
         _ = unsafe withUnsafeMutablePointer(to: &collector) {
-            unsafe b2World_OverlapShape(worldId, origin.b2Vec, proxy, filter, PhysicsWorld2D_Overlap, $0)
+            unsafe b2World_OverlapShape(worldId, origin.b2Position, proxy, filter, PhysicsWorld2D_Overlap, $0)
         }
         return collector.sortedHits
     }

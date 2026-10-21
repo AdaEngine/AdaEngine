@@ -122,7 +122,7 @@ private func DebugPhysicsExctract2DSystem_DrawSolidCircle(
 
     let color = Color.fromHex(Int(color.rawValue))
 
-    let center = b2TransformPoint(transform, localCenter).asVector2
+    let center = b2TransformWorldPoint(transform, localCenter).asVector2
 
     debugContext.addCircle(center: center, radius: radius, color: color)
 
@@ -161,8 +161,8 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
             normal = Vector2(edge.y, -edge.x) / edge.squaredLength.squareRoot()
         }
         output.addLine(
-            start: b2TransformPoint(transform, (point + normal * radius).b2Vec).asVector2,
-            end: b2TransformPoint(transform, (next + normal * radius).b2Vec).asVector2,
+            start: b2TransformWorldPoint(transform, (point + normal * radius).b2Vec).asVector2,
+            end: b2TransformWorldPoint(transform, (next + normal * radius).b2Vec).asVector2,
             color: color
         )
         if radius > 0 {
@@ -177,8 +177,8 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
                 let start = point + Vector2(Math.cos(a), Math.sin(a)) * radius
                 let end = point + Vector2(Math.cos(b), Math.sin(b)) * radius
                 output.addLine(
-                    start: b2TransformPoint(transform, start.b2Vec).asVector2,
-                    end: b2TransformPoint(transform, end.b2Vec).asVector2,
+                    start: b2TransformWorldPoint(transform, start.b2Vec).asVector2,
+                    end: b2TransformWorldPoint(transform, end.b2Vec).asVector2,
                     color: color
                 )
             }

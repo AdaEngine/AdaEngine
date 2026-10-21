@@ -212,7 +212,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
         // Box2D invokes the callback synchronously; the stack context never escapes this call.
         unsafe withUnsafeMutablePointer(to: &collector) { context in
             _ = unsafe b2World_CastRay(
-                worldId, startPoint.b2Vec, translation.b2Vec, filter, PhysicsWorld2D_Raycast, context
+                worldId, startPoint.b2Position, translation.b2Vec, filter, PhysicsWorld2D_Raycast, context
             )
         }
         return collector.results.sorted { $0.distance < $1.distance }
@@ -562,6 +562,9 @@ private func PhysicsWorld2D_CustomFilterCallback(
 // MARK: - Casting
 
 extension Vector2 {
+    /// World position conversion; local geometry and velocities use b2Vec.
+    var b2Position: b2Pos { b2ToPos(b2Vec) }
+
     var b2Vec: b2Vec2 {
         get {
             return unsafe unsafeBitCast(self, to: b2Vec2.self)
