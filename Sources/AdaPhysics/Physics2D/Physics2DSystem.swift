@@ -91,8 +91,7 @@ public struct Physics2DSyncSystem: Sendable {
                 for shapeResource in physicsBody.wrappedValue.shapes {
                     var shapeDef = unsafe b2DefaultShapeDef()
                     unsafe shapeDef.density = physicsBody.material.density
-                    unsafe shapeDef.material.restitution = physicsBody.material.restitution
-                    unsafe shapeDef.material.friction = physicsBody.material.friction
+                    unsafe shapeDef.material = physicsBody.material.nativeSurface
                     unsafe shapeDef.enableContactEvents = true
                     unsafe shapeDef.enableSensorEvents = true
                     unsafe shapeDef.enableHitEvents = true
@@ -118,6 +117,7 @@ public struct Physics2DSyncSystem: Sendable {
                 applyMassProperties(physicsBody.massProperties, fixedRotation: physicsBody.fixedRotation, to: body)
             }
 
+            physicsBody.runtimeBody?.updateMaterial(physicsBody.material, massProperties: physicsBody.massProperties)
             if let shapes = physicsBody.runtimeBody?.getShapes() {
                 let collisionFilter = physicsBody.filter
 
@@ -170,7 +170,8 @@ public struct Physics2DSyncSystem: Sendable {
 
                 for shapeResource in collisionBody.wrappedValue.shapes {
                     var shapeDef = unsafe b2DefaultShapeDef()
-                    unsafe shapeDef.density = 1
+                    unsafe shapeDef.density = collisionBody.material.density
+                    unsafe shapeDef.material = collisionBody.material.nativeSurface
                     if let debugColor = collisionBody.debugColor {
                         unsafe shapeDef.material.customColor = UInt32(debugColor.toHex)
                     }
@@ -191,6 +192,7 @@ public struct Physics2DSyncSystem: Sendable {
                 }
             }
 
+            collisionBody.runtimeBody?.updateMaterial(collisionBody.material)
             if let shapes = collisionBody.runtimeBody?.getShapes() {
                 let collisionFilter = collisionBody.filter
 

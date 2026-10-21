@@ -15,6 +15,7 @@ public final class Body2D: @unchecked Sendable {
     weak var world: PhysicsWorld2D?
     weak var entity: Entity?
 
+    var appliedMaterial: PhysicsMaterial?
     let bodyId: b2BodyId
 
     internal init(world: consuming PhysicsWorld2D, bodyId: b2BodyId, entity: consuming Entity) {
@@ -47,12 +48,14 @@ public final class Body2D: @unchecked Sendable {
     }
 
     func getShapes() -> [BoxShape2D] {
-        let shapes = UnsafeMutablePointer<b2ShapeId>.allocate(capacity: Int(shapesCount))
-        unsafe b2Body_GetShapes(bodyId, shapes, shapesCount)
-        return unsafe Array(UnsafeBufferPointer(start: shapes, count: Int(shapesCount)))
-            .map {
-                BoxShape2D(shape: $0)
-            }
+        let count = shapesCount
+        guard count > 0 else {
+            return []
+        }
+        let shapes = UnsafeMutablePointer<b2ShapeId>.allocate(capacity: Int(count))
+        defer { shapes.deallocate() }
+        unsafe b2Body_GetShapes(bodyId, shapes, count)
+        return unsafe Array(UnsafeBufferPointer(start: shapes, count: Int(count))).map { BoxShape2D(shape: $0) }
     }
 
     var gravityScale: Float {
@@ -147,6 +150,8 @@ final class BoxShape2D {
     init(shape: consuming b2ShapeId) {
         self.shape = shape
     }
+
+    var nativeID: b2ShapeId { shape }
 
     @inline(__always)
     var bodyId: b2BodyId {
