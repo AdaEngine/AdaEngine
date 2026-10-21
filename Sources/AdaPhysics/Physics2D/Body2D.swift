@@ -201,7 +201,9 @@ final class BoxShape2D {
     ) -> b2ShapeId {
         switch shape.fixture {
         case let .polygon(shape):
-            let polygon = unsafe makePolygon(vertices: shape.verticies, offset: shape.offset, scale: transform.scale.xy)
+            guard let polygon = unsafe makePolygon(vertices: shape.verticies, offset: shape.offset, scale: transform.scale.xy) else {
+                return b2_nullShapeId
+            }
             return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
                 unsafe withUnsafePointer(to: polygon) { polygonPtr in
                     unsafe b2CreatePolygonShape(bodyId, shapeDefPtr, polygonPtr)
@@ -211,6 +213,24 @@ final class BoxShape2D {
             var circle = b2Circle(center: (shape.offset * transform.scale.xy).b2Vec, radius: shape.radius * abs(transform.scale.x))
             return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
                 unsafe b2CreateCircleShape(bodyId, shapeDefPtr, &circle)
+            }
+        case let .capsule(shape):
+            let start = (shape.start + shape.offset) * transform.scale.xy
+            let end = (shape.end + shape.offset) * transform.scale.xy
+            let radius = shape.radius * max(abs(transform.scale.x), abs(transform.scale.y))
+            guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite,
+                radius.isFinite, radius > 0 else {
+                return b2_nullShapeId
+            }
+            var capsule = b2Capsule(center1: start.b2Vec, center2: end.b2Vec, radius: radius)
+            return unsafe withUnsafePointer(to: shapeDef) { unsafe b2CreateCapsuleShape(bodyId, $0, &capsule) }
+        case let .roundedPolygon(shape):
+            let radius = shape.radius * max(abs(transform.scale.x), abs(transform.scale.y))
+            guard let polygon = unsafe makePolygon(vertices: shape.vertices, offset: shape.offset, scale: transform.scale.xy, radius: radius) else {
+                return b2_nullShapeId
+            }
+            return unsafe withUnsafePointer(to: shapeDef) { definition in
+                unsafe withUnsafePointer(to: polygon) { unsafe b2CreatePolygonShape(bodyId, definition, $0) }
             }
         case let .box(shape):
             guard let polygon = NativeBox2D.make(shape, scale: transform.scale.xy) else {
@@ -225,16 +245,26 @@ final class BoxShape2D {
         }
     }
 
-    private static func makePolygon(vertices: [Vector2], offset: Vector2, scale: Vector2, angle: Float = 0) -> b2Polygon {
+    private static func makePolygon(vertices: [Vector2], offset: Vector2, scale: Vector2, angle: Float = 0, radius: Float = 0) -> b2Polygon? {
+        guard (3...Int(B2_MAX_POLYGON_VERTICES)).contains(vertices.count), angle.isFinite,
+            radius.isFinite, radius >= 0 else {
+            return nil
+        }
         let cosine = Math.cos(angle)
         let sine = Math.sin(angle)
         let vertices = vertices.map { vertex in
             let rotated = Vector2(cosine * vertex.x - sine * vertex.y, sine * vertex.x + cosine * vertex.y)
             return ((rotated + offset) * scale).b2Vec
         }
+        guard vertices.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else {
+            return nil
+        }
         var hull = unsafe vertices.withUnsafeBufferPointer { buffer in
             unsafe b2ComputeHull(buffer.baseAddress, Int32(buffer.count))
         }
-        return unsafe b2MakePolygon(&hull, 0)
+        guard hull.count >= 3 else {
+            return nil
+        }
+        return unsafe b2MakePolygon(&hull, radius)
     }
 }

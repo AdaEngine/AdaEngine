@@ -51,7 +51,7 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 | # | PR title / purpose | Strategy | Budget | Depends on | Status |
 |---|---|---|---:|---|---|
 | 01 | Apply local shape offsets and box rotation correctly | A: complete compatibility fix | 300–450 | — | in-progress |
-| 02 | Add capsule and rounded convex colliders | A: additive factories/fixtures | 450–600 | 01 | planned |
+| 02 | Add capsule and rounded convex colliders | A: additive factories/fixtures | 450–600 | 01 | in-progress |
 | 03 | Add segments and owned chain colliders | A: additive shapes, explicit lifetime | 500–600 | 01 | planned |
 | 04 | Add point, AABB and convex-shape overlap queries | A: additive world queries | 450–600 | 02 | planned |
 | 05 | Add nearest/all convex shape casts | A: additive world queries | 450–600 | 02, 04 | planned |
@@ -210,3 +210,7 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 - 2026-10-21: Local evidence: 70 targeted physics/event/fixed-step tests and both deterministic Physics2DDemo scenes passed; SwiftLint: zero violations. Full parallel package testing failed on navigation, golden reference naming, scratch-path tool lookup and a WindowFrameRequests assertion outside changed files. Base main Windows CI failed and its macOS CI was cancelled; full-suite/CI success remains unproven.
 
 - 2026-10-21: User authorized push and draft PR for slice 01; draft PR #167 created, no merge performed. A subsequent thin-obstacle sweep test exposed hull welding of thin boxes; analytic box construction was backported here with rotated/mirrored thin-box raycast regressions. The updated slice passes 83 physics/fixed-step tests in 18 suites.
+
+- 2026-10-21: Slice 01 is locally complete in e8e3196b5 (274 reviewable lines). Push was rejected by automatic approval review pending explicit user consent to publish to GitHub; no external mutation occurred. Slice 02 continues locally on a separate dependency branch; publication and merge remain gated.
+
+- 2026-10-21: Slice 02 is locally validated: capsule/rounded-box/rounded-polygon factories and Codable validation, native creation and conservative round scaling; 80 physics/event/fixed-step tests passed in 14 suites, SwiftLint zero violations. No remote publication performed.

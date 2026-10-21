@@ -52,6 +52,8 @@ public final class Shape2DResource: Codable, Sendable {
         case circle(CircleShape)
         case box(BoxShape)
         case polygon(PolygonShape)
+        case capsule(CapsuleShape)
+        case roundedPolygon(RoundedPolygonShape)
     }
 
     let fixture: Fixture
@@ -93,6 +95,12 @@ public final class Shape2DResource: Codable, Sendable {
             shape.offset = [x, y]
 
             return Shape2DResource(fixture: .circle(shape))
+        case var .capsule(shape):
+            shape.offset = [x, y]
+            return Shape2DResource(fixture: .capsule(shape))
+        case var .roundedPolygon(shape):
+            shape.offset = [x, y]
+            return Shape2DResource(fixture: .roundedPolygon(shape))
         case var .polygon(shape):
             shape.offset = [x, y]
 
