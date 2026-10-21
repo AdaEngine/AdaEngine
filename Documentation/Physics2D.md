@@ -128,3 +128,15 @@ inside +/-0.99 pi. `revolute(entity:worldAnchor:...)` pins a body to a world poi
 and measures angle from its orientation when resolved. The original one-entity
 `revolute(entityA:)` pins its origin at the initial world position. Both world
 variants own a static native anchor body, released when the joint is removed.
+
+### Sliders, welds and pair filters
+
+`prismatic(entityA:entityB:settings:)` slides along frame A's local X axis,
+locks the relative frame rotation, and supports a translation spring target,
+limits and force-bounded motor. Rotate both local frames to author an upright
+slider without rotating the attached body. Translation and speed use world
+length units; spring frequency/damping follow the distance-joint convention.
+`weld(entityA:entityB:settings:)` aligns two local frames rigidly or with separate
+linear/angular springs. `filter(entityA:entityB:)` only suppresses pair collision.
+Removal restores collision even for stationary, already overlapping bodies:
+the wrapper refilters the pair before native joint destruction.

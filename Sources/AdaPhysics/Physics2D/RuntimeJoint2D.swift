@@ -22,7 +22,12 @@ final class RuntimeJoint2D {
     }
     var isConnected: Bool { world != nil && b2Joint_IsValid(id) }
     func destroy() {
-        if isConnected { b2DestroyJoint(id) }
+        if isConnected {
+            // DestroyJoint wakes bodies but does not mark stationary proxies for pair discovery.
+            // Restore pair collision first so removing a non-colliding constraint refilters overlaps.
+            b2Joint_SetCollideConnected(id, true)
+            b2DestroyJoint(id)
+        }
         id = b2_nullJointId
         if world != nil, let ownedAnchor, b2Body_IsValid(ownedAnchor) { b2DestroyBody(ownedAnchor) }
     }
@@ -35,6 +40,7 @@ final class RuntimeJoint2D {
         switch descriptor.joint {
         case let .rope(a, b, _, _), let .distance(a, b, _), let .hinge(a, b, _): return (a, b)
         case let .revolute(b), let .worldHinge(b, _, _): return (nil, b)
+        case let .prismatic(a, b, _), let .weld(a, b, _), let .filter(a, b): return (a, b)
         }
     }
 
@@ -70,6 +76,7 @@ final class RuntimeJoint2D {
             if let ownedAnchor, !b2Joint_IsValid(id), b2Body_IsValid(ownedAnchor) { b2DestroyBody(ownedAnchor) }
         }
         switch descriptor.joint {
+        case .prismatic, .weld, .filter: id = try createSlidingWeldFilter(descriptor, a: bodyA, b: b.bodyId, world: world)
         case .distance, .rope: id = try createDistance(descriptor, a: bodyA, b: b.bodyId, world: world)
         case .hinge, .worldHinge, .revolute: id = try createRevolute(descriptor, a: bodyA, b: b.bodyId, world: world)
         }
