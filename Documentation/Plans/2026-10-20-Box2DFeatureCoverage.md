@@ -50,22 +50,22 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 
 | # | PR title / purpose | Strategy | Budget | Depends on | Status |
 |---|---|---|---:|---|---|
-| 01 | Apply local shape offsets and box rotation correctly | A: complete compatibility fix | 300–450 | — | draft PR [#167](https://github.com/AdaEngine/Ada/pull/167) |
-| 02 | Add capsule and rounded convex colliders | A: additive factories/fixtures | 450–600 | 01 | draft PR [#168](https://github.com/AdaEngine/Ada/pull/168) |
-| 03 | Add segments and owned chain colliders | A: additive shapes, explicit lifetime | 500–600 | 02 | draft PR [#169](https://github.com/AdaEngine/Ada/pull/169) |
-| 04 | Add point, AABB and convex-shape overlap queries | A: additive world queries | 450–600 | 02, 03 | draft PR [#170](https://github.com/AdaEngine/Ada/pull/170) |
-| 05 | Add nearest/all convex shape casts | A: additive world queries | 450–600 | 02, 04 | draft PR [#171](https://github.com/AdaEngine/Ada/pull/171) |
-| 06 | Make distance/rope joints work through the ECS lifecycle | A: complete joint system + first constraint | 500–600 | 04 | draft PR [#172](https://github.com/AdaEngine/Ada/pull/172) |
-| 07 | Add revolute joints with spring, limits and motor | A: complete second constraint | 400–550 | 06 | draft PR [#173](https://github.com/AdaEngine/Ada/pull/173) |
-| 08 | Add prismatic, weld and filter constraints | A: additive complete joint kinds | 450–600 | 06, 07 | draft PR [#174](https://github.com/AdaEngine/Ada/pull/174) |
-| 09 | Add wheel suspension and motor joints | A: additive complete mechanisms | 450–600 | 07, 08 | draft PR [#175](https://github.com/AdaEngine/Ada/pull/175) |
-| 10a | Retune existing native joints without recreation | A: complete live settings API | 350–500 | 06–09 | draft PR [#176](https://github.com/AdaEngine/Ada/pull/176) |
-| 10b | Add threshold events and opt-in break behavior | A: complete world-local events | 350–500 | 10a | draft PR [#177](https://github.com/AdaEngine/Ada/pull/177) |
-| 11 | Add native mover and pogo joints | A: additive complete joint kinds | 450–600 | 10a, 10b | draft PR [#178](https://github.com/AdaEngine/Ada/pull/178) |
-| 12 | Add a query-based 2D capsule character controller | A: new component activates its system | 500–600 | 02, 05 | draft PR [#179](https://github.com/AdaEngine/Ada/pull/179) |
-| 13 | Add dynamic character movement using mover/pogo joints | A: explicit dynamic mode | 500–600 | 11, 12 | draft PR [#180](https://github.com/AdaEngine/Ada/pull/180) |
-| 14 | Add geometry/query playground scenes | A: isolated demo screens | 350–550 | 05, 11 | draft PR [#181](https://github.com/AdaEngine/Ada/pull/181) |
-| 15 | Add mechanism and character playground scenes | A: isolated demo screens | 450–600 | 09–14 | draft PR [#182](https://github.com/AdaEngine/Ada/pull/182) |
+| 01 | Apply local shape offsets and box rotation correctly | A: complete compatibility fix | 300–450 | — | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 02 | Add capsule and rounded convex colliders | A: additive factories/fixtures | 450–600 | 01 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 03 | Add segments and owned chain colliders | A: additive shapes, explicit lifetime | 500–600 | 02 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 04 | Add point, AABB and convex-shape overlap queries | A: additive world queries | 450–600 | 02, 03 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 05 | Add nearest/all convex shape casts | A: additive world queries | 450–600 | 02, 04 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 06 | Make distance/rope joints work through the ECS lifecycle | A: complete joint system + first constraint | 500–600 | 04 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 07 | Add revolute joints with spring, limits and motor | A: complete second constraint | 400–550 | 06 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 08 | Add prismatic, weld and filter constraints | A: additive complete joint kinds | 450–600 | 06, 07 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 09 | Add wheel suspension and motor joints | A: additive complete mechanisms | 450–600 | 07, 08 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 10a | Retune existing native joints without recreation | A: complete live settings API | 350–500 | 06–09 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 10b | Add threshold events and opt-in break behavior | A: complete world-local events | 350–500 | 10a | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 11 | Add native mover and pogo joints | A: additive complete joint kinds | 450–600 | 10a, 10b | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 12 | Add a query-based 2D capsule character controller | A: new component activates its system | 500–600 | 02, 05 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 13 | Add dynamic character movement using mover/pogo joints | A: explicit dynamic mode | 500–600 | 11, 12 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 14 | Add geometry/query playground scenes | A: isolated demo screens | 350–550 | 05, 11 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 15 | Add mechanism and character playground scenes | A: isolated demo screens | 450–600 | 09–14 | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
 
 ## Slice details
 
@@ -256,4 +256,4 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 
 ## Publication — 2026-10-21
 
-The user requested PR publication ("делай пр"). All slices are now published as drafts in an ordered stack: [#167](https://github.com/AdaEngine/Ada/pull/167) through [#197](https://github.com/AdaEngine/Ada/pull/197). See the [full publication index](2026-10-21-Box2DAdvancedPhysics.md#published-draft-pr-stack) for exact bases, heads, sizes and links. No slice has been merged by this task.
+The user requested one consolidated pull request. All capabilities in this plan are included in [draft PR #197](https://github.com/AdaEngine/Ada/pull/197), targeting `main`. The earlier individual PRs #167–196 are superseded and closed as part of consolidation. The slice table remains an implementation breakdown, not a publication sequence. No implementation changes were discarded and no merge into main was performed.

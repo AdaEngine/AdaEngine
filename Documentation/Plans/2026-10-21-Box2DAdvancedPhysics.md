@@ -3,7 +3,7 @@
 - **Created:** 2026-10-21.
 - **Request:** both new annotations in this chat: body settings, advanced materials and full contact data; large-world coordinates and advanced world solver controls.
 - **Approval:** user approved the complete map and strategy A on 2026-10-21 ("ДЯДЯ, ДАВАЙ").
-- **Trunk:** main. The prerequisite feature stack is locally validated through d27442f08 on codex/box2d-15-mechanism-character-demos; the complete stack is now published as draft PRs #167–197. Publication does not mean merged.
+- **Trunk:** main. The prerequisite feature stack is locally validated through d27442f08 on codex/box2d-15-mechanism-character-demos; all changes are consolidated in draft PR #197 targeting main. Publication does not mean merged.
 - **Workspace:** reuse the attached box2d-feature-coverage worktree. Preserve the primary checkout's unrelated Shader Graph / Editor changes.
 - **Budgets:** target <=600 added+removed reviewable source/test/demo lines per slice; cap 1000. Markdown and vendor sources excluded from this count, but vendor changes still require explicit review and tests. Re-slice before exceeding the target; estimates are not measured diffs.
 
@@ -46,29 +46,29 @@ Out of scope: converting all engine matrices/mesh math or 3D physics to Double, 
 
 **B — optional precision build configuration.** Keep the default single-precision build and add an explicit package build configuration that sets both the Box2D ABI and Swift bridge mode consistently. The same advanced APIs must work in both configurations, with precision guarantees conditional on the build. This preserves the default native memory footprint but requires two clean build/test matrices and careful handling of package consumers and ABI mismatches. This changes the precision rows below and needs a revised map before implementation.
 
-Approval of A includes the complete map below. Publication was separately authorized on 2026-10-21 ("делай пр"); all prepared slices are published as drafts below.
+Approval of A includes the complete map below. Publication was separately authorized on 2026-10-21 ("делай пр"); the user subsequently requested a single consolidated draft PR #197 targeting main.
 
 ## Slices
 
-All implementation rows are locally validated and published as drafts. Dependencies on the previous feature map are prerequisites, not a claim those features have merged into main. Each row includes implementation, nearest tests and API documentation; source/test changes are measured together.
+All implementation rows are locally validated and included in consolidated draft PR #197. Dependencies on the previous feature map are prerequisites, not a claim those features have merged into main. Each row includes implementation, nearest tests and API documentation; source/test changes are measured together.
 
 | # | Purpose / proposed PR | Budget | Depends on | Strategy | Status |
 |---|---|---:|---|---|---|
-| 16 | Distinguish native world positions from local vectors in the existing bridge | 350–550 | prior stack | mechanical, same behavior | draft PR [#183](https://github.com/AdaEngine/Ada/pull/183) |
-| 17 | Enable one consistent native Double ABI and expose precise body positions and rays | 450–600 | 16 | A, complete precise API | draft PR [#184](https://github.com/AdaEngine/Ada/pull/184) |
-| 18 | Integrate authoritative Double ECS positions and nearby rendering for rigid/static bodies | 500–600 | 17 | A, opt-in coordinate components | draft PR [#185](https://github.com/AdaEngine/Ada/pull/185) |
-| 19 | Preserve precision across overlaps, shape casts, forces and contact positions | 450–600 | 18 | A, complete precise query overloads | draft PR [#186](https://github.com/AdaEngine/Ada/pull/186) |
-| 20 | Keep joints, both character modes and debug geometry consistent with the world origin | 500–600 | 18, 19 | A, complete origin-aware paths | draft PR [#187](https://github.com/AdaEngine/Ada/pull/187) |
-| 21 | Add bullet/CCD safety and linear/angular damping controls | 350–500 | prior stack | A, default-compatible settings | draft PR [#188](https://github.com/AdaEngine/Ada/pull/188) |
-| 22 | Add linear/angular motion locks and individual sleep controls | 350–500 | 21 | A, default-compatible settings | draft PR [#189](https://github.com/AdaEngine/Ada/pull/189) |
-| 23 | Add rolling resistance, conveyor speed and complete live material propagation | 400–550 | prior stack | A, default-compatible materials | draft PR [#190](https://github.com/AdaEngine/Ada/pull/190) |
-| 24 | Add worker-safe material mixing rules with deterministic precedence | 350–550 | 23 | A, explicit material policies | draft PR [#191](https://github.com/AdaEngine/Ada/pull/191) |
-| 25 | Add native wind, aerodynamic drag and lift force application | 350–550 | 23 | A, explicit atmosphere component/API | draft PR [#192](https://github.com/AdaEngine/Ada/pull/192) |
-| 26 | Expose contact handles and immutable complete manifold snapshots | 400–550 | 19 | A, additive lookup API | draft PR [#193](https://github.com/AdaEngine/Ada/pull/193) |
-| 27 | Attach safe contact snapshots to collision events and pre-solve data | 350–550 | 26 | A, backward-compatible events | draft PR [#194](https://github.com/AdaEngine/Ada/pull/194) |
-| 28 | Add validated live and serialized solver tuning | 400–550 | prior stack | A, old defaults retained | draft PR [#195](https://github.com/AdaEngine/Ada/pull/195) |
-| 29 | Add interactive body/material/contact/solver demonstration and native acceptance | 450–600 | 21–28 | A, complete standalone screen | draft PR [#196](https://github.com/AdaEngine/Ada/pull/196) |
-| 30 | Add large-world origin/precision demonstration and native acceptance | 350–550 | 17–20 | A, complete standalone screen | draft PR [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 16 | Distinguish native world positions from local vectors in the existing bridge | 350–550 | prior stack | mechanical, same behavior | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 17 | Enable one consistent native Double ABI and expose precise body positions and rays | 450–600 | 16 | A, complete precise API | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 18 | Integrate authoritative Double ECS positions and nearby rendering for rigid/static bodies | 500–600 | 17 | A, opt-in coordinate components | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 19 | Preserve precision across overlaps, shape casts, forces and contact positions | 450–600 | 18 | A, complete precise query overloads | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 20 | Keep joints, both character modes and debug geometry consistent with the world origin | 500–600 | 18, 19 | A, complete origin-aware paths | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 21 | Add bullet/CCD safety and linear/angular damping controls | 350–500 | prior stack | A, default-compatible settings | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 22 | Add linear/angular motion locks and individual sleep controls | 350–500 | 21 | A, default-compatible settings | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 23 | Add rolling resistance, conveyor speed and complete live material propagation | 400–550 | prior stack | A, default-compatible materials | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 24 | Add worker-safe material mixing rules with deterministic precedence | 350–550 | 23 | A, explicit material policies | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 25 | Add native wind, aerodynamic drag and lift force application | 350–550 | 23 | A, explicit atmosphere component/API | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 26 | Expose contact handles and immutable complete manifold snapshots | 400–550 | 19 | A, additive lookup API | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 27 | Attach safe contact snapshots to collision events and pre-solve data | 350–550 | 26 | A, backward-compatible events | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 28 | Add validated live and serialized solver tuning | 400–550 | prior stack | A, old defaults retained | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 29 | Add interactive body/material/contact/solver demonstration and native acceptance | 450–600 | 21–28 | A, complete standalone screen | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
+| 30 | Add large-world origin/precision demonstration and native acceptance | 350–550 | 17–20 | A, complete standalone screen | included in [#197](https://github.com/AdaEngine/Ada/pull/197) |
 
 ## Slice details and acceptance
 
@@ -240,7 +240,7 @@ All implementation rows are locally validated and published as drafts. Dependenc
 
 ## Final local acceptance — 2026-10-21
 
-- All fifteen extension slices (16–30) are locally committed, validated and now published as drafts in the index below; no merge was performed.
+- All fifteen extension slices (16–30) are locally committed, validated and included in consolidated draft PR #197; no merge was performed.
 - Final regression: 207 physics/fixed-step/2D+3D character tests in 46 suites passed. Log: /tmp/ada-box2d-advanced-final-regression.log.
 - Changed-file SwiftLint: 55 files, zero violations. Log: /tmp/ada-box2d-advanced-final-lint.log.
 - Seven headless scenes and seven native Metal scenes passed. Logs: /tmp/ada-box2d-30-validate.log and /tmp/ada-box2d-30-native.log. Actual reviewed captures and metadata are under the ignored Demos/Physics2D/dist/proof directory. The app remains open in a fresh Large worlds query scene.
@@ -248,44 +248,8 @@ All implementation rows are locally validated and published as drafts. Dependenc
 - Measured reviewable added+removed source/test lines: 16=47, 17=162, 18=248, 19=221, 20=244, 21=133, 22=163, 23=230, 24=159, 25=180, 26=244, 27=248, 28=201, 29=330, 30=285. Every slice is below 600; Markdown/vendor changes are excluded under the agreed metric.
 - Primary checkout remains on codex/shader-graph-effects with no task changes under Sources/AdaPhysics, Sources/box2d or Demos/Physics2D; unrelated dirty work was preserved. Implementation remains in the attached box2d-feature-coverage managed worktree.
 
-## Published draft PR stack
+## Consolidated pull request
 
-Published on 2026-10-21 at the user's request ("делай пр"). Review in table order. The first PR targets `main`; each later PR targets its predecessor to keep the review diff focused. After merging a prerequisite, retarget the next PR to `main` and verify its diff and checks. These are draft submissions, not merged work.
+The user requested one PR for the complete change. [Draft PR #197](https://github.com/AdaEngine/Ada/pull/197) targets `main` and contains every capability from both Box2D plans. The previous per-slice PRs #167–196 are superseded and closed as part of consolidation. Original slice budgets above describe implementation units; the explicit single-PR request replaces the earlier publication split. No code was dropped and no merge into main was performed.
 
-Integration evidence applies to code at `cac0f43eb`; the final publication-index commit changes Markdown only. The physics/fixed-step/character selection passed 207 tests in 46 suites, SwiftLint passed for 55 changed files, and all seven deterministic/native Metal scene checks passed. Full-package testing remains blocked by the documented asset-tool lookup and UI renderer initialization failures. CI and other platforms are separate from this local proof.
-
-| Slice | Draft PR | Target | Reviewable lines | Total lines |
-|---|---|---|---:|---:|
-| 01 | [#167 — Fix local 2D collider transforms and safe rotation writeback](https://github.com/AdaEngine/Ada/pull/167) | main | 329 | 573 |
-| 02 | [#168 — Box2D 02: Add capsule and rounded convex colliders](https://github.com/AdaEngine/Ada/pull/168) | #167 | 315 | 343 |
-| 03 | [#169 — Box2D 03: Add segments and owned chain colliders](https://github.com/AdaEngine/Ada/pull/169) | #168 | 377 | 399 |
-| 04 | [#170 — Box2D 04: Add point, area and convex overlap queries](https://github.com/AdaEngine/Ada/pull/170) | #169 | 301 | 323 |
-| 05 | [#171 — Box2D 05: Add filtered nearest and all shape casts](https://github.com/AdaEngine/Ada/pull/171) | #170 | 207 | 221 |
-| 06 | [#172 — Box2D 06: Create distance and rope joints through ECS lifetime](https://github.com/AdaEngine/Ada/pull/172) | #171 | 391 | 424 |
-| 07 | [#173 — Box2D 07: Add revolute hinges, limits, springs and motors](https://github.com/AdaEngine/Ada/pull/173) | #172 | 349 | 363 |
-| 08 | [#174 — Box2D 08: Add prismatic, weld and collision-filter joints](https://github.com/AdaEngine/Ada/pull/174) | #173 | 234 | 250 |
-| 09 | [#175 — Box2D 09: Add wheel suspension and bounded motor joints](https://github.com/AdaEngine/Ada/pull/175) | #174 | 235 | 254 |
-| 10a | [#176 — Box2D 10a: Retune live joints without native recreation](https://github.com/AdaEngine/Ada/pull/176) | #175 | 264 | 280 |
-| 10b | [#177 — Box2D 10b: Add joint threshold events, break and repair](https://github.com/AdaEngine/Ada/pull/177) | #176 | 262 | 282 |
-| 11 | [#178 — Box2D 11: Add native mover and pogo joints](https://github.com/AdaEngine/Ada/pull/178) | #177 | 268 | 298 |
-| 12 | [#179 — Box2D 12: Add a query-based capsule character controller](https://github.com/AdaEngine/Ada/pull/179) | #178 | 533 | 560 |
-| 13 | [#180 — Box2D 13: Add dynamic character movement and platform support](https://github.com/AdaEngine/Ada/pull/180) | #179 | 586 | 612 |
-| 14 | [#181 — Box2D 14: Add geometry and spatial-query playground scenes](https://github.com/AdaEngine/Ada/pull/181) | #180 | 444 | 457 |
-| 15 | [#182 — Box2D 15: Add mechanism and dual-mode character playgrounds](https://github.com/AdaEngine/Ada/pull/182) | #181 | 430 | 481 |
-| 16 | [#183 — Box2D 16: Distinguish world positions from local vectors](https://github.com/AdaEngine/Ada/pull/183) | #182 | 47 | 258 |
-| 17 | [#184 — Box2D 17: Enable native Double positions and precise rays](https://github.com/AdaEngine/Ada/pull/184) | #183 | 162 | 176 |
-| 18 | [#185 — Box2D 18: Integrate precise ECS positions and render origins](https://github.com/AdaEngine/Ada/pull/185) | #184 | 248 | 252 |
-| 19 | [#186 — Box2D 19: Preserve precision in queries and applied forces](https://github.com/AdaEngine/Ada/pull/186) | #185 | 221 | 225 |
-| 20 | [#187 — Box2D 20: Keep joints and characters stable across origin changes](https://github.com/AdaEngine/Ada/pull/187) | #186 | 244 | 248 |
-| 21 | [#188 — Box2D 21: Expose live bullet, CCD safety and damping settings](https://github.com/AdaEngine/Ada/pull/188) | #187 | 133 | 137 |
-| 22 | [#189 — Box2D 22: Add motion locks and individual sleep controls](https://github.com/AdaEngine/Ada/pull/189) | #188 | 163 | 167 |
-| 23 | [#190 — Box2D 23: Add rolling resistance, conveyors and live materials](https://github.com/AdaEngine/Ada/pull/190) | #189 | 230 | 234 |
-| 24 | [#191 — Box2D 24: Add worker-safe material mixing policies](https://github.com/AdaEngine/Ada/pull/191) | #190 | 159 | 163 |
-| 25 | [#192 — Box2D 25: Add fixed-step wind, aerodynamic drag and lift](https://github.com/AdaEngine/Ada/pull/192) | #191 | 180 | 184 |
-| 26 | [#193 — Box2D 26: Expose contact IDs and complete manifold snapshots](https://github.com/AdaEngine/Ada/pull/193) | #192 | 244 | 248 |
-| 27 | [#194 — Box2D 27: Deliver safe complete collision and pre-solve data](https://github.com/AdaEngine/Ada/pull/194) | #193 | 248 | 252 |
-| 28 | [#195 — Box2D 28: Expose validated and serialized solver tuning](https://github.com/AdaEngine/Ada/pull/195) | #194 | 201 | 205 |
-| 29 | [#196 — Box2D 29: Add an advanced physics playground and API guide](https://github.com/AdaEngine/Ada/pull/196) | #195 | 330 | 470 |
-| 30 | [#197 — Box2D 30: Add a large-world precision playground](https://github.com/AdaEngine/Ada/pull/197) | #196 | 285 | 307 |
-
-Sizes are added + removed lines against the immediate prerequisite before this publication-index update. Reviewable counts include source, tests and demo code; Markdown, lockfiles and vendored code are excluded. Native changes in slices 11 and 17 remain explicitly reviewable despite the size exclusion.
+Consolidation changes only PR metadata and Markdown tracking documents. Runtime, tests, demo sources and native Box2D changes are identical to the validated code at `cac0f43eb`. The physics/fixed-step/character selection passed 207 tests in 46 suites, SwiftLint passed for 55 changed files, and all seven deterministic/native Metal scene checks passed. Full-package testing remains blocked by the documented asset-tool lookup and UI renderer initialization failures. CI and other platforms are separate from this local proof.
