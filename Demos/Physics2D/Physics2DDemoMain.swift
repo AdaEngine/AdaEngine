@@ -39,7 +39,7 @@ struct Physics2DDemoMain {
             session.scan = false
             let app = AppWorlds(main: World())
             app.addPlugin(MainSchedulerPlugin()).addPlugin(TransformPlugin())
-                .addPlugin(Physics2DPlugin(gravity: scene == .raycast ? .zero : [0, -9.81]))
+                .addPlugin(Physics2DPlugin(gravity: scene.gravity))
                 .addPlugin(PhysicsDemoPlugin(session: session))
             try await app.build()
             app.main.insertResource(FixedTime(deltaTime: 1.0 / 60))
@@ -49,7 +49,19 @@ struct Physics2DDemoMain {
                     await app.main.runScheduler(scheduler)
                 }
             }
-            if scene == .raycast {
+            if scene == .queries {
+                guard session.queryEntities.count == 4 else { throw Failure.queries }
+                session.querySensors = false
+                await app.main.runScheduler(.postUpdate)
+                guard session.queryEntities.count == 3 else { throw Failure.queries }
+                session.probeMode = .overlap
+                await app.main.runScheduler(.postUpdate)
+                guard session.queryEntities.count == 1 else { throw Failure.queries }
+                session.probeMode = .area
+                await app.main.runScheduler(.postUpdate)
+                guard session.queryEntities.count == 3 else { throw Failure.queries }
+                report("PASS: geometry/query scene · cast / sensor exclusion / exact overlap / area")
+            } else if scene == .raycast {
                 guard session.lastHits.count == 3, session.lastHits[0].distance < session.lastHits[1].distance else { throw Failure.raycast }
                 session.allHits = false
                 await app.main.runScheduler(.postUpdate)
@@ -133,7 +145,7 @@ struct Physics2DDemoMain {
             if events.impacts > initialImpacts { break }
         }
         guard events.impacts > initialImpacts else { throw Failure.events }
-        let verification: [String: Any] = [
+        var verification: [String: Any] = [
             "passed": true, "backend": String(describing: unsafe RenderEngine.shared.type), "raycastAll": 3, "raycastNearest": 1, "raycastBlueMask": 2,
             "contactBegins": events.contactBegins, "contactEnds": events.contactEnds,
             "sensorBegins": events.sensorBegins, "sensorEnds": events.sensorEnds, "impacts": events.impacts,
@@ -147,6 +159,44 @@ struct Physics2DDemoMain {
         try tap("physics-demo.events")
         _ = try await waitForSource("Physics2D Events", excluding: eventSource)
         report("PASS: native events · sensor entry/exit, contact begin/end, impact, re-drop, scene re-entry")
+        try tap("physics-demo.queries")
+        let queriesSource = try await waitForSource("Physics2D Geometry & queries")
+        guard let queries = queriesSource.world?.getResource(PhysicsDemoSession.self) else { throw Failure.sceneUnavailable }
+        try tap("physics-demo.query-scan")
+        _ = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 4 else { throw Failure.queries }
+        try tap("physics-demo.query-sensors")
+        _ = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 3 else { throw Failure.queries }
+        try tap("physics-demo.query-mask")
+        _ = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 2 else { throw Failure.queries }
+        try tap("physics-demo.query-order")
+        _ = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 1 else { throw Failure.queries }
+        try tap("physics-demo.query-order")
+        try tap("physics-demo.query-mask")
+        try tap("physics-demo.query-sensors")
+        let geometryFrame = try await nextFrames(queriesSource)
+        report("Geometry debug \(queries.debugDrawState), options=\(queriesSource.world?.getResource(PhysicsDebugOptions.self)?.rawValue ?? 0)")
+        try write(geometryFrame.image, to: directory + "/geometry-cast.png")
+        try tap("physics-demo.query-kind")
+        _ = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 1 else { throw Failure.queries }
+        try tap("physics-demo.query-kind")
+        let areaFrame = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 4 else { throw Failure.queries }
+        try write(areaFrame.image, to: directory + "/geometry-area.png")
+        try tap("physics-demo.query-kind")
+        try tap("physics-demo.raycasts")
+        _ = try await waitForSource("Physics2D Raycasts", excluding: rebuiltRay)
+        try tap("physics-demo.queries")
+        let rebuiltQueries = try await waitForSource("Physics2D Geometry & queries", excluding: queriesSource)
+        _ = try await nextFrames(rebuiltQueries)
+        guard queries.queryEntities.count == 4, queries.targets.count == 8 else { throw Failure.queries }
+        verification["querySceneReentry"] = true
+        verification["geometryQueries"] = true
+        report("PASS: native geometry · convex cast / overlap / area / masks / sensors / nearest")
         try JSONSerialization.data(withJSONObject: verification, options: [.prettyPrinted, .sortedKeys])
             .write(to: URL(fileURLWithPath: directory + "/verification.json"), options: .atomic)
     }
@@ -162,8 +212,13 @@ struct Physics2DDemoMain {
         if image.format == .bgra8 || image.format == .bgra8_sRGB {
             for index in stride(from: 0, to: bytes.count, by: 4) { bytes.swapAt(index, index + 2) }
         }
+        var colors = Set<UInt32>()
+        for offset in stride(from: 0, to: bytes.count - 3, by: 64) {
+            colors.insert(UInt32(bytes[offset]) << 16 | UInt32(bytes[offset + 1]) << 8 | UInt32(bytes[offset + 2]))
+        }
         let png = try PNGWriter().encode(width: image.width, height: image.height, rgba: bytes)
         try png.write(to: URL(fileURLWithPath: path), options: .atomic)
+        guard image.width > 200, image.height > 200, colors.count > 3 else { report("Frame \(path) contains \(colors.count) sampled colors"); throw Failure.emptyFrame }
     }
 
     private static func report(_ message: String) {
@@ -171,6 +226,6 @@ struct Physics2DDemoMain {
     }
 
     private enum Failure: Error {
-        case raycast, events, sceneUnavailable, emptyFrame
+        case raycast, events, queries, sceneUnavailable, emptyFrame
     }
 }

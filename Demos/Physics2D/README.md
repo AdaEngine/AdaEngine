@@ -1,6 +1,6 @@
 # Box2D playground
 
-Two interactive AdaEngine scenes, using the same physics systems as games:
+Three interactive AdaEngine scenes, using the same physics systems as games:
 
 - **Raycasts:** a scanning ray, distance-ordered white hit markers, nearest/all
   selection and a blue-only collision mask. The orange block is on another layer.
@@ -9,8 +9,13 @@ Two interactive AdaEngine scenes, using the same physics systems as games:
   solid contacts, sensor enter/exit and impact events delivered through ECS.
   “Drop box again” repeats the impact.
 
+- **Geometry & queries:** capsule, rounded box/polygon, segment, open/closed chains
+  and a loose chain segment. A white capsule sweeps or overlaps the colored
+  colliders; area mode draws broad-phase candidates. Toggle sensor inclusion,
+  layer mask, nearest/all and animation. The outlines follow native geometry.
+
 On macOS run `./Demos/Physics2D/script/build_and_run.sh`. Use `--verify` to launch
-both scenes, exercise ray modes, switch the UI, check live event counters and
+the scenes, exercise query modes, switch the UI, check live event counters and
 save real GPU frames plus `verification.json` in `Demos/Physics2D/dist/proof/`.
 
 Deterministic simulation without a window:

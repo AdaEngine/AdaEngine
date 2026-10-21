@@ -4,7 +4,8 @@ import Observation
 
 /// The same scenes run in the interactive window, offscreen capture and deterministic validation.
 enum PhysicsDemoScene: String, CaseIterable {
-    case raycast, events
+    case raycast, events, queries
+    var gravity: Vector2 { self == .raycast || self == .queries ? .zero : [0, -9.81] }
 }
 
 @MainActor
@@ -12,6 +13,14 @@ enum PhysicsDemoScene: String, CaseIterable {
 final class PhysicsDemoSession: Resource {
     let scene: PhysicsDemoScene
     let rendering: Bool
+    var debugDrawState = "extract pending"
+    var probeMode = PhysicsProbeMode.cast
+    var querySensors = true
+    var queryShape: Shape2DResource?
+    var queryEntities: [Entity] = []
+    var queryPoints: [Vector2] = []
+    var probeY: Float = 1.6
+    var probeContact: Vector2?
     var allHits = true
     var blueOnly = false
     var scan = true
@@ -51,6 +60,7 @@ final class PhysicsDemoSession: Resource {
         visitor = nil
         falling = nil
         lastHits.removeAll()
+        queryEntities.removeAll(); queryPoints.removeAll(); queryShape = nil; probeContact = nil
     }
 
     init(scene: PhysicsDemoScene, rendering: Bool = true) {
@@ -64,7 +74,7 @@ func configurePhysicsDemo(_ app: inout AppWorlds, session: PhysicsDemoSession) {
     app.addPlugin(TransformPlugin()).addPlugin(InputPlugin()).addPlugin(RenderWorldPlugin())
         .addPlugin(CameraPlugin()).addPlugin(AssetsPlugin()).addPlugin(VisibilityPlugin())
         .addPlugin(SpritePlugin()).addPlugin(Core2DPlugin()).addPlugin(UpscalePlugin())
-        .addPlugin(Physics2DPlugin(gravity: session.scene == .raycast ? .zero : [0, -9.81]))
+        .addPlugin(Physics2DPlugin(gravity: session.scene.gravity))
         .addPlugin(PhysicsDemoPlugin(session: session))
 }
 
@@ -76,6 +86,7 @@ struct PhysicsDemoPlugin: Plugin {
             .addSystem(PhysicsDemoStartupSystem.self, on: .startup)
             .addSystem(PhysicsDemoControlsSystem.self, on: .fixedPreUpdate)
             .addSystem(PhysicsDemoFrameSystem.self, on: .postUpdate)
+        app.getSubworldBuilder(by: .renderWorld)?.addSystem(PhysicsDemoProbeExtractSystem.self, on: .extract)
     }
 }
 
@@ -89,6 +100,10 @@ func PhysicsDemoStartup(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoS
         var camera = Camera()
         camera.backgroundColor = Color(0.035, 0.055, 0.10, 1)
         world.spawn("Physics camera", bundle: Camera2D(camera: camera, orthographicProjection: OrthographicProjection(scale: 48)))
+    }
+    if session.scene == .queries {
+        do { try setupGeometryQueries(in: world, session: session) } catch { session.rayStatus = "Geometry failed: \(error)" }
+        return
     }
     if session.scene == .raycast {
         for (index, x) in [Float(-3), 0, 3].enumerated() {
@@ -181,6 +196,10 @@ func PhysicsDemoFrame(
     }
     for event in hits { session.impacts += 1; session.lastImpactSpeed = event.approachSpeed }
     session.sensor?.components[Sprite.self]?.tintColor = session.sensorOccupied ? Color(0.2, 1, 0.5, 0.8) : Color(0.15, 0.6, 0.4, 0.45)
+    if session.scene == .queries {
+        updateGeometryQueries(in: context.world, session: session)
+        return
+    }
     guard session.scene == .raycast, let physics = context.world.physicsWorld2D else {
         return
     }
