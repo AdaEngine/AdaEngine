@@ -248,3 +248,5 @@ playgrounds. Its `--validate` mode runs the same scene setup deterministically;
 checks live state/re-entry and saves real Metal GPU frames and verification JSON.
 The local Box2D 3.2 torque-query patch for linear mover/pogo joints is recorded in
 `Sources/box2d/ADAENGINE_PATCHES.md`; it prevents native getter/debug assertions.
+
+See [Advanced 2D physics and large-world coordinates](Physics2DAdvanced.md) for body controls, extended materials, wind, complete contacts, solver tuning and the precise-position APIs.

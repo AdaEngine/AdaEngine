@@ -45,7 +45,9 @@ struct Physics2DDemoMain {
             app.main.insertResource(FixedTime(deltaTime: 1.0 / 60))
             await app.main.runScheduler(.startup)
             await advance(app, steps: 240)
-            if scene == .mechanisms {
+            if scene == .advanced {
+                try await validateAdvanced(app, session)
+            } else if scene == .mechanisms {
                 guard session.connectedJoints == 9 else { throw Failure.mechanisms }
                 session.reverseRequested = true
                 await advance(app, steps: 30)
@@ -99,7 +101,7 @@ struct Physics2DDemoMain {
         }
     }
 
-    private static func advance(_ app: AppWorlds, steps: Int) async {
+    static func advance(_ app: AppWorlds, steps: Int) async {
         for _ in 0..<steps {
             for scheduler: SchedulerName in [.preUpdate, .fixedPreUpdate, .physicsSync, .physicsStep, .physicsWriteback, .postUpdate] {
                 await app.main.runScheduler(scheduler)
@@ -107,7 +109,7 @@ struct Physics2DDemoMain {
         }
     }
 
-    private static func waitForSource(_ label: String, excluding previous: SceneViewFrameSource? = nil) async throws -> SceneViewFrameSource {
+    static func waitForSource(_ label: String, excluding previous: SceneViewFrameSource? = nil) async throws -> SceneViewFrameSource {
         for _ in 0..<100 {
             if let source = SceneViewFrameRegistry.latest(label: label), source.frameSequence > 2, source !== previous {
                 return source
@@ -118,7 +120,7 @@ struct Physics2DDemoMain {
         throw Failure.sceneUnavailable
     }
 
-    private static func nextFrames(_ source: SceneViewFrameSource, count: Int = 5) async throws -> SceneViewCapturedFrame {
+    static func nextFrames(_ source: SceneViewFrameSource, count: Int = 5) async throws -> SceneViewCapturedFrame {
         var frame = try await source.captureFrame(after: source.frameSequence, timeout: .seconds(10))
         for _ in 1..<count {
             frame = try await source.captureFrame(after: frame.sequence, timeout: .seconds(10))
@@ -291,6 +293,8 @@ struct Physics2DDemoMain {
         verification["characterColliderCleanup"] = true
         verification["characterSceneReentry"] = true
         report("PASS: native characters · move / stop / both jumps / physical push / mode cleanup / re-entry")
+        try await verifyAdvanced(to: directory, tap: tap)
+        verification["advancedPhysics"] = true
         try JSONSerialization.data(withJSONObject: verification, options: [.prettyPrinted, .sortedKeys])
             .write(to: URL(fileURLWithPath: directory + "/verification.json"), options: .atomic)
     }
@@ -327,7 +331,7 @@ struct Physics2DDemoMain {
             session.sensorEnds > 0, session.impacts > 0, session.lastImpactSpeed > 0 else { throw Failure.events }
     }
 
-    private static func write(_ image: Image, to path: String) throws {
+    static func write(_ image: Image, to path: String) throws {
         guard image.width > 0, image.height > 0, !image.data.isEmpty else { throw Failure.emptyFrame }
         var bytes = Array(image.data)
         if image.format == .bgra8 || image.format == .bgra8_sRGB {
@@ -342,11 +346,11 @@ struct Physics2DDemoMain {
         guard image.width > 200, image.height > 200, colors.count > 3 else { report("Frame \(path) contains \(colors.count) sampled colors"); throw Failure.emptyFrame }
     }
 
-    private static func report(_ message: String) {
+    static func report(_ message: String) {
         FileHandle.standardOutput.write(Data((message + "\n").utf8))
     }
 
-    private enum Failure: Error {
-        case raycast, events, queries, mechanisms, character, sceneUnavailable, emptyFrame
+    enum Failure: Error {
+        case raycast, events, queries, mechanisms, character, advanced, sceneUnavailable, emptyFrame
     }
 }

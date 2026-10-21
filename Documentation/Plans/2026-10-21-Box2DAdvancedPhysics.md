@@ -67,7 +67,7 @@ All implementation rows are planned. Dependencies on the previous feature map ar
 | 26 | Expose contact handles and immutable complete manifold snapshots | 400–550 | 19 | A, additive lookup API | locally validated |
 | 27 | Attach safe contact snapshots to collision events and pre-solve data | 350–550 | 26 | A, backward-compatible events | locally validated |
 | 28 | Add validated live and serialized solver tuning | 400–550 | prior stack | A, old defaults retained | locally validated |
-| 29 | Add interactive body/material/contact/solver demonstration and native acceptance | 450–600 | 21–28 | A, complete standalone screen | planned |
+| 29 | Add interactive body/material/contact/solver demonstration and native acceptance | 450–600 | 21–28 | A, complete standalone screen | locally validated + native GPU |
 | 30 | Add large-world origin/precision demonstration and native acceptance | 350–550 | 17–20 | A, complete standalone screen | planned |
 
 ## Slice details and acceptance
@@ -233,3 +233,5 @@ All implementation rows are planned. Dependencies on the previous feature map ar
 - 2026-10-21: Slice 27 attaches checked contact IDs/manifold snapshots to begin/hit/end events and supplies full pre-solve points with explicit phase/unavailable normal velocity. Contact+sensor payloads are captured before joint/event subscribers, then delivered once per step. Tests remove a body during begin delivery yet retain its hit and sensor snapshots safely; all 148 selected tests in 30 suites pass. Changed-file SwiftLint: zero violations.
 
 - 2026-10-21: Slice 28 exposes validated live/persisted contact tuning, restitution iterations/propagation, thresholds, speed cap and step flags. Authored recycle distance survives delegate overrides, while character per-body recycling stays disabled. Real overlap recovery/speed-cap and old/new world JSON tests pass; all 151 selected tests in 31 suites pass. SwiftLint: zero violations.
+
+- 2026-10-21: Slice 29 adds the Advanced playground and public API guide. Six deterministic scenes pass. Native UI verification passes all six screens, including wind/drag, sleep/locks, live materials, bullet on/off physical behavior, contact markers and solver controls. The actual Metal frame advanced-physics.png was visually reviewed; verification.json reports passed=true. Source review diff: 330 lines, below the 600-line target; changed Swift files pass SwiftLint.

@@ -4,7 +4,7 @@ import Observation
 
 /// The same scenes run in the interactive window, offscreen capture and deterministic validation.
 enum PhysicsDemoScene: String, CaseIterable {
-    case raycast, events, queries, mechanisms, characters
+    case raycast, events, queries, mechanisms, characters, advanced
     var gravity: Vector2 { self == .raycast || self == .queries ? .zero : [0, -9.81] }
 }
 
@@ -13,6 +13,7 @@ enum PhysicsDemoScene: String, CaseIterable {
 final class PhysicsDemoSession: Resource {
     let scene: PhysicsDemoScene
     let rendering: Bool
+    var advanced = PhysicsAdvancedState()
     var mechanismOwners: [Entity] = []
     var mechanismStarts: [Vector2] = []
     var reverseRequested = false
@@ -58,6 +59,7 @@ final class PhysicsDemoSession: Resource {
     var lastHits: [Raycast2DHit] = []
 
     func resetScene() {
+        advanced = PhysicsAdvancedState()
         elapsed = 0
         mechanismOwners.removeAll(); mechanismStarts.removeAll()
         reverseRequested = false; breakRequested = false; driveDirection = 1; moverDirection = 1
@@ -119,6 +121,10 @@ func PhysicsDemoStartup(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoS
         var camera = Camera()
         camera.backgroundColor = Color(0.035, 0.055, 0.10, 1)
         world.spawn("Physics camera", bundle: Camera2D(camera: camera, orthographicProjection: OrthographicProjection(scale: 48)))
+    }
+    if session.scene == .advanced {
+        do { try setupAdvanced(in: world, session: session) } catch { session.rayStatus = "Advanced setup failed: \(error)" }
+        return
     }
     if session.scene == .mechanisms || session.scene == .characters {
         do {
@@ -186,9 +192,13 @@ func PhysicsDemoStartup(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoS
 
 @System
 @MainActor
-func PhysicsDemoControls(_ state: Res<PhysicsDemoSession>, _ time: Res<FixedTime>) {
+func PhysicsDemoControls(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoSession>, _ time: Res<FixedTime>) {
     let session = state.wrappedValue
     session.elapsed += Float(time.deltaTime)
+    if session.scene == .advanced {
+        controlAdvanced(in: context.world, session: session)
+        return
+    }
     if session.scene == .mechanisms {
         controlMechanisms(session)
         return
@@ -229,8 +239,15 @@ func PhysicsDemoFrame(
         if event.isSensor { session.sensorEnds += 1; session.sensorOccupied = false } else { session.contactEnds += 1 }
     }
     for _ in jointEvents { session.jointBreaks += 1 }
-    for event in hits { session.impacts += 1; session.lastImpactSpeed = event.approachSpeed }
+    for event in hits {
+        session.impacts += 1; session.lastImpactSpeed = event.approachSpeed
+        if session.scene == .advanced { session.advanced.hitPoints = event.contact?.manifold.points.count ?? 0 }
+    }
     session.sensor?.components[Sprite.self]?.tintColor = session.sensorOccupied ? Color(0.2, 1, 0.5, 0.8) : Color(0.15, 0.6, 0.4, 0.45)
+    if session.scene == .advanced {
+        frameAdvanced(in: context.world, session: session)
+        return
+    }
     if session.scene == .mechanisms {
         session.connectedJoints = session.mechanismOwners.filter { $0.components[PhysicsJoint2DComponent.self]?.isConnected == true }.count
         session.rayStatus = "\(session.connectedJoints) / 9 connected · \(session.jointBreaks) break events · filter box passes through its block"

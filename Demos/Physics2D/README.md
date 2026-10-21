@@ -55,3 +55,5 @@ A fast visitor swept through a sensor emits begin in that step and end in the ne
 Subscribe through `world.subscribe(to:)` for immediate delivery. `Events<T>`
 receives the same events through the world-local ECS buffer on the next frame.
 The physics plugin installs the event lifecycle if it has not already been set up.
+
+The Advanced tab exercises live body settings, native CCD, conveyors, rolling and material mixing, wind/still-air drag, contact point snapshots and solver presets. `--validate` and native `--verify` include these controls; the latter writes `proof/advanced-physics.png` from the actual scene camera.
