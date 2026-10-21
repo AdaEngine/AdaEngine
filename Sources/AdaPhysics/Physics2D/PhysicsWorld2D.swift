@@ -161,6 +161,8 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
         #endif
         self.worldId = unsafe b2CreateWorldDoublePrecision(&worldDef)
         b2World_EnableWarmStarting(worldId, true)
+        b2World_SetFrictionCallback(worldId, Physics2D_Friction)
+        b2World_SetRestitutionCallback(worldId, Physics2D_Restitution)
         self.defaultContactRecycleDistance = b2World_GetContactRecycleDistance(worldId)
 
         let unsafeWorldPtr = unsafe Unmanaged.passUnretained(self).toOpaque()

@@ -9,13 +9,15 @@ public final class PhysicsMaterial: Codable, Sendable {
     public let rollingResistance: Float
     /// Signed native tangent speed for conveyor surfaces, in physical units per second.
     public let surfaceSpeed: Float
+    public let mixing: PhysicsMaterialMixing
 
-    internal init(friction: Float, restitution: Float, density: Float, rollingResistance: Float = 0, surfaceSpeed: Float = 0) {
+    internal init(friction: Float, restitution: Float, density: Float, rollingResistance: Float = 0, surfaceSpeed: Float = 0, mixing: PhysicsMaterialMixing = .init()) {
         self.friction = friction
         self.restitution = restitution
         self.density = density
         self.rollingResistance = rollingResistance
         self.surfaceSpeed = surfaceSpeed
+        self.mixing = mixing
     }
 
     /// Existing material factory, preserving its source signature and defaults.
@@ -29,14 +31,16 @@ public final class PhysicsMaterial: Codable, Sendable {
         restitution: Float = 0,
         density: Float = 1,
         rollingResistance: Float = 0,
-        surfaceSpeed: Float = 0
+        surfaceSpeed: Float = 0,
+        mixing: PhysicsMaterialMixing = .init()
     ) throws(PhysicsMaterialError) -> PhysicsMaterial {
         let material = PhysicsMaterial(
             friction: friction,
             restitution: restitution,
             density: density,
             rollingResistance: rollingResistance,
-            surfaceSpeed: surfaceSpeed
+            surfaceSpeed: surfaceSpeed,
+            mixing: mixing
         )
         try material.validate()
         return material
@@ -47,7 +51,7 @@ public final class PhysicsMaterial: Codable, Sendable {
             rollingResistance.isFinite, rollingResistance >= 0, surfaceSpeed.isFinite else { throw .invalidProperties }
     }
 
-    private enum CodingKeys: CodingKey { case friction, restitution, density, rollingResistance, surfaceSpeed }
+    private enum CodingKeys: CodingKey { case friction, restitution, density, rollingResistance, surfaceSpeed, mixing }
 
     public convenience init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -56,7 +60,8 @@ public final class PhysicsMaterial: Codable, Sendable {
             restitution: try values.decode(Float.self, forKey: .restitution),
             density: try values.decode(Float.self, forKey: .density),
             rollingResistance: try values.decodeIfPresent(Float.self, forKey: .rollingResistance) ?? 0,
-            surfaceSpeed: try values.decodeIfPresent(Float.self, forKey: .surfaceSpeed) ?? 0
+            surfaceSpeed: try values.decodeIfPresent(Float.self, forKey: .surfaceSpeed) ?? 0,
+            mixing: try values.decodeIfPresent(PhysicsMaterialMixing.self, forKey: .mixing) ?? .init()
         )
         try validate()
     }
@@ -68,6 +73,7 @@ public final class PhysicsMaterial: Codable, Sendable {
         try values.encode(density, forKey: .density)
         try values.encode(rollingResistance, forKey: .rollingResistance)
         try values.encode(surfaceSpeed, forKey: .surfaceSpeed)
+        try values.encode(mixing, forKey: .mixing)
     }
 
     public static let `default` = PhysicsMaterial(friction: 0.6, restitution: 0, density: 1)

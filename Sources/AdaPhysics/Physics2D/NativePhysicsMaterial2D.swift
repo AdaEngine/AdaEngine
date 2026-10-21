@@ -8,6 +8,7 @@ extension PhysicsMaterial {
         surface.restitution = restitution
         surface.rollingResistance = rollingResistance
         surface.tangentSpeed = surfaceSpeed
+        surface.userMaterialId = mixing.nativeID
         return surface
     }
 }
