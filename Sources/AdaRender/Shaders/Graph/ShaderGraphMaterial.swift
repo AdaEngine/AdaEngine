@@ -41,6 +41,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
     private var time: Float = 0
     private var automaticTime = true
     private var issue: String?
+    private var preparedPipeline = false
     private struct Prepared {
         let device: RenderDevice
         let revision: UInt64
@@ -58,6 +59,19 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return issue
+    }
+
+    /// True after this instance has successfully prepared at least one GPU pipeline.
+    public var hasPreparedPipeline: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return preparedPipeline
+    }
+
+    func recordPipelinePreparation() {
+        lock.lock()
+        preparedPipeline = true
+        lock.unlock()
     }
 
     public var valueRevision: UInt64 {
@@ -82,7 +96,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
             graph = inline
         } else if let path = source.path, source.graph == nil {
             #if WASM
-                throw ShaderGraphDiagnostic(code: .invalidReference, nodeID: path)
+                graph = try ShaderGraphRuntimeLibrary.graph(at: path)
             #else
                 graph = try AssetsManager.loadFreshSync(ShaderGraphAsset.self, at: path).graph
             #endif
@@ -231,13 +245,13 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
     }
 
     private static func loadTexture(_ path: String, relativeTo graph: String?) throws -> Texture2D {
+        let resolved: String
+        if !path.hasPrefix("@"), !path.hasPrefix("/"), let graph, let slash = graph.lastIndex(of: "/") {
+            resolved = String(graph[...slash]) + path
+        } else { resolved = path }
         #if WASM
-            throw ShaderGraphDiagnostic(code: .invalidReference, nodeID: path)
+            return try ShaderGraphRuntimeLibrary.texture(at: resolved)
         #else
-            let resolved: String
-            if !path.hasPrefix("@"), !path.hasPrefix("/"), let graph, let slash = graph.lastIndex(of: "/") {
-                resolved = String(graph[...slash]) + path
-            } else { resolved = path }
             return try AssetsManager.loadSync(Texture2D.self, at: resolved).asset
         #endif
     }

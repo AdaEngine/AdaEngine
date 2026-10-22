@@ -3,6 +3,7 @@ import AdaAssets
 @_spi(Scripting) import AdaECS
 import AdaInput
 import AdaMultiplayer
+import AdaRender
 import AdaScene
 import AdaScriptCompilerCore
 import AdaTilemap
@@ -178,10 +179,14 @@ final class NativeAssetStore: @unchecked Sendable {
     func beginPreloading() { lock.withLock { loadingFinished = false } }
     func finishPreloading() { lock.withLock { loadingFinished = true } }
     func preload(paths: [String]) async throws {
-        for path in paths {
+        for path in paths where path.hasSuffix(".shadergraphlib") {
+            try await ShaderGraphRuntimeLibrary.preload(at: path)
+        }
+        for path in paths where !path.hasSuffix(".shadergraphlib") {
             try Task.checkCancellation()
             guard let type = AssetsManager.inferAssetType(at: path) else { continue }
             let handle = try await AssetsManager.loadErased(type, at: path)
+            if let texture = handle.untypedAsset as? Texture2D { ShaderGraphRuntimeLibrary.registerTexture(texture, at: path) }
             let key = String(reflecting: type) + "\u{0}" + path
             lock.withLock { handles[key] = handle }
         }
@@ -211,6 +216,7 @@ final class NativeAssetStore: @unchecked Sendable {
         if lock.withLock({ handles[key] != nil }) { return path }
         let handle = try await AssetsManager.loadErased(type, at: path)
         try Task.checkCancellation()
+        if let texture = handle.untypedAsset as? Texture2D { ShaderGraphRuntimeLibrary.registerTexture(texture, at: path) }
         lock.withLock { handles[key] = handle }
         return path
     }

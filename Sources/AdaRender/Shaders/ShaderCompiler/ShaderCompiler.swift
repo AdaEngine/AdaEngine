@@ -105,6 +105,16 @@ public final class ShaderCompiler {
         try ShaderCompiler(shaderSource: ShaderSource()).compileCode(code, entryPoint: entryPoint, stage: .fragment).data
     }
 
+    /// Fresh offline compilation using the production include paths and macros.
+    public func exportFragment() throws -> (data: Data, entryPoint: String, reflection: ShaderReflectionData) {
+        guard let code = shaderSource.getSource(for: .fragment) else { throw CompileError.failed("Missing fragment source") }
+        let processed = try ShaderIncluder.processIncludes(in: code, includeSearchPath: includeSearchPaths)
+        let (entryPoint, source) = try ShaderUtils.dropEntryPoint(from: processed)
+        let binary = try compileCode(source, entryPoint: entryPoint, stage: .fragment)
+        let reflection = try SpirvCompiler(spriv: binary.data, stage: .fragment, deviceLang: .glsl).reflection()
+        return (binary.data, binary.entryPoint, reflection)
+    }
+
     public func addHeaderSearchPaths(_ paths: [ShaderSource.IncludeSearchPath]) {
         self.includeSearchPaths.append(contentsOf: paths)
     }

@@ -55,7 +55,7 @@ extension ShaderGraphMaterial {
             variant: variant,
             defines: defines.sorted { $0.name < $1.name }
         )
-        return try pipelineStorage.resolve(key, device: device, cacheFailure: true) {
+        let pipeline = try pipelineStorage.resolve(key, device: device, cacheFailure: true) {
             let template = try fragmentTemplate()
             guard template.contains("#define ADA_GRAPH_SOURCE_MARKER 1") else {
                 throw ShaderGraphDiagnostic(code: .invalidReference)
@@ -70,10 +70,23 @@ extension ShaderGraphMaterial {
                 compiler.setMacro("ADA_SHADER_GRAPH", value: "1", for: .fragment)
                 for define in defines { compiler.setMacro(define.name, value: define.value, for: .fragment) }
                 var descriptor = base
-                descriptor.fragment = try compiler.compileShader(for: .fragment)
+                if unsafe RenderEngine.shared.type.deviceLang == .wgsl,
+                    let artifact = ShaderGraphRuntimeLibrary.fragment(source: generated, defines: defines) {
+                    let shader = Shader(source: artifact.wgsl, entryPoint: artifact.entryPoint, stage: .fragment, reflectionData: artifact.reflection)
+                    try shader.compile()
+                    descriptor.fragment = shader
+                } else {
+                    #if WASM
+                    throw ShaderGraphDiagnostic(code: .invalidReference, nodeID: "Missing baked Shader Graph variant: \(variant)")
+                    #else
+                    descriptor.fragment = try compiler.compileShader(for: .fragment)
+                    #endif
+                }
                 descriptor.debugName += " Shader Graph"
                 return device.createRenderPipeline(from: descriptor)
             }
         }
+        recordPipelinePreparation()
+        return pipeline
     }
 }
