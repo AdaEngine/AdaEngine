@@ -19,9 +19,11 @@
         }
         let device: WebGPU.GPUDevice
         let commandEncoder: WebGPU.GPUCommandEncoder
+        private let spatialScaler: WGPUFSRSpatialScaler
         private var completedHandlers: [@Sendable () -> Void] = []
 
-        init(device: WebGPU.GPUDevice) {
+        init(device: WebGPU.GPUDevice, spatialScaler: WGPUFSRSpatialScaler) {
+            self.spatialScaler = spatialScaler
             self.device = device
             self.commandEncoder = webGPUDeviceLock.withLock { _ in
                 device.createCommandEncoder(descriptor: nil)
@@ -102,6 +104,14 @@
                 descriptor: renderPassDescriptor
             )
             return WGPURenderCommandEncoder(renderEncoder: renderPassEncoder, device: device)
+        }
+
+        func encodeSpatialUpscale(source: Texture, destination: Texture) -> Bool {
+            guard let input = source.gpuTexture as? WGPUGPUTexture,
+                let output = destination.gpuTexture as? WGPUGPUTexture else {
+                return false
+            }
+            return spatialScaler.encode(source: input, destination: output, command: self)
         }
 
         func beginBlitPass(_: BlitPassDescriptor) -> BlitCommandEncoder {

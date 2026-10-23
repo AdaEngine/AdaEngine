@@ -11,7 +11,7 @@ let package = Package(
         .library(name: "GravityAOT", targets: ["GravityAOT"]),
         .library(name: "CGravity", targets: ["CGravity"]),
     ],
-    dependencies: [.package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0")],
+    dependencies: [.package(url: "https://github.com/swiftlang/swift-syntax", "602.0.0"..<"604.0.0")],
     targets: [
         .target(name: "GravityAOT", dependencies: ["CGravity"], path: "binding/GravityAOT"),
         .target(name: "Gravity", dependencies: ["CGravity", "GravitySwiftMacros"], path: "binding/GravitySwift"),

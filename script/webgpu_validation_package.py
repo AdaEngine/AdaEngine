@@ -24,6 +24,8 @@ for relative in [
     "Tests/AdaEngineTests/SpriteMetalRenderingTests.swift",
     "Tests/AdaRenderTests/BoundedResourceCacheTests.swift",
     "Tests/AdaRenderTests/RenderGraphDiagnosticsTests.swift",
+    "Tests/AdaRenderTests/RenderUpscalingTests.swift",
+    "Tests/AdaEngineTests/Render3DFSRTests.swift",
     "Tests/AdaRenderTests/WindowFrameRequestsTests.swift",
     "Tests/AdaRenderTests/WGPUBindingStateTests.swift",
     "Tests/AdaRenderTests/WGPUVisibilityProcessorTests.swift",

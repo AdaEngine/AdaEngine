@@ -9,6 +9,9 @@ license, Makefile and CMake entry point. The SwiftPM manifest exposes the runtim
 libraries and macro; upstream examples, development tools and test projects are omitted.
 The C VM, AOT compiler, ABI and macro sources are unchanged.
 
+The subset manifest accepts SwiftSyntax 602 and 603 so its macros can share the
+compiler support selected by AdaEngine and the pinned Swan dependency.
+
 Local Swift binding fixes:
 
 - `GSValue.swift`: copy Swift strings with the C VM's allocator and count UTF-8 bytes.
