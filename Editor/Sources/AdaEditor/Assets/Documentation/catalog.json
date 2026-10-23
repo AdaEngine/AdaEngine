@@ -3665,6 +3665,12 @@
         "links": []
       },
       {
+        "kind": "text",
+        "text": "Run synchronous `TestWorld` steps on the host. Browser players cannot block their\nsingle thread while awaiting the scheduler; they report a diagnostic if asked to\nstep a test world. Gameplay systems continue through the normal async frame loop.",
+        "level": 0,
+        "links": []
+      },
+      {
         "kind": "code",
         "text": "@test(\"a body falls\")\nfunc falls() {\n    var world = TestWorld();\n    var body = world.spawn([Body(y: 10.0, speed: 0.0)]);\n    world.run(30);\n    expect(world.read(body, \"Body\", \"y\") < 10.0);\n}",
         "language": "ada",
@@ -3800,7 +3806,7 @@
       },
       {
         "kind": "text",
-        "text": "The exporter loads project and locked library sources, performs type checking,\nprepares native host conveniences and calls Gravity's `tools/aot_build.py`.\nIt creates the native archive, C accessor target, game executable package,\nresource bundle and detached scene payloads. It checks the generated module's\nmetadata, component/resource bindings and startup-system configuration before building the player. macOS\nexports include an `.app`; Web exports invoke the existing `export-web` plugin\nfor the engine/game WASM, JavaScript loader and resource manifests.",
+        "text": "The exporter loads project and locked library sources, performs type checking,\nprepares native host conveniences and calls Gravity's `tools/aot_build.py`.\nModules containing `static` declarations select the full AdaScript VM before\ncompilation, because Gravity AOT does not yet implement static class state.\nThese exports package the same source module and interpreter used by the editor;\ntheir `ada-native-export.json` marker records `runtime: interpreted`. Modules on\nthe native path record `runtime: aot` and resolve imports before C generation.\nThe native path creates the archive and C accessor target. Both paths create a\ngame executable package, resource bundle and detached scene payloads. The native path checks the generated module's\nmetadata, component/resource bindings and startup-system configuration before building the player. macOS\nexports include an `.app`; Web exports invoke the existing `export-web` plugin\nfor the engine/game WASM, JavaScript loader and resource manifests.",
         "level": 0,
         "links": []
       },
