@@ -24,8 +24,8 @@ public enum RenderUpscalingMode: Sendable, Equatable {
 
     /// Use the backend's spatial upscaler when it is available.
     ///
-    /// The scale is clamped to `0.5...1`. Backends without a native spatial
-    /// upscaler render at native resolution instead of applying a generic filter.
+    /// The scale is clamped to `0.5...1`. Metal uses MetalFX and WebGPU uses
+    /// FidelityFX Super Resolution 1 (EASU + RCAS). Unsupported backends render at native resolution.
     case spatial(renderScale: Float)
 }
 
