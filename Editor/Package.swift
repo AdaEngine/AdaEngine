@@ -24,7 +24,7 @@ let sloppyRuntimeTarget: [Target.Dependency] = hasSloppyRuntime
 // AdaMCP's dependency graph includes Git revisions, so SwiftPM requires a revision here.
 let adaMCPPackage: Package.Dependency = adaMCPURL.map {
     .package(name: "AdaMCP", path: $0.path)
-} ?? .package(url: "https://github.com/AdaEngine/AdaMCP.git", revision: "v0.2.0")
+} ?? .package(url: "https://github.com/AdaEngine/AdaMCP.git", revision: "ed7bb9076f9f8c91e2584ca9b7201df0e03defb1")
 
 let engineSourceURL = URL(fileURLWithPath: adaEngineLocalPath, relativeTo: URL(fileURLWithPath: #filePath).deletingLastPathComponent()).standardizedFileURL
 let gravityAOTPath = ProcessInfo.processInfo.environment["ADAENGINE_GRAVITY_PACKAGE_PATH"]
