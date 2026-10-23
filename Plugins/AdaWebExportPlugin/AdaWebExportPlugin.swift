@@ -302,6 +302,31 @@ struct AdaWebExportPlugin: CommandPlugin {
             shaderTranspiler: shaderTranspiler,
             requiresAllShaders: ["AdaWebPlayer", "AdaNativeGame"].contains(options.product)
         )
+        var graphBaker: URL?
+        for bundle in resourceBundles {
+            let roots = try regularFiles(in: bundle.destination)
+                .filter { try WebExportSupport.needsShaderGraphBaker($0) }
+                .compactMap { file -> URL? in
+                    guard let range = file.path.range(of: "/GameAssets/") else { return nil }
+                    return URL(fileURLWithPath: String(file.path[..<range.upperBound]))
+                }
+            for root in Set(roots) {
+                let tint = try tintExecutable(packageDirectory: packageDirectory)
+                let baker = try graphBaker ?? buildGraphBaker(packageDirectory: packageDirectory, scratch: options.scratchDirectory)
+                graphBaker = baker
+                _ = try WebExportSupport.captureStandardOutput(executable: baker.path, arguments: [root.path, tint.path], workingDirectory: packageDirectory)
+                let archive = root.appendingPathComponent("shaders.shadergraphlib")
+                if fileManager.fileExists(atPath: archive.path) {
+                    let relative = archive.relativePath(from: bundle.destination)
+                    let path = bundle.source.appendingPathComponent(relative).path
+                    resourceManifest.removeAll { $0.path == path }
+                    resourceManifest.append(ResourceManifestEntry(
+                        path: path,
+                        url: browserRelativeURL(forRelativePath: archive.relativePath(from: options.outputDirectory))
+                    ))
+                }
+            }
+        }
         resourceManifest.append(contentsOf: generatedShaders)
         resourceManifest.sort { $0.path < $1.path }
         try writeResourceManifest(
@@ -428,6 +453,40 @@ struct AdaWebExportPlugin: CommandPlugin {
         return exportedBundles
     }
 
+    /// A host tool must not inherit BUILD_WASM: Swan deliberately omits its
+    /// native Dawn module in that mode. Keep the CPU baker in its own host build.
+    private func buildGraphBaker(packageDirectory: URL, scratch: URL?) throws -> URL {
+        let engine = Self.assetsDirectory.deletingLastPathComponent().deletingLastPathComponent()
+        let cache = (scratch ?? packageDirectory.appendingPathComponent(".build-web-export"))
+            .appendingPathComponent("shader-graph-host")
+        var environment = ProcessInfo.processInfo.environment
+        environment.removeValue(forKey: "BUILD_WASM")
+        environment["ADAENGINE_DISABLE_SWAN"] = "1"
+        environment["ADAENGINE_WEB_EXPORT"] = "1"
+        let arguments = ["swift", "build", "--package-path", engine.path, "--scratch-path", cache.path, "--disable-sandbox"]
+        let build = Process()
+        build.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        build.arguments = arguments + ["--product", "AdaShaderGraphBaker", "--jobs", "4"]
+        build.environment = environment
+        build.standardOutput = FileHandle.standardError
+        build.standardError = FileHandle.standardError
+        try build.run()
+        build.waitUntilExit()
+        guard build.terminationStatus == 0 else { throw ExportError.commandFailed("Shader Graph host baker build failed", build.terminationStatus) }
+        let query = Process()
+        query.executableURL = build.executableURL
+        query.arguments = arguments + ["--show-bin-path"]
+        query.environment = environment
+        let output = Pipe()
+        query.standardOutput = output
+        try query.run()
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        query.waitUntilExit()
+        guard query.terminationStatus == 0 else { throw ExportError.commandFailed("Shader Graph host baker path unavailable", query.terminationStatus) }
+        let directory = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        return URL(fileURLWithPath: directory).appendingPathComponent("AdaShaderGraphBaker")
+    }
+
     private func generateWGSLShaders(
         resourceBundles: [ResourceBundleExport],
         outputDirectory: URL,
@@ -481,7 +540,7 @@ struct AdaWebExportPlugin: CommandPlugin {
             arguments.append(contentsOf: moduleIncludeArguments)
 
             do {
-                let generatedOutput = try captureStandardOutput(
+                let generatedOutput = try WebExportSupport.captureStandardOutput(
                     executable: shaderTranspiler.path(),
                     arguments: arguments,
                     workingDirectory: packageDirectory
@@ -1042,37 +1101,6 @@ struct AdaWebExportPlugin: CommandPlugin {
         return output
     }
 
-    private func captureStandardOutput(executable: String, arguments: [String], workingDirectory: URL?) throws -> String {
-        let process = Process()
-        let standardOutput = Pipe()
-        let standardError = Pipe()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-        process.currentDirectoryURL = workingDirectory
-        process.standardOutput = standardOutput
-        process.standardError = standardError
-        process.environment = ProcessInfo.processInfo.environment.merging([
-            "ADAENGINE_WEB_EXPORT": "1",
-            "BUILD_WASM": "1"
-        ]) { _, new in new }
-        try process.run()
-        process.waitUntilExit()
-
-        let data = standardOutput.fileHandleForReading.readDataToEndOfFile()
-        let output = String(decoding: data, as: UTF8.self)
-        guard process.terminationStatus == 0 else {
-            let errorData = standardError.fileHandleForReading.readDataToEndOfFile()
-            let errorOutput = String(decoding: errorData, as: UTF8.self)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let command = ([executable] + arguments).joined(separator: " ")
-            throw ExportError.commandFailed(
-                errorOutput.isEmpty ? command : "\(command)\n\(errorOutput)",
-                process.terminationStatus
-            )
-        }
-        return output
-    }
-
     private func runBridgeJSTool(executable: URL, skeleton: URL, output: URL, workingDirectory: URL?) throws {
         FileManager.default.createFile(atPath: output.path(), contents: nil)
         let outputHandle = try FileHandle(forWritingTo: output)
@@ -1551,8 +1579,14 @@ private func mainJS(product: String) -> String {
       }
       const optionalFeatures = ["float32-filterable"];
       const requiredFeatures = optionalFeatures.filter((feature) => adapter.features.has(feature));
+      // Layered PBR plus graph textures can exceed the WebGPU baseline of 16.
+      // Request supported capacity without rejecting baseline-only adapters.
+      const requiredLimits = {
+        maxSampledTexturesPerShaderStage: Math.min(32, adapter.limits.maxSampledTexturesPerShaderStage),
+        maxSamplersPerShaderStage: Math.min(32, adapter.limits.maxSamplersPerShaderStage),
+      };
       updateLoader(64, "Creating WebGPU device…");
-      const device = await adapter.requestDevice({ requiredFeatures });
+      const device = await adapter.requestDevice({ requiredFeatures, requiredLimits });
       if (new URLSearchParams(location.search).has("stats")) {
         const panel = document.createElement("output");
         panel.id = "ada-performance";

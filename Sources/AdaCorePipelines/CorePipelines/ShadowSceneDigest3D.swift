@@ -26,6 +26,7 @@ enum ShadowSceneDigest3D {
                 digest.combine(UInt64(UInt(bitPattern: ObjectIdentifier(material))))
                 if let pbr = material as? PBRMaterial {
                     digest.combine(UInt64(truncatingIfNeeded: pbr.uniformRevision))
+                    if pbr.effectiveAlphaMode == .mask, let graph = pbr.graphMaterial { digest.combine(graph.valueRevision) }
                     digest.combine(UInt64(pbr.baseColorTexture.map { UInt(bitPattern: ObjectIdentifier($0)) } ?? 0))
                 }
             }

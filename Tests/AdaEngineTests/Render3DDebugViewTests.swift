@@ -1,4 +1,4 @@
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
 @_spi(Internal) @testable import AdaApp
 import AdaAssets
 import AdaECS
@@ -8,7 +8,9 @@ import AdaTransform
 import AdaUtils
 import Foundation
 import Math
+#if canImport(Metal)
 import Metal
+#endif
 import Testing
 
 @testable import AdaCorePipelines
@@ -207,11 +209,14 @@ extension Render3DGPUTests {
             let device: RenderDevice
             let target: RenderTexture
             /// Metal only: a fence on the engine's queue. WebGPU readback waits for submitted work itself.
+            #if canImport(Metal)
             let queue: MTLCommandQueue?
+            #endif
             let camera: Entity
             let sun: Entity
             /// The ground's material, which tests edit between renders.
             var groundMaterial: PBRMaterial?
+            var sphereEntities: [Entity] = []
 
             /// Scales the sun's intensity, which changes how bright the whole lit scene is.
             func setSunIntensity(_ intensity: Float) throws {
@@ -234,6 +239,7 @@ extension Render3DGPUTests {
                 for _ in 0..<frames {
                     try await app.update()
                 }
+                #if canImport(Metal)
                 if let queue {
                     let fence = try #require(queue.makeCommandBuffer())
                     await withCheckedContinuation { continuation in
@@ -241,6 +247,7 @@ extension Render3DGPUTests {
                         fence.commit()
                     }
                 }
+                #endif
                 return try #require(try await device.readImage(from: target))
             }
         }
@@ -258,7 +265,9 @@ extension Render3DGPUTests {
             // A silent fallback to another backend would make the references meaningless.
             try #require(unsafe RenderEngine.shared.type == requested, "The \(backend) backend must be active.")
             let device = unsafe RenderEngine.shared.renderDevice
+            #if canImport(Metal)
             let queue = backend == .metal ? try #require(MetalInterop.commandQueue(for: device)) : nil
+            #endif
             let app = AppWorlds(main: World())
             app.insertResource(OffscreenRenderWorld())
                 .insertResource(PrimaryWindowId(windowId: RID()))
@@ -295,15 +304,17 @@ extension Render3DGPUTests {
                 Transform(rotation: Quat.euler([-0.9, 0.6, 0]))
             }
             let sphere = Mesh.generateSphere(radius: 0.5, renderDevice: device)
+            var sphereEntities: [Entity] = []
             for index in 0..<4 {
                 let material = PBRMaterial()
                 material.baseColorFactor = [0.8, 0.45, 0.3, 1]
                 material.roughnessFactor = roughness[index]
                 material.metallicFactor = metallic[index]
-                app.main.spawn("Sphere \(index)") {
+                let entity = app.main.spawn("Sphere \(index)") {
                     Mesh3DComponent(mesh: sphere, materials: [material])
                     Transform(position: [Float(index) * 1.1 - 1.65, 0.5, 0])
                 }
+                sphereEntities.append(entity)
             }
             if emissiveSphere {
                 // An HDR light source above the row, against the sky, so bloom is visible outside its silhouette.
@@ -336,7 +347,13 @@ extension Render3DGPUTests {
                 Mesh3DComponent(mesh: Mesh.generateCube(size: [10, 0.1, 10], renderDevice: device), materials: [ground])
                 Transform(position: [0, -0.05, 0])
             }
-            return Scene(app: app, device: device, target: target, queue: queue, camera: cameraEntity, sun: sunEntity, groundMaterial: ground)
+            #if canImport(Metal)
+            return Scene(app: app, device: device, target: target, queue: queue, camera: cameraEntity, sun: sunEntity,
+                         groundMaterial: ground, sphereEntities: sphereEntities)
+            #else
+            return Scene(app: app, device: device, target: target, camera: cameraEntity, sun: sunEntity,
+                         groundMaterial: ground, sphereEntities: sphereEntities)
+            #endif
         }
 
         private static func expectGolden(_ image: Image, named name: String) throws {

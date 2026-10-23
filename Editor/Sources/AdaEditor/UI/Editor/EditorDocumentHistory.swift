@@ -40,6 +40,11 @@ extension EditorWorkbenchViewModel {
     @discardableResult
     func performDocumentHistory(redo: Bool) -> Bool {
         switch activeDocument {
+        case let .asset(document) where document.kind == .shaderGraph:
+            let model = shaderGraphModel(for: document)
+            guard redo ? model.canRedo : model.canUndo else { return false }
+            if redo { model.redo() } else { model.undo() }
+            return true
         case let .ui(document):
             guard !document.isReadOnly, let model = uiSceneModels[document.id] else {
                 return false

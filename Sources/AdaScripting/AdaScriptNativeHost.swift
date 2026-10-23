@@ -1,6 +1,7 @@
 #if canImport(GravityAOT)
 @_spi(Scripting) import AdaECS
 import AdaInput
+import AdaUtils
 import GravityAOT
 
 /// A scope belongs to one synchronous callback; pointers are never retained after it ends.
@@ -108,9 +109,27 @@ final class NativeQueryComponent: NativeHostObject {
         }
         return cursor.read(componentAt: access.componentIndex, field: field)?.nativeValue
     }
+    func call(_ method: String, arguments: [NativeValue]) throws -> NativeValue? {
+        try scope.check()
+        do {
+            guard let first = arguments.first, case .integer(let rawSlot) = first, let slot = Int(exactly: rawSlot) else { return nil }
+            if method == "shader", arguments.count == 1 {
+                let material = try ShaderGraphScriptComponent.material(cursor: cursor, index: access.componentIndex, slot: slot)
+                let handle = ShaderGraphScriptHandle(material: material, writable: access.isWritable, isActive: { [scope] in scope.isActive })
+                return .host(NativeShaderGraphHost(handle: handle))
+            }
+            if method == "assignShader", arguments.count == 2, case .string(let path) = arguments[1] {
+                return .boolean(try ShaderGraphScriptComponent.assign(cursor: cursor, index: access.componentIndex, slot: slot, path: path, writable: access.isWritable))
+            }
+            return nil
+        } catch {
+            RuntimeLogStore.shared.append(level: "error", label: "AdaScript", message: "ShaderGraph: \(error)")
+            return method == "assignShader" ? .boolean(false) : .null
+        }
+    }
     func write(_ key: String, value: NativeValue) throws -> Bool {
         try scope.check()
-        guard let field = access.fields[key], let value = value.literal?.reflected else {
+        guard access.isWritable, let field = access.fields[key], let value = value.literal?.reflected else {
             return false
         }
         return cursor.write(componentAt: access.componentIndex, field: field, value: value)

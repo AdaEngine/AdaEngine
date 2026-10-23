@@ -183,8 +183,8 @@ struct SpriteMetalRenderingTests {
         #endif
     }
 
-    private func renderReferenceScene(
-        backend: RenderBackendType, tileMapMode: TileMapRenderMode = .chunks, spriteMode: SpriteRenderingMode = .automatic
+    func renderReferenceScene(
+        backend: RenderBackendType, tileMapMode: TileMapRenderMode = .chunks, spriteMode: SpriteRenderingMode = .automatic, graphMode: Bool = false
     ) async throws -> Image {
         unsafe RenderEngine.configurations.preferredBackend = backend
         try RenderEngine.setupRenderEngine()
@@ -268,6 +268,20 @@ struct SpriteMetalRenderingTests {
         mainWorld.spawn {
             mapComponent
             Transform(position: [-224, -64, 0])
+        }
+        if graphMode {
+            var graph = ShaderGraph(target: .sprite, output: "output", nodes: [
+                .init(id: "texture", operation: .spriteTexture, type: .color),
+                .init(id: "output", operation: .output, inputs: ["color": .init("texture")])
+            ])
+            graph.renderSettings.mode = .blend
+            let materials = try [ShaderGraphMaterial(source: .init(graph: graph)), ShaderGraphMaterial(source: .init(graph: graph))]
+            for (index, entity) in mainWorld.getEntities().sorted(by: { $0.id < $1.id }).enumerated() {
+                if var sprite = entity.components[Sprite.self] {
+                    sprite.graphMaterial = materials[index % 2]
+                    entity.components[Sprite.self] = sprite
+                }
+            }
         }
         await mainWorld.runScheduler(.update)
         await mainWorld.runScheduler(.postUpdate)
@@ -361,4 +375,19 @@ struct SpriteMetalRenderingTests {
         return result
     }
 }
+#if os(macOS) || os(Windows) || os(Linux)
+extension Render3DGPUTests {
+    @MainActor @Suite("Sprite Shader Graph pixels") struct SpriteGraphs {
+        @Test(.enabled(if: GoldenFrame.activeBackend != nil), arguments: [SpriteRenderingMode.batched, .automatic])
+        func identityGraphPreservesAtlasLayoutAlphaAndPainterOrder(mode: SpriteRenderingMode) async throws {
+            let backend: RenderBackendType = GoldenFrame.activeBackend == .metal ? .metal : .webgpu
+            let harness = SpriteMetalRenderingTests()
+            let stock = try await harness.renderReferenceScene(backend: backend, spriteMode: mode)
+            let graph = try await harness.renderReferenceScene(backend: backend, spriteMode: mode, graphMode: true)
+            #expect(stock.data == graph.data)
+        }
+    }
+}
+#endif
+
 #endif

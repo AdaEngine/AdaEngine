@@ -3,6 +3,31 @@ import Testing
 
 @Suite("Dynamic runtime query")
 struct DynamicQueryTests {
+    @Test("Typed capability checks component identity and rejects an exhausted cursor")
+    @MainActor func typedComponents() throws {
+        DynamicQueryPosition.registerComponent()
+        DynamicQueryTarget.registerComponent()
+        let world = World()
+        let entity = world.spawn { DynamicQueryPosition(value: 1) }
+        var access = SystemAccessSet()
+        access.addComponentWrite(DynamicQueryPosition.self)
+        let query = DynamicQuery(where: .has(DynamicQueryPosition.self), components: [DynamicQueryPosition.identifier], access: access)
+        query.update(from: world)
+        let cursor = query.wrappedValue.makeCursor()
+        #expect(cursor.readTyped(DynamicQueryPosition.self, componentAt: 0) == nil)
+        #expect(cursor.advance())
+        #expect(cursor.readTyped(DynamicQueryPosition.self, componentAt: 0)?.value == 1)
+        #expect(cursor.readTyped(DynamicQueryTarget.self, componentAt: 0) == nil)
+        var called = false
+        #expect(!cursor.updateTyped(DynamicQueryTarget.self, componentAt: 0) { _ in called = true })
+        #expect(!called)
+        #expect(cursor.updateTyped(DynamicQueryPosition.self, componentAt: 0) { $0.value += 2 })
+        #expect(world.get(DynamicQueryPosition.self, from: entity.id)?.value == 3)
+        #expect(!cursor.advance())
+        #expect(cursor.readTyped(DynamicQueryPosition.self, componentAt: 0) == nil)
+        #expect(!cursor.updateTyped(DynamicQueryPosition.self, componentAt: 0) { $0.value = 100 })
+    }
+
     @Test("Binds component columns and mutates rows across chunks")
     @MainActor
     func iteratesAndWritesComponentColumns() throws {

@@ -1,4 +1,4 @@
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
 @_spi(Internal) @testable import AdaApp
 import AdaAssets
 import AdaECS
@@ -8,7 +8,9 @@ import AdaTransform
 import AdaUtils
 import Foundation
 import Math
+#if canImport(Metal)
 import Metal
+#endif
 import Testing
 
 @testable import AdaCorePipelines
@@ -25,7 +27,7 @@ extension Render3DGPUTests {
     @Suite("3D performance benchmarks")
     @MainActor
     struct Benchmarks {
-        nonisolated static let enabled = ProcessInfo.processInfo.environment["ADAENGINE_PERF"] == "1" && GoldenFrame.activeBackend == .metal
+        nonisolated static let enabled = ProcessInfo.processInfo.environment["ADAENGINE_PERF"] == "1" && GoldenFrame.activeBackend != nil
 
         struct Configuration {
             var name: String
@@ -47,11 +49,14 @@ extension Render3DGPUTests {
 
         /// A grid of spheres with eight materials, a ground, a sun with cascaded shadows and a ring of local lights.
         private static func makeScene(size: SizeInt, temporalScale: Float?, localLights: Bool, manyLights: Int = 0) async throws -> Render3DGPUTests.DebugViews.Scene {
-            unsafe RenderEngine.configurations.preferredBackend = .metal
+            let backend: RenderBackendType = GoldenFrame.activeBackend == .webgpu ? .webgpu : .metal
+            unsafe RenderEngine.configurations.preferredBackend = backend
             try RenderEngine.setupRenderEngine()
-            try #require(unsafe RenderEngine.shared.type == .metal)
+            try #require(unsafe RenderEngine.shared.type == backend)
             let device = unsafe RenderEngine.shared.renderDevice
-            let queue = try #require(MetalInterop.commandQueue(for: device))
+            #if canImport(Metal)
+            let queue = backend == .metal ? try #require(MetalInterop.commandQueue(for: device)) : nil
+            #endif
             let app = AppWorlds(main: World())
             app.insertResource(OffscreenRenderWorld())
                 .insertResource(PrimaryWindowId(windowId: RID()))
@@ -130,7 +135,11 @@ extension Render3DGPUTests {
                     }
                 }
             }
+            #if canImport(Metal)
             return Render3DGPUTests.DebugViews.Scene(app: app, device: device, target: target, queue: queue, camera: cameraEntity, sun: sunEntity)
+            #else
+            return Render3DGPUTests.DebugViews.Scene(app: app, device: device, target: target, camera: cameraEntity, sun: sunEntity)
+            #endif
         }
 
         /// Created on first use, after the renderer exists.
@@ -256,14 +265,14 @@ extension Render3DGPUTests {
             func cell(_ value: Double?) -> String { value.map { String(format: "%.2f", $0) } ?? "-" }
             var lines = [
                 "Scene: \(grid * grid) PBR spheres (8 materials), ground, sun with 3 cascades, 6 point and 2 spot lights, \(size.width)x\(size.height), \(frames) measured frames, best of \(rounds) rounds.",
-                "Pass times are GPU milliseconds with passes serialized; `sum` adds the pass averages and `wall` is time per frame including those waits, and `free` is time per frame with nothing serialized (the sustained rate).",
+                (GoldenFrame.activeBackend == .metal ? "Pass times are GPU milliseconds with passes serialized; `sum` adds the pass averages and `wall` is time per frame including those waits, and `free` is time per frame with nothing serialized (the sustained rate)." : "WebGPU has no per-pass GPU timestamps here. `wall` and `free` are CPU + GPU frame wall time; `free` includes a final readback. The GPU pass/sum columns are unavailable."),
                 "",
                 "| configuration | " + columns.joined(separator: " | ") + " | sum | wall | free |",
                 "| --- | " + columns.map { _ in "---:" }.joined(separator: " | ") + " | ---: | ---: | ---: |",
             ]
             for result in results {
                 let byName = Dictionary(uniqueKeysWithValues: result.samples.map { ($0.pass, $0.averageMilliseconds) })
-                lines.append("| \(result.configuration.name) | " + columns.map { cell(byName[$0]) }.joined(separator: " | ") + " | \(cell(result.totalAverage)) | \(cell(result.frameMilliseconds)) | \(cell(result.freeRunningMilliseconds)) |")
+                lines.append("| \(result.configuration.name) | " + columns.map { cell(byName[$0]) }.joined(separator: " | ") + " | \(cell(result.samples.isEmpty ? nil : result.totalAverage)) | \(cell(result.frameMilliseconds)) | \(cell(result.freeRunningMilliseconds)) |")
             }
             return lines.joined(separator: "\n")
         }
@@ -295,8 +304,10 @@ extension Render3DGPUTests {
             // ADAENGINE_PERF_FILTER="bare,ssr" keeps only configurations whose name contains one of the words.
             let words = (ProcessInfo.processInfo.environment["ADAENGINE_PERF_FILTER"] ?? "").split(separator: ",").map(String.init)
             let configurations = Self.configurations().filter { configuration in
-                words.isEmpty || words.contains { configuration.name.contains($0) }
+                (words.isEmpty || words.contains { configuration.name.contains($0) })
+                    && (GoldenFrame.activeBackend == .metal || configuration.temporalScale == nil)
             }
+            try #require(!configurations.isEmpty, "No requested benchmark configuration is supported by this backend.")
             var collected = [[Result]](repeating: [], count: configurations.count)
             for _ in 0..<rounds {
                 for (index, configuration) in configurations.enumerated() {
@@ -309,7 +320,10 @@ extension Render3DGPUTests {
             if let path = ProcessInfo.processInfo.environment["ADAENGINE_PERF_OUTPUT"] {
                 try report.write(toFile: path, atomically: true, encoding: .utf8)
             }
-            #expect(results.allSatisfy { !$0.samples.isEmpty }, "Every configuration must record GPU pass timings.")
+            if GoldenFrame.activeBackend == .metal {
+                #expect(results.allSatisfy { !$0.samples.isEmpty }, "Every configuration must record GPU pass timings.")
+            }
+            #expect(results.allSatisfy { $0.frameMilliseconds > 0 && $0.freeRunningMilliseconds > 0 })
         }
     }
 }

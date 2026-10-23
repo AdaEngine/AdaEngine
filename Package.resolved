@@ -1,22 +1,21 @@
 {
-  "originHash" : "c2ccf123c342fd892478bf481f1a64b94299078b94d3300a1312e44c1d720807",
+  "originHash" : "959b6991efedf5a9e980e6ce75e7092e9f23514e5cdc22dc5fc9bcf4593a68e4",
   "pins" : [
     {
       "identity" : "javascriptkit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftwasm/JavaScriptKit.git",
       "state" : {
-        "revision" : "403ae956d68503957699b6dc4c07b73caad031b7",
-        "version" : "0.53.0"
+        "revision" : "991755e698a7516eac571e6f6a65c04c907ce5ed",
+        "version" : "0.59.0"
       }
     },
     {
       "identity" : "swan",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/adobe/swan",
+      "location" : "https://github.com/AdaEngine/swan",
       "state" : {
-        "revision" : "1eb45a22c79439b50e9cde774454450e50147149",
-        "version" : "0.0.8"
+        "revision" : "790df787281e9cf1c2358a11bb42b2ec2df01029"
       }
     },
     {
@@ -87,8 +86,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-format.git",
       "state" : {
-        "revision" : "62eaad2822b865407b8cde56c36386c00800f7ec",
-        "version" : "602.0.0"
+        "revision" : "d54c5be7afba3e5f52ae29e2371e444a3c2a49c1",
+        "version" : "603.0.0"
       }
     },
     {
@@ -141,8 +140,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-syntax",
       "state" : {
-        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
-        "version" : "602.0.0"
+        "revision" : "79e4b74a295b6eb74a8b585e3a39d29e70c1dbd1",
+        "version" : "603.0.2"
       }
     },
     {

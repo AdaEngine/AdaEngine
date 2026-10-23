@@ -788,6 +788,7 @@ targets.append(
 )
 
 if isWebExportEnabled {
+    products.append(.executable(name: "AdaShaderGraphBaker", targets: ["AdaShaderGraphBaker"]))
     products.append(
         .plugin(name: "AdaWebExportPlugin", targets: [
             "AdaWebExportPlugin"
@@ -803,6 +804,12 @@ if isWebExportEnabled {
             path: "Plugins/AdaShaderTranspilerTool"
         )
     )
+
+    targets.append(.executableTarget(
+        name: "AdaShaderGraphBaker",
+        dependencies: ["AdaAssets", "AdaCorePipelines", "AdaRender", "AdaSprite"],
+        path: "Plugins/AdaShaderGraphBaker"
+    ))
 
     targets.append(
         .plugin(
@@ -1537,7 +1544,7 @@ package.targets.append(.target(
     name: "AdaScriptAOTFixture",
     dependencies: [.product(name: "CGravity", package: "gravity-lang")],
     path: "Tests/AdaScriptAOTFixture",
-    exclude: ["Movement.ada", "HostAdapters.ada", "Async.ada", "Navigation.ada"],
+    exclude: ["Movement.ada", "HostAdapters.ada", "Async.ada", "Navigation.ada", "ShaderGraph.ada"],
     publicHeadersPath: "include"
 ))
 
@@ -1552,13 +1559,14 @@ package.dependencies += [
     .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.2"),
     .package(url: "https://github.com/swiftlang/swift-subprocess.git", branch: "0.2.1"),
     .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.7.3"),
-    .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", from: "0.36.0"),
+    // Swan checks in BridgeJS generated with this ABI; update both together.
+    .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", exact: "0.59.0"),
     // TODO: SpectralDragon packages should move to AdaEngine
     ProcessInfo.processInfo.environment["ADAENGINE_YAMS_PACKAGE_PATH"].map { .package(name: "Yams", path: $0) }
         ?? .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.5"),
-    .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0"),
+    .package(url: "https://github.com/swiftlang/swift-syntax", "602.0.0"..<"604.0.0"),
 ]
 
 if isECSBenchmarkEnabled {
@@ -1577,7 +1585,7 @@ if !isWebExportEnabled && !isAndroidBuildEnabled {
 if !isHeadlessCIEnabled {
     package.dependencies.append(
         ProcessInfo.processInfo.environment["ADAENGINE_SWAN_PACKAGE_PATH"].map { .package(name: "swan", path: $0) }
-            ?? .package(url: "https://github.com/adobe/swan", .upToNextMinor(from: "0.0.8"))
+            ?? .package(url: "https://github.com/AdaEngine/swan", revision: "790df787281e9cf1c2358a11bb42b2ec2df01029")
     )
 }
 

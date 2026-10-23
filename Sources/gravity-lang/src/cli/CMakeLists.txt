@@ -5,6 +5,11 @@ SET(GRAVITY_SRC gravity.c)
 
 # Executable
 add_executable(gravity ${GRAVITY_SRC})
+if(MSVC)
+    # Use UTF-8 for both narrow argv and CRT file paths on supported Windows
+    # hosts. Without this, AOT input/output paths lose non-ANSI characters.
+    target_sources(gravity PRIVATE gravity.manifest)
+endif()
 target_link_libraries(gravity gravityapi_s)
 target_include_directories(gravity PUBLIC ${GRAVITY_INCLUDE_DIR})
 set_target_properties(gravity PROPERTIES

@@ -56,6 +56,8 @@ public struct ShaderDefine: Hashable, Sendable {
 
 /// ShaderCompiler compile engine shader code to Shader objects (with SPIR-V binary).
 public final class ShaderCompiler {
+    // glslang initialization/finalization is process-wide, including editor background compiles.
+    private static let compilationLock = NSLock()
     enum CompileError: LocalizedError {
         case fileReadingFailed(String)
         case glslError(String)
@@ -95,6 +97,22 @@ public final class ShaderCompiler {
     public init(shaderSource: ShaderSource) {
         self.shaderSource = shaderSource
         self.includeSearchPaths.append(contentsOf: shaderSource.includeSearchPaths)
+    }
+
+    /// Validates complete GLSL without creating device objects or accessing the renderer.
+    /// Useful for background authoring diagnostics and offline shader export.
+    public static func validateFragmentGLSL(_ code: String, entryPoint: String = "main") throws -> Data {
+        try ShaderCompiler(shaderSource: ShaderSource()).compileCode(code, entryPoint: entryPoint, stage: .fragment).data
+    }
+
+    /// Fresh offline compilation using the production include paths and macros.
+    public func exportFragment() throws -> (data: Data, entryPoint: String, reflection: ShaderReflectionData) {
+        guard let code = shaderSource.getSource(for: .fragment) else { throw CompileError.failed("Missing fragment source") }
+        let processed = try ShaderIncluder.processIncludes(in: code, includeSearchPath: includeSearchPaths)
+        let (entryPoint, source) = try ShaderUtils.dropEntryPoint(from: processed)
+        let binary = try compileCode(source, entryPoint: entryPoint, stage: .fragment)
+        let reflection = try SpirvCompiler(spriv: binary.data, stage: .fragment, deviceLang: .glsl).reflection()
+        return (binary.data, binary.entryPoint, reflection)
     }
 
     public func addHeaderSearchPaths(_ paths: [ShaderSource.IncludeSearchPath]) {
@@ -259,6 +277,8 @@ public final class ShaderCompiler {
     }
 
     internal func compileCode(_ code: String, entryPoint: String, stage: ShaderStage) throws -> SpirvBinary {
+        Self.compilationLock.lock()
+        defer { Self.compilationLock.unlock() }
         let span = AdaTrace.startSpan(lazyName: "ShaderCompiler.compileCode.\(stage.rawValue)")
         defer {
             span.end()

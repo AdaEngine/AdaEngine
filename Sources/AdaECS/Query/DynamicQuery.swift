@@ -177,6 +177,27 @@ public final class DynamicQueryCursor: @unchecked Sendable {
         columns.indices.contains(componentIndex) && columns[componentIndex] != nil && rowPosition >= 0
     }
 
+    /// Copies a typed fetched value without exposing the query's raw storage. The
+    /// identity check prevents same-layout component types from aliasing each other.
+    public func readTyped<C: Component>(_ type: C.Type, componentAt index: Int) -> C? {
+        guard componentIDs.indices.contains(index), componentIDs[index] == type.identifier,
+              columns.indices.contains(index), rowPosition >= 0, entityID >= 0, let column = columns[index] else { return nil }
+        let pointer = unsafe column.data.advanced(by: rowPosition * column.stride).assumingMemoryBound(to: C.self)
+        return unsafe pointer.pointee
+    }
+
+    /// Mutates a typed fetched value within the caller's declared write scope.
+    /// No pointer escapes the closure; mutation stamps the component's change tick.
+    @discardableResult
+    public func updateTyped<C: Component>(_ type: C.Type, componentAt index: Int, _ update: (inout C) throws -> Void) rethrows -> Bool {
+        guard componentIDs.indices.contains(index), componentIDs[index] == type.identifier,
+              columns.indices.contains(index), rowPosition >= 0, entityID >= 0, let column = columns[index] else { return false }
+        let pointer = unsafe column.data.advanced(by: rowPosition * column.stride).assumingMemoryBound(to: C.self)
+        defer { unsafe column.changedTicks.advanced(by: rowPosition).pointee = state.world.currentTick }
+        try unsafe update(&pointer.pointee)
+        return true
+    }
+
     private func passesTickFilters() -> Bool {
         guard !changedTicks.isEmpty || !addedTicks.isEmpty || !options.changed.isEmpty || !options.added.isEmpty else {
             return true

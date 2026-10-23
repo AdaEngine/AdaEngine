@@ -79,6 +79,7 @@ layout (binding = 15) uniform PBR3DUniform {
     vec4 u_Dielectric;
 };
 
+#define ADA_GRAPH_SOURCE_MARKER 1
 [[main]]
 void directional_shadow_3d_fragment()
 {
@@ -90,9 +91,14 @@ void directional_shadow_3d_fragment()
     }
     if (u_SurfaceFlags.x < 0.5 && !gl_FrontFacing) { discard; }
     if (u_SurfaceProperties.w > 0.5 && u_SurfaceProperties.w < 1.5) {
+        #ifdef ADA_SHADER_GRAPH
+        AdaGraphSurface graph = ada_graph_evaluate(v_UV0);
+        float alpha = graph.color.a * graph.alpha * v_Alpha;
+        #else
         vec2 uv = u_UVSets.x > 0.5 ? v_UV1 : v_UV0;
         uv = vec2(dot(u_TextureTransforms[0].xy, uv), dot(u_TextureTransforms[0].zw, uv)) + u_TextureTransforms[1].xy;
         float alpha = texture(sampler2D(u_BaseColorTexture, u_BaseColorSampler), uv).a * v_Alpha;
+        #endif
         if (alpha < u_SurfaceProperties.z) { discard; }
     }
     o_Depth = vec4(gl_FragCoord.z);

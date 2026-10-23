@@ -306,10 +306,11 @@ public final class NativeModule: @unchecked Sendable {
         case let .double(v): return gravity_aot_float(v)
         case let .string(v):
             let bytes = Array(v.utf8)
-            guard bytes.count < Int(UInt32.max), let p = allocateBytes(bytes.count + 1) else { throw NativeRuntimeError.allocationLimit }
+            guard let length = UInt32(exactly: bytes.count), length < .max,
+                let p = allocateBytes(bytes.count + 1) else { throw NativeRuntimeError.allocationLimit }
             let chars = p.assumingMemoryBound(to: UInt8.self)
             for (i, byte) in bytes.enumerated() { chars[i] = byte }; chars[bytes.count] = 0
-            return gravity_aot_string(UnsafeRawPointer(p).assumingMemoryBound(to: CChar.self), UInt32(bytes.count))
+            return gravity_aot_string(UnsafeRawPointer(p).assumingMemoryBound(to: CChar.self), length)
         case let .object(v): try validate(v); return v.raw
         case let .task(v):
             guard v.owner === self else { throw NativeRuntimeError.foreignInstance }; return v.raw
@@ -329,9 +330,9 @@ public final class NativeModule: @unchecked Sendable {
             handles[pointer] = v
             return gravity_aot_host_ref(context, pointer)
         case let .list(v):
-            guard v.count < Int(UInt32.max) else { throw NativeRuntimeError.unsupportedValue }
+            guard let length = UInt32(exactly: v.count), length < .max else { throw NativeRuntimeError.unsupportedValue }
             let raw = try v.map(encode)
-            let list = raw.withUnsafeBufferPointer { gravity_aot_list_new(context, $0.baseAddress, UInt32($0.count)) }
+            let list = raw.withUnsafeBufferPointer { gravity_aot_list_new(context, $0.baseAddress, length) }
             try check(); return list
         }
     }

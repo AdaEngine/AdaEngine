@@ -298,7 +298,7 @@ extension AppWorlds {
     /// Setup plugins.
     public func build() async throws {
         try await withExecutionContext {
-            await self.setupPlugins(self.plugins[...])
+            try await self.setupPlugins(self.plugins[...])
             assert(self.pluginDepth == 0, "Plugins installed recursevly")
 
             for subWorld in self.subWorlds.values {
@@ -307,7 +307,7 @@ extension AppWorlds {
 
             /// Wait until all plugins is loaded
             while !self.plugins.allSatisfy({ $0.isLoaded(in: self) }) {
-                await Task.yield()
+                try await waitForPluginLoad()
             }
 
             self.plugins.forEach { $0.finish(for: self) }
@@ -341,10 +341,22 @@ extension AppWorlds {
 }
 
 extension AppWorlds {
-    private func setupPlugins(_ plugins: ContiguousArray<any Plugin>.SubSequence) async {
+    private func waitForPluginLoad() async throws {
+        try Task.checkCancellation()
+        #if WASM
+            // Yield to a browser task, not only another Swift microtask. A tight
+            // Task.yield loop prevents fetch/timer promises from completing.
+            try await Task.sleep(for: .milliseconds(1))
+        #else
+            await Task.yield()
+        #endif
+    }
+
+    private func setupPlugins(_ plugins: ContiguousArray<any Plugin>.SubSequence) async throws {
         var index = plugins.endIndex
         for plugin in plugins {
             self.pluginDepth += 1
+            defer { self.pluginDepth -= 1 }
 
             if let pluginName = self.installedPlugins[plugin.pluginIdentifier] {
                 assertionFailure("Plugin \(pluginName) already setuped")
@@ -353,18 +365,16 @@ extension AppWorlds {
             plugin.setup(in: self)
 
             while !plugin.isLoaded(in: self) {
-                await Task.yield()
+                try await waitForPluginLoad()
             }
 
             self.logger.debug("Plugin installed \(type(of: plugin))")
 
             /// If plugin add a new plugins, we should check it.
             if !self.plugins[index...].isEmpty {
-                await setupPlugins(self.plugins[index...])
+                try await setupPlugins(self.plugins[index...])
                 index = self.plugins.endIndex
             }
-
-            self.pluginDepth -= 1
 
             self.installedPlugins[plugin.pluginIdentifier] = String(reflecting: type(of: plugin))
         }

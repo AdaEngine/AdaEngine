@@ -69,9 +69,9 @@ public struct PBR3DUniform: Sendable, Equatable {
             PBR3DTextureTransform(material?.textureTransforms.indices.contains(slot) == true ? material?.textureTransforms[slot] : nil)
         }
         emissiveFactor = Vector4(material?.emissiveFactor ?? .one, 0)
-        properties = Vector4(material?.normalScale ?? 1, material?.occlusionStrength ?? 1, material?.alphaCutoff ?? 0.5, Float(material?.alphaMode.rawValue ?? 0))
+        properties = Vector4(material?.normalScale ?? 1, material?.occlusionStrength ?? 1, material?.effectiveAlphaCutoff ?? 0.5, Float(material?.effectiveAlphaMode.rawValue ?? 0))
         let heightScale = material?.heightTexture != nil ? max(finiteRenderValue(material?.heightScale ?? 0, fallback: 0, range: 0...1000), 0) : 0
-        flags = Vector4(material?.doubleSided ?? true ? 1 : 0, material?.occlusionTexture != nil ? 1 : 0, heightScale > 0 ? 1 : 0, 0)
+        flags = Vector4(material?.effectiveDoubleSided ?? true ? 1 : 0, material?.occlusionTexture != nil ? 1 : 0, heightScale > 0 ? 1 : 0, 0)
         coordinates = Vector4(Float(coordinate(0)), Float(coordinate(1)), Float(coordinate(2)), Float(coordinate(3)))
         emission = Vector4(Float(coordinate(4)), material?.baseColorFactor.w ?? 1, 1, 0)
         parallax = Vector4(

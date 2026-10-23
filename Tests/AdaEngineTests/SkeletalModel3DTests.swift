@@ -21,9 +21,9 @@ struct SkeletalModel3DTests {
         try firstAnimation.player.play("Bend", transitionDuration: 0)
         firstAnimation.player.seek(to: 0.5)
         first.components[ModelAnimation3DComponent.self] = firstAnimation
-        await app.main.runScheduler(.preUpdate)
-        app.main.insertResource(DeltaTime(deltaTime: 0))
-        await app.main.runScheduler(.postUpdate)
+        await app.main.runScheduler(.preUpdate, deltaTime: 0)
+        // The scheduler supplies DeltaTime itself; sample the sought pose without wall-clock advancement.
+        await app.main.runScheduler(.postUpdate, deltaTime: 0)
         let firstMesh = try #require(skinnedMeshes(first).first)
         let secondMesh = try #require(skinnedMeshes(second).first)
         let firstSkin = try #require(firstMesh.components[SkinnedMesh3DComponent.self])

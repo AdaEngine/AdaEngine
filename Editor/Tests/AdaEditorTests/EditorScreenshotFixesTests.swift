@@ -135,8 +135,18 @@ struct EditorScreenshotFixesTests {
         defer { try? FileManager.default.removeItem(at: root) }
         #expect(await GitRepositoryService.currentBranchFooter(projectURL: root) == nil)
         let runner = EditorProcessRunner()
+        #if os(Windows)
+        let nullPath = "NUL"
+        #else
+        let nullPath = "/dev/null"
+        #endif
         func git(_ arguments: [String]) async throws {
-            let result = await runner.run(EditorProcessCommand(executablePath: EditorHostTools.executable("git"), arguments: arguments, workingDirectory: root))
+            let result = await runner.run(EditorProcessCommand(
+                executablePath: EditorHostTools.executable("git"),
+                arguments: ["-c", "commit.gpgsign=false", "-c", "core.hooksPath=\(nullPath)"] + arguments,
+                workingDirectory: root,
+                environment: ["GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": nullPath]
+            ))
             #expect(result.succeeded, "\(result.combinedOutput)")
         }
         try await git(["init", "-b", "screenshot-test"])

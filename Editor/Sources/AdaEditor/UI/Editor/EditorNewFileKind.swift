@@ -15,6 +15,8 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
     case uiScript, scriptableObject, script, emptyScript
     case scene, uiScene
     case vertexShader, fragmentShader, computeShader
+    case spriteShaderGraph, pbrShaderGraph
+    case dissolveShaderGraph, uvScrollShaderGraph
     case particleEffect, spriteAnimation, atlas, tileSource, tileMap, plainText, localization, json, yaml
     case swift
 
@@ -28,7 +30,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .scene,
             .uiScene:
             .scenes
-        case .vertexShader,
+        case .dissolveShaderGraph, .uvScrollShaderGraph, .spriteShaderGraph, .pbrShaderGraph, .vertexShader,
             .fragmentShader,
             .computeShader:
             .shaders
@@ -53,6 +55,10 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .scene: "Scene"
         case .uiScene: "UI Scene"
         case .vertexShader: "Vertex Shader"
+        case .spriteShaderGraph: "Sprite Shader Graph"
+        case .pbrShaderGraph: "PBR Shader Graph"
+        case .dissolveShaderGraph: "Dissolve Shader Graph"
+        case .uvScrollShaderGraph: "UV Scroll Shader Graph"
         case .fragmentShader: "Fragment Shader"
         case .computeShader: "Compute Shader"
         case .atlas: "Atlas"
@@ -77,6 +83,10 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .scene: "Ada scene"
         case .uiScene: "Declarative AdaUI scene"
         case .vertexShader: "GLSL vertex stage"
+        case .spriteShaderGraph: "Typed nodes for sprite color and alpha"
+        case .pbrShaderGraph: "Typed nodes for a lit 3D surface"
+        case .dissolveShaderGraph: "Animated noise and alpha clipping"
+        case .uvScrollShaderGraph: "Animated sprite texture coordinates"
         case .fragmentShader: "GLSL fragment stage"
         case .computeShader: "GLSL compute kernel"
         case .atlas: "Packed PNG images with an atlas editor"
@@ -101,6 +111,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
             "ada"
         case .scene: SceneDocumentFormat.canonicalExtension
         case .uiScene: "ui"
+        case .dissolveShaderGraph, .uvScrollShaderGraph, .spriteShaderGraph, .pbrShaderGraph: "shadergraph"
         case .vertexShader,
             .fragmentShader,
             .computeShader:
@@ -130,6 +141,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
             "\u{E86F}"
         case .scene: "\u{F720}"
         case .vertexShader: "\u{E3E7}"
+        case .dissolveShaderGraph, .uvScrollShaderGraph, .spriteShaderGraph, .pbrShaderGraph: "\u{E3E7}"
         case .fragmentShader: "\u{E3B7}"
         case .computeShader: "\u{E322}"
         case .atlas: "\u{E3B6}"
@@ -164,6 +176,10 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
     func initialContent(fileName: String) -> String {
         let name = Self.typeIdentifier(URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent)
         switch self {
+        case .spriteShaderGraph: return EditorShaderGraphTemplates.initialContent(target: .sprite)
+        case .pbrShaderGraph: return EditorShaderGraphTemplates.initialContent(target: .pbrSurface)
+        case .dissolveShaderGraph: return EditorShaderGraphTemplates.encode(EditorShaderGraphTemplates.effect(dissolve: true))
+        case .uvScrollShaderGraph: return EditorShaderGraphTemplates.encode(EditorShaderGraphTemplates.effect(dissolve: false))
         case .uiScene: return (try? UISceneDocument().encodedYAML()) ?? ""
         case .scene:
             return SceneDocumentFormat.defaultSceneYAML(projectName: URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent)

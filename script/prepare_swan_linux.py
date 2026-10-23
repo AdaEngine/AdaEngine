@@ -18,10 +18,14 @@ def stage(source: Path, destination: Path) -> Path:
     if destination == source or destination.is_relative_to(source) or source.is_relative_to(destination):
         raise ValueError("Source and destination must be separate directories")
     manifest = (source / "Package.swift").read_text(encoding="utf-8")
-    old = "let supportedNativePlatforms: [Platform] = [.macOS, .windows]"
-    new = "let supportedNativePlatforms: [Platform] = [.macOS, .windows, .linux]"
-    if old not in manifest and new not in manifest:
+    declarations = [
+        "let supportedNativePlatforms: [Platform] = [.macOS, .windows]",
+        "let supportedNativePlatforms: [Platform] = [.macOS, .windows, .android]",
+    ]
+    supported = next((value for value in declarations if value in manifest or value[:-1] + ", .linux]" in manifest), None)
+    if supported is None:
         raise ValueError("Unrecognized Swan manifest; inspect Linux support before applying this compatibility adjustment")
+    adjusted = manifest.replace(supported, supported[:-1] + ", .linux]")
     marker = destination / ".adaengine-linux-swan"
     if destination.exists() and not marker.is_file():
         raise ValueError("Destination exists and is not an AdaEngine Swan staging directory")
@@ -38,7 +42,7 @@ def stage(source: Path, destination: Path) -> Path:
 
     shutil.copytree(source, destination, dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns(".git", ".build", ".swiftpm", "Package.resolved"), copy_function=copy_writable)
-    (destination / "Package.swift").write_text(manifest.replace(old, new), encoding="utf-8")
+    (destination / "Package.swift").write_text(adjusted, encoding="utf-8")
     marker.write_text(str(source) + "\n", encoding="utf-8")
     return destination
 

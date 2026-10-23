@@ -14,6 +14,7 @@
     @_spi(Internal)
     public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         public var supportsInstancedVertexInputs: Bool { true }
+        public var supportsSpatialUpscaling: Bool { true }
         public let context: WGPUContext
 
         init(context: WGPUContext) {
@@ -157,7 +158,7 @@
         }
 
         public func createCommandQueue() -> any CommandQueue {
-            return WGPUCommandQueue(device: context.device)
+            return WGPUCommandQueue(device: context.device, spatialScaler: context.spatialScaler)
         }
 
         @MainActor

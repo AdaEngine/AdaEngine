@@ -629,6 +629,12 @@ Guides: [Notifications.md](Documentation/Notifications.md),
 
 ## Confirmed boundaries and incomplete paths
 
+- Native Shader Graph includes typed graph/GLSL, Sprite and PBR materials,
+  the AdaUI workbench editor and real AdaScript VM/AOT parameter bindings.
+  Export acceptance is incomplete: browser Player startup, packaged native
+  playback, final device Play and performance checks remain. See
+  [ShaderGraph.md](Documentation/ShaderGraph.md) and
+  [ShaderGraphHandoff.md](Documentation/ShaderGraphHandoff.md) for current limits.
 - `EditorDistribution` gates capabilities: Swift projects require standalone;
   App Store distributions expose AdaScript templates. External process tooling
   and local ACP agents must not be assumed available on iOS.

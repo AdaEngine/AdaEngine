@@ -1,0 +1,57 @@
+import AdaRender
+import Foundation
+
+public enum ShaderGraph3DPipeline {
+    /// Shared silhouette rules for directional/local shadow maps and visibility depth.
+    public static func bindShadow(
+        encoder: RenderCommandEncoder,
+        base: RenderPipeline,
+        material: Material,
+        device: RenderDevice,
+        morph: Bool
+    ) -> Bool {
+        guard let pbr = material as? PBRMaterial, pbr.effectiveAlphaMode == .mask, let graph = pbr.graphMaterial else {
+            encoder.setRenderPipelineState(base)
+            return true
+        }
+        do {
+            let formats = base.descriptor.colorAttachments.map { String(describing: $0.format) }.joined(separator: ",")
+            let pipeline = try make(
+                material: graph, base: base, device: device,
+                variant: "shadow:\(formats):\(base.descriptor.depthPixelFormat):\(morph)",
+                features: morph ? .morph : [], template: "Shaders/directional_shadow_3d.glsl"
+            )
+            encoder.setRenderPipelineState(pipeline)
+            graph.bind(to: encoder, device: device)
+            return true
+        } catch {
+            graph.reportCompilationError(error)
+            return false
+        }
+    }
+
+    public static func make(
+        material: ShaderGraphMaterial,
+        base: RenderPipeline,
+        device: RenderDevice,
+        variant: String,
+        features: PBRMaterial.ShaderFeatures = [],
+        template: String = "Shaders/flat3d.glsl"
+    ) throws -> RenderPipeline {
+        guard material.program.target == .pbrSurface else {
+            throw ShaderGraphDiagnostic(code: .typeMismatch, nodeID: "PBR")
+        }
+        return try material.pipeline(base: base.descriptor, device: device, variant: variant, defines: features.enablingMacros.map { .define($0) }) {
+            try fragmentTemplate(path: template)
+        }
+    }
+
+    /// The production surface/silhouette fragment used by offline graph export.
+    public static func fragmentTemplate(path: String = "Shaders/flat3d.glsl") throws -> String {
+        guard let url = Bundle.adaModule.resourceURL?.appendingPathComponent(path),
+            let fragment = try ShaderSource(from: url).getSource(for: .fragment) else {
+            throw ShaderGraphDiagnostic(code: .invalidReference, nodeID: path)
+        }
+        return fragment
+    }
+}

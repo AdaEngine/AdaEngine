@@ -73,6 +73,10 @@ public struct AdaScriptNativeSceneDocument: Codable, Sendable {
             for (name, data) in item.components {
                 if name == String(reflecting: Camera.self) {
                     entity.components += try JSONDecoder().decode(SceneCameraSettings.self, from: data).makeCamera()
+                } else if name == String(reflecting: Mesh3DComponent.self) {
+                    guard let engine = unsafe RenderEngine.shared else { throw AdaScriptError.invalidManifest("Primitive meshes require a render device") }
+                    let reference = try JSONDecoder().decode(PrimitiveMesh3DSource.self, from: data)
+                    entity.components += try reference.makeComponent(renderDevice: engine.renderDevice)
                 } else if name == String(reflecting: TileMapComponent.self) {
                     let reference = try JSONDecoder().decode(AdaScriptNativeTileMapReference.self, from: data)
                     let path: String

@@ -1,4 +1,4 @@
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
 import AdaAssets
 import AdaECS
 @_spi(Internal) import AdaRender

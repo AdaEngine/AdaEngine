@@ -16,7 +16,7 @@ public struct PBRTextureTransform: Sendable, Equatable {
     public var rotation: Float
     public var scale: Vector2
 
-    public static let identity = PBRTextureTransform()
+    public static let identity = Self()
 
     public init(offset: Vector2 = .zero, rotation: Float = 0, scale: Vector2 = .one) {
         self.offset = offset
@@ -95,6 +95,18 @@ public enum PBRLayerTexture: Int, CaseIterable, Hashable, Sendable {
 
 /// A material that uses Physically Based Rendering (PBR) to define its appearance.
 public class PBRMaterial: Material, @unchecked Sendable {
+    /// Optional fragment graph; lighting, skinning and render-pass configuration stay shared.
+    public var graphMaterial: ShaderGraphMaterial? { didSet { uniformRevision &+= 1 } }
+    public var effectiveAlphaMode: AlphaMode {
+        switch graphMaterial?.program.renderSettings.mode {
+        case .opaque: .opaque
+        case .mask: .mask
+        case .blend: .blend
+        case nil: alphaMode
+        }
+    }
+    public var effectiveAlphaCutoff: Float { graphMaterial?.program.renderSettings.alphaCutoff ?? alphaCutoff }
+    public var effectiveDoubleSided: Bool { graphMaterial?.program.renderSettings.doubleSided ?? doubleSided }
     public var baseColorFactor: Vector4 = .one { didSet { uniformRevision &+= 1 } }
     public var baseColorTexture: Texture2D?
     public var metallicFactor: Float = 1
@@ -159,13 +171,13 @@ public class PBRMaterial: Material, @unchecked Sendable {
         public let rawValue: UInt32
         public init(rawValue: UInt32) { self.rawValue = rawValue }
 
-        public static let clearcoat = ShaderFeatures(rawValue: 1 << 0)
-        public static let sheen = ShaderFeatures(rawValue: 1 << 1)
-        public static let anisotropy = ShaderFeatures(rawValue: 1 << 2)
+        public static let clearcoat = Self(rawValue: 1 << 0)
+        public static let sheen = Self(rawValue: 1 << 1)
+        public static let anisotropy = Self(rawValue: 1 << 2)
 
         /// The draw's mesh has morph targets. A property of the draw, not of the material, so ``PBRMaterial/shaderFeatures``
         /// never contains it.
-        public static let morph = ShaderFeatures(rawValue: 1 << 11)
+        public static let morph = Self(rawValue: 1 << 11)
 
         /// Every layer, without textures.
         public static let all: ShaderFeatures = [.clearcoat, .sheen, .anisotropy]

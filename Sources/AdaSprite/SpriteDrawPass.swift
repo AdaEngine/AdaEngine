@@ -76,6 +76,9 @@ public struct SpriteDrawPass: DrawPass {
         )
         renderEncoder.setResourceSet(resourceSet, index: 0)
         renderEncoder.setRenderPipelineState(item.renderPipeline)
+        if let material = batch.graphMaterial, let device = world.getResource(RenderDeviceHandler.self)?.renderDevice {
+            material.bind(to: renderEncoder, device: device)
+        }
         if spritesData.usesInstancing {
             renderEncoder.setVertexBuffer(spritesData.instancing.quad, offset: 0, slot: ShaderSlots.vertexBuffer)
             renderEncoder.setVertexBuffer(

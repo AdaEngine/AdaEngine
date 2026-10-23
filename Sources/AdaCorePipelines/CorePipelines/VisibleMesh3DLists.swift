@@ -194,7 +194,7 @@ public struct VisibleMesh3DLists: Resource {
                     guard sources[sourceIndex].materials.indices.contains(materialIndex) else { continue }
                     let material = sources[sourceIndex].materials[materialIndex]
                     let pbr = material as? PBRMaterial
-                    if isShadowPass && pbr?.alphaMode == .blend { continue }
+                    if isShadowPass && pbr?.effectiveAlphaMode == .blend { continue }
                     // Batches never mix vertex layouts: the descriptor is interned per call so the key stays cheap.
                     let descriptor = parts[partIndex].vertexDescriptor
                     var descriptorID = -1
@@ -210,7 +210,7 @@ public struct VisibleMesh3DLists: Resource {
                     if isShadowPass {
                         // The parameter buffer must exist before it can be part of the key.
                         materials.write(material: material, descriptor: descriptor, device: device)
-                        if let pbr, let buffer = materials.buffer(for: material) {
+                        if let pbr, pbr.graphMaterial == nil || pbr.effectiveAlphaMode != .mask, let buffer = materials.buffer(for: material) {
                             materialKey = .shadow(ObjectIdentifier(buffer), pbr.baseColorTexture.map(ObjectIdentifier.init))
                         } else {
                             materialKey = .identity(material.rid)
@@ -242,7 +242,7 @@ public struct VisibleMesh3DLists: Resource {
                             material: material,
                             descriptor: descriptor,
                             receivesShadows: sources[sourceIndex].receiveShadows,
-                            blended: pbr?.alphaMode == .blend,
+                            blended: pbr?.effectiveAlphaMode == .blend,
                             shadowOnly: isShadowPass
                         ))
                         templates[Int(template)].batchHash = templateHash
@@ -294,6 +294,10 @@ public struct VisibleMesh3DLists: Resource {
                 entry.digest.combine(template.batchHash)
                 entry.digest.combine(sources[sourceIndex].transform)
                 entry.digest.combine((sources[sourceIndex].materials[Int(record.material)] as? PBRMaterial)?.baseColorFactor ?? .one)
+                if let pbr = sources[sourceIndex].materials[Int(record.material)] as? PBRMaterial,
+                    pbr.effectiveAlphaMode == .mask, let graph = pbr.graphMaterial {
+                    entry.digest.combine(graph.valueRevision)
+                }
                 entry.digest.combine(shadowFlags.w)
             }
             let instanceIndex = entry.buffers.append(Flat3DInstanceData(

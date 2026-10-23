@@ -10,6 +10,38 @@ import Testing
 @MainActor
 @Suite("Sprite render system")
 struct SpriteRenderSystemTests {
+    @Test("Graph material boundaries preserve sprite order and reuse compiled code")
+    func graphMaterialsSplitBatchesAndSharePipelines() async throws {
+        try Self.setupHeadlessRenderEngineIfNeeded()
+        let graph = ShaderGraph(target: .sprite, output: "output", nodes: [
+            .init(id: "tint", operation: .parameter, type: .color, value: [1, 0, 0, 1], reference: "tint"),
+            .init(id: "output", operation: .output, inputs: ["color": .init("tint")])
+        ])
+        let first = try ShaderGraphMaterial(source: .init(graph: graph))
+        let second = try ShaderGraphMaterial(source: .init(graph: graph, values: ["tint": [0, 1, 0, 1]]))
+        let pipeline = try Self.makePipeline()
+        var sprites: [Entity.ID: ExtractedSprite] = [:]
+        for id in [101, 102, 103] {
+            var sprite = Self.extractedSprite(id: id, texture: .whiteTexture)
+            sprite.graphMaterial = id == 102 ? second : first
+            sprites[id] = sprite
+        }
+        let items = [101, 102, 103].map { id in
+            Transparent2DRenderItem(entity: id, drawPass: SpriteDrawPass(), renderPipeline: pipeline, sortKey: 0, batchRange: 0..<0)
+        }
+        let world = try Self.makeRenderWorld(extractedSprites: sprites, items: items)
+        await world.runScheduler(.update)
+        let batches = try #require(world.getResource(SpriteBatches.self))
+        #expect(batches.batches.count == 3)
+        #expect(batches.batches[101]?.graphMaterial === first)
+        #expect(batches.batches[102]?.graphMaterial === second)
+        let prepared = try #require(world.getResource(SortedRenderItems<Transparent2DRenderItem>.self)).items.items
+        #expect(prepared[0].renderPipeline !== pipeline)
+        #expect(prepared[0].renderPipeline === prepared[1].renderPipeline)
+        #expect(prepared.map(\.batchRange) == [0..<1, 1..<2, 2..<3])
+        #expect(first.compilationError == nil)
+    }
+
     @Test("Sprite depth sorting includes its parent transform")
     func depthSortingUsesWorldPosition() async throws {
         try Self.setupHeadlessRenderEngineIfNeeded()

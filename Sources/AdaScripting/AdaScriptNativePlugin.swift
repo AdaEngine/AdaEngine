@@ -40,9 +40,7 @@ public final class AdaScriptNativePlugin: Plugin, @unchecked Sendable {
         let world = World(name: "Native AdaScript binding validation")
         for descriptor in metadata.components { world.registerRuntimeComponent(descriptor) }
         for plan in metadata.plans {
-            for (index, query) in plan.queries.enumerated() {
-                _ = try AdaScriptPlugin.prepareQuery(query, systemIdentifier: plan.identifier, queryIndex: index, world: world)
-            }
+            _ = try prepareQueries(for: plan, world: world)
             for resource in plan.resources { _ = try prepareResource(resource) }
         }
         try validateNativeScriptableBindings(module: module, metadata: metadata, world: world, recorder: recorder)
@@ -75,9 +73,7 @@ public final class AdaScriptNativePlugin: Plugin, @unchecked Sendable {
                     instance: try module.makeInstance(type: plan.className, globals: asyncRuntime.globals),
                     plan: plan,
                     plugin: name,
-                    queries: try plan.queries.enumerated().map {
-                        try AdaScriptPlugin.prepareQuery($0.element, systemIdentifier: plan.identifier, queryIndex: $0.offset, world: app.main)
-                    },
+                    queries: try prepareQueries(for: plan, world: app.main),
                     resources: try plan.resources.map(prepareResource),
                     recorder: recorder,
                     commands: Commands(entities: app.main.entities, commandsQueue: app.main.commandQueue),
@@ -130,6 +126,13 @@ public final class AdaScriptNativePlugin: Plugin, @unchecked Sendable {
                 fieldNames: Dictionary(uniqueKeysWithValues: command.fields.compactMap { field in field.network.map { ($0.tag, field.name) } }),
                 orderedTags: command.fields.compactMap(\.network?.tag)
             )
+        }
+    }
+
+    private func prepareQueries(for plan: AnnotatedSystemPlan, world: World) throws -> [PreparedAnnotatedQuery] {
+        let declared = try AdaScriptPlugin.declaredQueryAccess(for: plan, world: world)
+        return try plan.queries.enumerated().map {
+            try AdaScriptPlugin.prepareQuery($0.element, systemIdentifier: plan.identifier, queryIndex: $0.offset, world: world, declaredAccess: declared)
         }
     }
 

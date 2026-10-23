@@ -154,6 +154,9 @@ struct RenderWorldExctractor: WorldExctractor {
     func exctract(from mainWorld: World, to renderWorld: World) async {
         renderWorld.clear()
         renderWorld.insertResource(MainWorld(world: mainWorld))
+        var graphClock = renderWorld.getResource(ShaderGraphClock.self) ?? ShaderGraphClock()
+        graphClock.advance(delta: mainWorld.getResource(DeltaTime.self)?.deltaTime ?? 0)
+        renderWorld.insertResource(graphClock)
         if let primaryWindow = mainWorld.getResource(PrimaryWindowId.self) {
             renderWorld.insertResource(primaryWindow)
         }

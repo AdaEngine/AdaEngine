@@ -1,0 +1,102 @@
+{
+  "format": "ada.scene",
+  "schemaVersion": 1,
+  "engineVersion": "1.0.0",
+  "scene": {
+    "id": "graph-smoke",
+    "name": "Graph Smoke"
+  },
+  "entities": [
+    {
+      "id": "sprite",
+      "name": "Graph Sprite",
+      "enabled": true,
+      "components": {
+        "AdaTransform.Transform": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        "AdaSprite.Sprite": {
+          "size": [
+            240,
+            180
+          ],
+          "tintColor": {
+            "red": 1,
+            "green": 1,
+            "blue": 1,
+            "alpha": 1
+          },
+          "graphMaterial": {
+            "path": "@res://Effects/Tint.shadergraph",
+            "values": {},
+            "textures": {}
+          }
+        },
+        "AdaRender.Visibility": {
+          "value": "visible"
+        }
+      }
+    },
+    {
+      "id": "camera",
+      "name": "Camera",
+      "enabled": true,
+      "components": {
+        "AdaRender.Camera": {
+          "backgroundColor": {
+            "alpha": 1,
+            "blue": 0.1843137254901961,
+            "green": 0.17254901960784313,
+            "red": 0.16862745098039217
+          },
+          "isActive": true,
+          "pixelPerfect": false,
+          "pixelPerfectBorder": {
+            "alpha": 1,
+            "blue": 0,
+            "green": 0,
+            "red": 0
+          },
+          "pixelPerfectHeight": 180,
+          "pixelPerfectScale": "integer",
+          "pixelPerfectWidth": 320,
+          "projection": "orthographic",
+          "renderOrder": 0
+        },
+        "AdaTransform.Transform": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      }
+    }
+  ]
+}

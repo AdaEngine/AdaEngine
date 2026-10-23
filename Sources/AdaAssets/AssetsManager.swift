@@ -184,6 +184,16 @@ public struct AssetsManager: Resource {
             throw AssetError.message("AssetsManager.loadSync is unavailable on WebAssembly. Use AssetsManager.load(_:at:) instead.")
         }
     #else
+        /// Decodes a fresh synchronous instance, preserving this world's resource scope.
+        public static func loadFreshSync<R: Asset>(_ type: R.Type, at path: String) throws -> R {
+            let scopeID = AppWorldsExecutionContext.currentID
+            return try UnsafeTask<R> {
+                try await AppWorldsExecutionContext.$currentID.withValue(scopeID) {
+                    try await loadFresh(type, at: path)
+                }
+            }.get()
+        }
+
         public static func loadSync<R: Asset>(
             _ type: R.Type,
             at path: String

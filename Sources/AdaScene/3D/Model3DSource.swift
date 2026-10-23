@@ -40,6 +40,8 @@ public struct Model3DSource: Codable, Equatable, Sendable {
     /// Morph target weights by target name, applied to every mesh of the model that has a target of that name. They are the
     /// weights the instance starts with and keeps unless an animation clip animates that mesh's weights.
     public var morphWeights: [String: Float]
+    /// Overrides by the model document's global material index, encoded as a decimal key.
+    public var graphMaterials: [String: ShaderGraphMaterialSource] = [:]
 
     public init(source: String = "", animation: String = "", autoplay: Bool = false, repeats: Bool = true,
                 animationGraph: AnimationGraph? = nil, lod: Model3DSourceLOD? = nil, voxel: VoxelImportSettings? = nil,
@@ -55,11 +57,12 @@ public struct Model3DSource: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: CodingKey {
-        case source, animation, autoplay, repeats, animationGraph, lod, voxel, morphWeights
+        case source, animation, autoplay, repeats, animationGraph, lod, voxel, morphWeights, graphMaterials
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        graphMaterials = try container.decodeIfPresent([String: ShaderGraphMaterialSource].self, forKey: .graphMaterials) ?? [:]
         source = try container.decode(String.self, forKey: .source)
         animation = try container.decode(String.self, forKey: .animation)
         autoplay = try container.decode(Bool.self, forKey: .autoplay)
@@ -95,7 +98,24 @@ public struct Model3DSource: Codable, Equatable, Sendable {
             guard let rig = model.animationRig else { throw AssetError.message("Model has no animation rig.") }
             try animationGraph.validate(rig: rig, clips: model.animationClips)
         }
+        var graphOverrides: [Int: PBRMaterial] = [:]
+        for key in graphMaterials.keys.sorted() {
+            guard let index = Int(key), String(index) == key, model.materials.indices.contains(index), let source = graphMaterials[key] else {
+                throw ShaderGraphDiagnostic(code: .invalidReference, nodeID: key)
+            }
+            graphOverrides[index] = try Self.makeGraphOverride(copying: model.materials[index], source: source)
+        }
         let root = model.instantiate(in: world)
+        if !graphOverrides.isEmpty {
+            var pending = [root]
+            while let node = pending.popLast() {
+                if var mesh = node.components[Mesh3DComponent.self] {
+                    for (index, material) in graphOverrides where mesh.materials.indices.contains(index) { mesh.materials[index] = material }
+                    node.components[Mesh3DComponent.self] = mesh
+                }
+                pending.append(contentsOf: node.children)
+            }
+        }
         if !morphWeights.isEmpty {
             var pending = [root]
             while let node = pending.popLast() {

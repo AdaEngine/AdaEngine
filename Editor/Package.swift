@@ -66,7 +66,7 @@ let package = Package(
         adaMCPPackage,
         .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
         .package(url: "https://github.com/TeamSloppy/swift-acp", branch: "main"),
-        .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0"),
+        .package(url: "https://github.com/swiftlang/swift-syntax", "602.0.0"..<"604.0.0"),
         .package(url: "https://github.com/tree-sitter/swift-tree-sitter", from: "0.9.0"),
         .package(url: "https://github.com/alex-pinkus/tree-sitter-swift", branch: "with-generated-files"),
     ] + sloppyRuntimePackage + gravityAOTPackage,

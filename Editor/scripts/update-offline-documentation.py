@@ -21,12 +21,12 @@ def articles():
              'SPMDebug', 'Contributing', 'AdaScripting', 'GettingStartedWithAdaScript',
              'AdaScriptLanguage', 'AdaScriptECS', 'AdaScriptDiagnosticsAndPerformance']
     sources.sort(key=lambda entry: order.index(entry[0].stem) if entry[0].stem in order else len(order))
-    titles = {path.stem: re.sub(r'`', '', path.read_text().splitlines()[0].removeprefix('# '))
+    titles = {path.stem: re.sub(r'`', '', path.read_text(encoding='utf-8').splitlines()[0].removeprefix('# '))
               .replace('Ada Script', 'AdaScript') for path, _ in sources}
     titles['AdaScripting'] = 'AdaScript'
     result = []
     for path, section in sources:
-        text = path.read_text()
+        text = path.read_text(encoding='utf-8')
         blocks, pending, code, language = [], [], None, ''
 
         def flush():
@@ -83,7 +83,7 @@ def articles():
             raise ValueError(f'Unclosed code fence: {path}')
         flush()
         result.append({'id': path.stem, 'title': titles[path.stem], 'section': section,
-                       'source': str(path.relative_to(ROOT)), 'blocks': blocks})
+                       'source': path.relative_to(ROOT).as_posix(), 'blocks': blocks})
     return result
 
 
@@ -93,11 +93,11 @@ def main():
     args = parser.parse_args()
     data = json.dumps(articles(), ensure_ascii=False, indent=2) + '\n'
     if args.check:
-        if not OUTPUT.exists() or OUTPUT.read_text() != data:
+        if not OUTPUT.exists() or OUTPUT.read_text(encoding='utf-8') != data:
             raise SystemExit('Offline documentation is stale. Run python3 scripts/update-offline-documentation.py')
     else:
         OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-        OUTPUT.write_text(data)
+        OUTPUT.write_text(data, encoding='utf-8')
     print(f'{len(json.loads(data))} offline guides verified' if args.check else f'Updated {OUTPUT}')
 
 

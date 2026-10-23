@@ -451,6 +451,15 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         )
     }
 
+    /// Shared by native AOT validation/setup so explicit access declarations
+    /// retain the same meaning as the VM's borrowed component capabilities.
+    static func declaredQueryAccess(for plan: AnnotatedSystemPlan, world: World) throws -> [ComponentId: QueryAccessLevel] {
+        let components = try prepareDynamicAccess(plan.access, systemIdentifier: plan.identifier, world: world)
+        return components.values.reduce(into: [:]) { result, component in
+            result[component.identifier] = max(result[component.identifier] ?? .read, component.isWritable ? .write : .read)
+        }
+    }
+
     private static func prepareDynamicAccess(
         _ plan: AnnotatedAccessPlan?,
         systemIdentifier: String,
@@ -1141,6 +1150,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         try suspensionPolicy.bindBorrowed(AnnotatedGravityQueryBridge.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityQueryRow.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityComponentView.self, to: virtualMachine)
+        try suspensionPolicy.bindBorrowed(AdaScriptShaderGraphBridge.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityResourceView.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AdaScriptMultiplayerAPI.self, to: virtualMachine)
         self.globalVariableNames = module.globalVariableNames

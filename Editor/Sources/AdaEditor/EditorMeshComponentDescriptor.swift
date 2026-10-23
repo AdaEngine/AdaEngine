@@ -45,7 +45,7 @@ extension EditorComponentRegistry {
             castShadows.defaultValue = .bool(true)
             var receiveShadows = EditorComponentField(key: "receiveShadows", label: "Receive Shadows", kind: .bool)
             receiveShadows.defaultValue = .bool(true)
-            fields += [metallic, roughness, castShadows, receiveShadows]
+            fields += [metallic, roughness, castShadows, receiveShadows, EditorShaderGraphFields.path]
         }
         return EditorComponentDescriptor(
             typeName: is3D ? EditorBuiltInComponentType.mesh3D : EditorBuiltInComponentType.mesh2D,
@@ -89,6 +89,7 @@ extension EditorComponentRegistry {
             material.baseColorFactor = Vector4(color.red, color.green, color.blue, color.alpha)
             material.metallicFactor = Float(min(1, max(0, payload["metallic"]?.doubleValue ?? 0)))
             material.roughnessFactor = Float(min(1, max(0, payload["roughness"]?.doubleValue ?? 0.5)))
+            material.graphMaterial = try EditorShaderGraphFields.decode(in: payload, target: .pbrSurface)
             return Mesh3DComponent(
                 mesh: mesh,
                 materials: [material],

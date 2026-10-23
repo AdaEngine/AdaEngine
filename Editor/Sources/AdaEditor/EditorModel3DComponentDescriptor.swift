@@ -19,7 +19,7 @@ extension EditorComponentRegistry {
         ],
         makeDefaultPayload: { ["source": .string(""), "animation": .string(""), "autoplay": .bool(false), "repeats": .bool(true)] },
         decode: { payload in
-            Model3DSource(
+            var source = Model3DSource(
                 source: payload["source"]?.stringValue ?? "",
                 animation: payload["animation"]?.stringValue ?? "",
                 autoplay: payload["autoplay"]?.boolValue ?? false,
@@ -32,6 +32,12 @@ extension EditorComponentRegistry {
                 voxel: voxelSettings(in: payload),
                 morphWeights: EditorMorphWeightsPayload.decode(payload["morphWeights"])
             )
+            if let overrides = payload["graphMaterials"], overrides != .null {
+                source.graphMaterials = try JSONDecoder().decode(
+                    [String: ShaderGraphMaterialSource].self, from: JSONEncoder().encode(overrides)
+                )
+            }
+            return source
         }
     )
 

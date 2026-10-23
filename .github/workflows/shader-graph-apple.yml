@@ -1,0 +1,51 @@
+name: Shader Graph Apple validation
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'Sources/**'
+      - 'Editor/**'
+      - 'Plugins/AdaShaderGraphBaker/**'
+      - 'Tests/**'
+      - 'script/shader_graph*'
+      - '.github/workflows/shader-graph-apple.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apple:
+    name: ${{ matrix.check }} with Xcode 26.6
+    runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [cpu-baker, metal-native, ipad-simulator]
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app
+      ADAENGINE_PACKAGE_PATH: ${{ github.workspace }}
+      ADAENGINE_GRAVITY_PACKAGE_PATH: ${{ github.workspace }}/Sources/gravity-lang
+      ADA_MCP_LOCAL_PATH: ${{ github.workspace }}/.build-tools/apple-mcp
+      ADAENGINE_DISABLE_SWAN: '1'
+      ADAENGINE_SKIP_SWIFTLINT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out the pinned local MCP dependency
+        uses: actions/checkout@v4
+        with:
+          repository: AdaEngine/AdaMCP
+          ref: ed7bb9076f9f8c91e2584ca9b7201df0e03defb1
+          path: .build-tools/apple-mcp
+          persist-credentials: false
+      - name: Build and run the production paths
+        run: bash script/shader_graph_apple_validation.sh '${{ matrix.check }}' "$RUNNER_TEMP/shader-graph-evidence"
+      - name: Upload logs and actual frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shader-graph-${{ matrix.check }}
+          path: ${{ runner.temp }}/shader-graph-evidence
+          if-no-files-found: error

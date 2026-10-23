@@ -87,8 +87,8 @@ extension EditorWorkbenchViewModel {
             document.statusMessage ?? document.errorMessage
         case .git:
             nil
-        case .asset:
-            "assets cannot be saved from the code editor"
+        case let .asset(document):
+            document.errorMessage
         case nil:
             nil
         }
@@ -109,8 +109,9 @@ extension EditorWorkbenchViewModel {
             return saveTextDocument(id: document.id)
         case let .text(document):
             return saveTextDocument(id: document.id)
-        case .asset,
-            .git:
+        case let .asset(document):
+            return document.kind == .shaderGraph && shaderGraphModel(for: document).save()
+        case .git:
             return false
         }
     }

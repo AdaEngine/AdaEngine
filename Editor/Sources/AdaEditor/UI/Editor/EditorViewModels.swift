@@ -227,6 +227,7 @@ enum EditorProjectFileKind: Equatable, Sendable {
 }
 
 enum EditorAssetPreviewKind: String, Equatable, Sendable {
+    case shaderGraph
     case spine2D
     case particleEffect
     case spriteAnimation
@@ -294,6 +295,7 @@ struct EditorAssetDocument: Equatable, Sendable {
     var byteCount: Int64?
     var modifiedAt: Date?
     var errorMessage: String?
+    var isDirty = false
 }
 
 enum EditorWorkbenchDocument: Equatable, Sendable {
@@ -366,8 +368,9 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
         case let .text(document),
             let .ui(document):
             document.isDirty
-        case .asset,
-            .git:
+        case let .asset(document):
+            document.isDirty
+        case .git:
             false
         }
     }
