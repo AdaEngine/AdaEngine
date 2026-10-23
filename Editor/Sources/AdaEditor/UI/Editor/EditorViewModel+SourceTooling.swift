@@ -687,13 +687,13 @@ extension EditorViewModel {
             return filePath
         }
 
-        let projectPath = projectURL.path
-        guard filePath.hasPrefix(projectPath) else {
+        let projectPath = projectURL.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        let fileComponents = URL(fileURLWithPath: filePath).resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        guard fileComponents.starts(with: projectPath) else {
             return filePath
         }
 
-        let start = filePath.index(filePath.startIndex, offsetBy: projectPath.count)
-        return String(filePath[start...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return fileComponents.dropFirst(projectPath.count).joined(separator: "/")
     }
 }
 

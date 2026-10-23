@@ -129,7 +129,7 @@ struct EditorInspectorRefreshTests {
         UILayoutDebugCounters.isEnabled = wasCounting
         let positionNode = try #require(container.viewTree.rootNode.findNodyByAccessibilityIdentifier("AdaEditor.Inspector.Axis.AdaTransform.Transform.position.X"))
         let positionField = try #require(textFields(in: positionNode).first)
-        #expect(positionField.text == "40")
+        #expect(positionField.text == String(format: "%.3f", 40 / viewport.twoDZoom))
         #expect(selectionUpdates == 1)
         for _ in 0..<150 where selectionUpdates == 1 {
             try await Task.sleep(for: .milliseconds(10))

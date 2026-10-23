@@ -145,12 +145,13 @@ struct ProceduralModelTests {
     }
 
     @Test("Mirrored, singular and nonfinite leaf scales preserve the original mesh and transform", arguments: [
-        SIMD3<Float>(-2, 1, 3), SIMD3<Float>(2, -1, 3), SIMD3<Float>(2, 1, -3),
-        SIMD3<Float>(-2, -1, 3), SIMD3<Float>(-2, -1, -3),
-        SIMD3<Float>(0, 1, 3), SIMD3<Float>(2, 0, 3), SIMD3<Float>(2, 1, 0),
-        SIMD3<Float>(.infinity, 1, 3), SIMD3<Float>(2, -.infinity, 3), SIMD3<Float>(2, 1, .nan),
+        [-2, 1, 3], [2, -1, 3], [2, 1, -3],
+        [-2, -1, 3], [-2, -1, -3],
+        [0, 1, 3], [2, 0, 3], [2, 1, 0],
+        [Float.infinity, 1, 3], [2, -Float.infinity, 3], [2, 1, Float.nan],
     ])
-    func preservesUnsupportedLeafScale(scale: SIMD3<Float>) {
+    func preservesUnsupportedLeafScale(components: [Float]) {
+        let scale = SIMD3<Float>(components[0], components[1], components[2])
         var node = ProceduralNode(name: "Leaf", mesh: ProceduralGeometry.box(width: 1, height: 2, depth: 3))
         node.scale = scale
         let model = ProceduralModel(materials: [ProceduralMaterial(name: "Default")], nodes: [node])
@@ -167,10 +168,11 @@ struct ProceduralModelTests {
     }
 
     @Test("GLB output preserves mirrored and singular leaf transforms and geometry", arguments: [
-        SIMD3<Float>(-2, 1, 3), SIMD3<Float>(-2, -1, 3), SIMD3<Float>(-2, -1, -3),
-        SIMD3<Float>(0, 1, 3), SIMD3<Float>(2, 0, 3), SIMD3<Float>(2, 1, 0),
+        [-2, 1, 3], [-2, -1, 3], [-2, -1, -3],
+        [0, 1, 3], [2, 0, 3], [2, 1, 0],
     ])
-    func unsupportedScaleRoundTrip(scale: SIMD3<Float>) throws {
+    func unsupportedScaleRoundTrip(components: [Float]) throws {
+        let scale = SIMD3<Float>(components[0], components[1], components[2])
         let mesh = ProceduralGeometry.box(width: 1, height: 2, depth: 3)
         var node = ProceduralNode(name: "Leaf", mesh: mesh)
         node.scale = scale

@@ -12,6 +12,12 @@ import Testing
 @MainActor
 @Suite("Sprite animation runtime", .serialized)
 struct SpriteAnimationRuntimeTests {
+    init() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            try RenderEngine.setupRenderEngine()
+        }
+    }
     private let cell = 2
 
     /// Four 2x2 cells in one row: red, green, blue, yellow.

@@ -63,9 +63,13 @@ struct EditorTopToolbarTests {
         container.bounds.size = size
         container.layoutIfNeeded()
 
-        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.RunDestination.iPadOS"))
-
-        #expect(selectedDestination == .iPadOS)
+        #if os(Windows)
+        let destination = EditorRunDestination.windows
+        #else
+        let destination = EditorRunDestination.iPadOS
+        #endif
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.RunDestination.\(destination.rawValue)"))
+        #expect(selectedDestination == destination)
     }
 
     @Test("run and stop are compact icon controls")

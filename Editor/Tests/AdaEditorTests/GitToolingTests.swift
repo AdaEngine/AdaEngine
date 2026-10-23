@@ -52,18 +52,23 @@ struct GitToolingTests {
         let service = GitRepositoryService(processRunner: GitFakeProcessRunner(results: []))
         let projectURL = URL(fileURLWithPath: "/tmp/Game", isDirectory: true)
 
-        #expect(service.makeCommand(.status, projectURL: projectURL).arguments == ["git", "status", "--porcelain=v1", "-b", "-z", "--untracked-files=all"])
-        #expect(service.makeCommand(.branches, projectURL: projectURL).arguments == ["git", "branch", "--format=%(HEAD)%09%(refname:short)%09%(upstream:short)"])
-        #expect(service.makeCommand(.stage(paths: ["Sources/App.swift"]), projectURL: projectURL).arguments == ["git", "add", "--", "Sources/App.swift"])
-        #expect(service.makeCommand(.stage(paths: []), projectURL: projectURL).arguments == ["git", "add", "-A"])
-        #expect(service.makeCommand(.unstage(paths: ["Sources/App.swift"]), projectURL: projectURL).arguments == ["git", "restore", "--staged", "--", "Sources/App.swift"])
-        #expect(service.makeCommand(.unstage(paths: []), projectURL: projectURL).arguments == ["git", "restore", "--staged", "--", "."])
-        #expect(service.makeCommand(.stash(message: "AdaEditor stash"), projectURL: projectURL).arguments == ["git", "stash", "push", "-u", "-m", "AdaEditor stash"])
-        #expect(service.makeCommand(.commit(message: "Initial"), projectURL: projectURL).arguments == ["git", "commit", "-m", "Initial"])
-        #expect(service.makeCommand(.pull, projectURL: projectURL).arguments == ["git", "pull"])
-        #expect(service.makeCommand(.push, projectURL: projectURL).arguments == ["git", "push"])
-        #expect(service.makeCommand(.checkout(branch: "main"), projectURL: projectURL).arguments == ["git", "checkout", "main"])
-        #expect(service.makeCommand(.createBranch(name: "feature"), projectURL: projectURL).arguments == ["git", "checkout", "-b", "feature"])
+        #if os(Windows)
+        let prefix: [String] = []
+        #else
+        let prefix = ["git"]
+        #endif
+        #expect(service.makeCommand(.status, projectURL: projectURL).arguments == prefix + [ "status", "--porcelain=v1", "-b", "-z", "--untracked-files=all"])
+        #expect(service.makeCommand(.branches, projectURL: projectURL).arguments == prefix + [ "branch", "--format=%(HEAD)%09%(refname:short)%09%(upstream:short)"])
+        #expect(service.makeCommand(.stage(paths: ["Sources/App.swift"]), projectURL: projectURL).arguments == prefix + [ "add", "--", "Sources/App.swift"])
+        #expect(service.makeCommand(.stage(paths: []), projectURL: projectURL).arguments == prefix + [ "add", "-A"])
+        #expect(service.makeCommand(.unstage(paths: ["Sources/App.swift"]), projectURL: projectURL).arguments == prefix + [ "restore", "--staged", "--", "Sources/App.swift"])
+        #expect(service.makeCommand(.unstage(paths: []), projectURL: projectURL).arguments == prefix + [ "restore", "--staged", "--", "."])
+        #expect(service.makeCommand(.stash(message: "AdaEditor stash"), projectURL: projectURL).arguments == prefix + [ "stash", "push", "-u", "-m", "AdaEditor stash"])
+        #expect(service.makeCommand(.commit(message: "Initial"), projectURL: projectURL).arguments == prefix + [ "commit", "-m", "Initial"])
+        #expect(service.makeCommand(.pull, projectURL: projectURL).arguments == prefix + [ "pull"])
+        #expect(service.makeCommand(.push, projectURL: projectURL).arguments == prefix + [ "push"])
+        #expect(service.makeCommand(.checkout(branch: "main"), projectURL: projectURL).arguments == prefix + [ "checkout", "main"])
+        #expect(service.makeCommand(.createBranch(name: "feature"), projectURL: projectURL).arguments == prefix + [ "checkout", "-b", "feature"])
     }
 
     @Test("Editor view model refreshes source control snapshot")

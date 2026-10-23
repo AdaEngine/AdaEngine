@@ -39,6 +39,22 @@ struct EditorProjectOpeningRecoveryTests {
         let metadata = ProjectSystem.metadataURL(forProjectAt: root)
         try ProjectSystem.saveProject(ProjectSystem.defaultProject(projectName: "Keep", buildSystem: .adaScript), at: root)
         let original = try Data(contentsOf: metadata)
+        #if os(Windows)
+        // A directory at the metadata path is unreadable as a JSON file on Windows.
+        // POSIX permission bits cannot revoke an ACL-granted read.
+        try FileManager.default.removeItem(at: metadata)
+        try FileManager.default.createDirectory(at: metadata, withIntermediateDirectories: false)
+        let sentinel = metadata.appendingPathComponent("original.json")
+        try original.write(to: sentinel)
+        let store = EditorProjectStore(storageURL: root.appendingPathComponent("recent.json"))
+        do {
+            _ = try store.openProject(at: root)
+            Issue.record("Unreadable metadata was accepted")
+        } catch let error as ProjectSystemError {
+            guard case .fileReadFailed = error else { throw error }
+        }
+        #expect(try Data(contentsOf: sentinel) == original)
+        #else
         try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: metadata.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: metadata.path) }
         let store = EditorProjectStore(storageURL: root.appendingPathComponent("recent.json"))
@@ -51,6 +67,7 @@ struct EditorProjectOpeningRecoveryTests {
         }
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: metadata.path)
         #expect(try Data(contentsOf: metadata) == original)
+        #endif
     }
 
     @Test("Invalid metadata is preserved instead of replaced by defaults")

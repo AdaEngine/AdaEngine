@@ -102,7 +102,7 @@ struct AdaScriptProjectRuntimeTests {
         #expect(viewModel.outputLines.contains { $0.text == "AdaScript project RuntimeGame stopped." })
     }
 
-    @Test("Preview loads for an AdaScript project without SwiftPM")
+    @Test("Unavailable AdaScript UI preview stays hidden without SwiftPM")
     @MainActor
     func previewLoadsWithoutSwiftPM() async throws {
         let fileManager = FileManager.default
@@ -135,20 +135,23 @@ struct AdaScriptProjectRuntimeTests {
         )
 
         viewModel.refreshPreviewForActiveDocument()
-        for _ in 0..<100 {
-            if case let .loaded(declaration, _) = workbench.previewStatus {
-                #expect(declaration.id == "HUDView")
-                return
-            }
-            try await Task.sleep(for: .milliseconds(5))
-        }
-
-        Issue.record("AdaEditor did not load the AdaScript preview: \(viewModel.outputLines.map(\.text).joined(separator: " | "))")
+        #expect(EditorPreviewScanner.declarations(in: source, language: .ada).isEmpty)
+        if case .loaded = workbench.previewStatus { Issue.record("Unavailable AdaScript UI preview loaded") }
     }
 }
 
 @MainActor
 private final class AdaScriptRuntimeTestWindowManager: UIWindowManager {
+    private var cursorShape: Input.CursorShape = .arrow
+    override func setCursorShape(_ shape: Input.CursorShape) { cursorShape = shape }
+    override func getCursorShape() -> Input.CursorShape { cursorShape }
+    private var mouseMode: Input.MouseMode = .visible
+    override func setMouseMode(_ mode: Input.MouseMode) { mouseMode = mode }
+    override func getMouseMode() -> Input.MouseMode { mouseMode }
+    override func setCursorImage(for _: Input.CursorShape, texture _: Texture2D?, hotspot _: Vector2) {}
+    override func updateCursor() {}
+
+
     private(set) var closedWindowCount = 0
     private(set) var shownWindowCount = 0
     private(set) var shownWindowScenePresentation: UIWindow.ScenePresentation?

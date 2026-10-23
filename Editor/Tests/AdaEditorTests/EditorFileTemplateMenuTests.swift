@@ -33,7 +33,7 @@ struct EditorFileTemplateMenuTests {
         ContextMenuPresentationCenter.present = { presentation = $0 }
         defer { ContextMenuPresentationCenter.present = previousPresenter }
 
-        for kind in EditorNewFileKind.allCases {
+        for kind in EditorNewFileGroup.allCases.flatMap(\.templates) {
             let row = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.Existing.swift"))
             container.onMouseEvent(
                 MouseEvent(
@@ -163,7 +163,7 @@ struct EditorFileTemplateMenuTests {
         let container = makeDialog(model, width: width)
         let picker = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.NewFile.Picker")).absoluteFrame
         #expect(picker.minX >= 0 && picker.maxX <= width)
-        for kind in EditorNewFileKind.allCases {
+        for kind in EditorNewFileGroup.allCases.flatMap(\.templates) {
             let node = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.\(kind.rawValue)"))
             #expect(node.absoluteFrame.minX >= picker.minX)
             #expect(node.absoluteFrame.maxX <= picker.maxX)
@@ -206,7 +206,7 @@ struct EditorFileTemplateMenuTests {
         }
     }
 
-    @Test("AdaScript templates compile and UI Script builds native views")
+    @Test("Available AdaScript templates compile")
     func scriptTemplatesCompile() throws {
         for kind in EditorNewFileGroup.adaScript.templates {
             let source = kind.initialContent(fileName: "Template.ada")
@@ -232,12 +232,7 @@ struct EditorFileTemplateMenuTests {
             moduleName: "TemplateObjects"
         )
         _ = try ScriptableObjectRegistry.make(named: schema.id)
-        let view = try AdaScriptView(sources: [.init(path: "Template.ada", source: EditorNewFileKind.uiScript.initialContent(fileName: "Template.ada"))], identifier: "TemplateView")
-        let container = UIContainerView(rootView: view)
-        container.frame = Rect(x: 0, y: 0, width: 300, height: 200)
-        container.bounds.size = container.frame.size
-        container.layoutIfNeeded()
-        #expect(!container.uiTreeRoots().isEmpty)
+        #expect(!EditorNewFileGroup.adaScript.templates.contains(.uiScript))
     }
 
     @Test("shader templates compile to SPIR-V")

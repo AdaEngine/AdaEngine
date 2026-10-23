@@ -81,7 +81,7 @@ struct EditorVisualBindingTests {
     @Test func propertyChainPickerCreatesRealBinding() async throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.root) }
-        let container = UIContainerView(rootView: EditorUISceneEditor(model: fixture.model).theme(.adaEditor))
+        let container = UIContainerView(rootView: EditorUISceneEditor(model: fixture.model, presentation: .inspector).theme(.adaEditor))
         container.frame = Rect(x: 0, y: 0, width: 1440, height: 900)
         container.bounds.size = container.frame.size
         container.layoutIfNeeded()

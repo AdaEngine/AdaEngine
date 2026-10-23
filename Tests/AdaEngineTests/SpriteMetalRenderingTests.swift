@@ -18,6 +18,7 @@ struct SpriteMetalRenderingTests {
     #if os(macOS)
     @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_SPRITE_METAL_SMOKE"] == "1"))
     func rendersLayoutsAndTileOrientations() async throws {
+        try await renderCanvasMeshes(backend: .metal)
         let chunks = try await renderReferenceScene(backend: .metal)
         let sprites = try await renderReferenceScene(backend: .metal, tileMapMode: .sprites)
         #expect(chunks.data == sprites.data, "Chunk geometry must preserve the reference renderer's visible pixels.")
@@ -30,6 +31,7 @@ struct SpriteMetalRenderingTests {
     #endif
     @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_SPRITE_WGPU_SMOKE"] == "1"))
     func rendersLayoutsAndPickingWithWebGPU() async throws {
+        try await renderCanvasMeshes(backend: .webgpu)
         let chunks = try await renderReferenceScene(backend: .webgpu)
         let sprites = try await renderReferenceScene(backend: .webgpu, tileMapMode: .sprites)
         #expect(chunks.data == sprites.data, "Chunk geometry must preserve the reference renderer's visible pixels.")
@@ -61,6 +63,53 @@ struct SpriteMetalRenderingTests {
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_SPRITE_WGPU_SMOKE"] == "1"))
     func rendersTileOcclusionWithWebGPU() async throws { try await renderTileOcclusionMask(backend: .webgpu) }
+
+    private func renderCanvasMeshes(backend: RenderBackendType) async throws {
+        unsafe RenderEngine.configurations.preferredBackend = backend
+        try RenderEngine.setupRenderEngine()
+        try #require(unsafe RenderEngine.shared.type == backend)
+        let device = unsafe RenderEngine.shared.renderDevice
+        let mesh = Mesh.generate(from: Quad(size: [32, 32]).meshDescriptors(), renderDevice: device)
+        let part = try #require(mesh.models.first?.parts.first)
+        let material = CustomMaterial(ColorCanvasMaterial(color: .red))
+        let pipeline = try #require(material.getOrCreatePipeline(for: part.vertexDescriptor, keys: [], device: device))
+        let world = World()
+        let projection = Transform3D(scale: [Float(2) / 128, Float(2) / 64, 0.01])
+        let view = world.spawn {
+            GlobalViewUniform(projectionMatrix: projection, viewProjectionMatrix: projection)
+        }
+        let target = RenderTexture(size: [128, 64], scaleFactor: 1, format: .bgra8)
+        let command = device.createCommandQueue().makeCommandBuffer()
+        let pass = command.beginRenderPass(RenderPassDescriptor(colorAttachments: [
+            .init(texture: target, operation: OperationDescriptor(loadAction: .clear, storeAction: .store), clearColor: .black)
+        ]))
+        pass.setViewport(Rect(x: 0, y: 0, width: 128, height: 64))
+        for mirrored in [false, true] {
+            let model = Transform(scale: [mirrored ? -1 : 1, 1, 1], position: [mirrored ? 32 : -32, 0, 0]).matrix
+            let entity = world.spawn {
+                ExctractedMeshPart2d(
+                    part: part,
+                    material: material,
+                    modelUniform: Mesh2DUniform(model: model, modelInverseTranspose: model.inverse.transpose)
+                )
+            }
+            try Mesh2DDrawPass().render(
+                with: pass,
+                world: world,
+                view: view,
+                item: Transparent2DRenderItem(entity: entity.id, drawPass: Mesh2DDrawPass(), renderPipeline: pipeline, sortKey: 0)
+            )
+        }
+        pass.endRenderPass()
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            command.addCompletedHandler { continuation.resume() }
+            command.commit()
+        }
+        let result = try #require(try await device.readImage(from: target))
+        #expect(result.getPixel(x: 32, y: 32) == .red, "An ordinary canvas mesh must render.")
+        #expect(result.getPixel(x: 96, y: 32) == .red, "A mirrored canvas mesh must render.")
+        #expect(result.getPixel(x: 64, y: 32) == .black)
+    }
 
     private func renderTileOcclusionMask(backend: RenderBackendType) async throws {
         unsafe RenderEngine.configurations.preferredBackend = backend

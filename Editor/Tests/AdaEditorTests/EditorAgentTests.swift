@@ -407,6 +407,32 @@ struct EditorAgentTests {
         #expect(prompt.contains("Move it to the left"))
     }
 
+    @Test("Loading a hidden chat waits for presentation and releasing it shuts down its service")
+    @MainActor
+    func hiddenChatOwnsItsConnectionLifetime() async throws {
+        let rootURL = try makeAgentTemporaryDirectory(named: "ConnectionLifetime")
+        defer { removeAgentTemporaryDirectory(rootURL) }
+        let settings = EditorAgentSettingsStore()
+        try settings.save(AdaProjectAgent(enabled: true, target: AdaProjectAgentTarget(command: "/bin/echo")))
+        let service = FakeEditorAgentService()
+        var model: EditorAgentViewModel? = EditorAgentViewModel(
+            project: EditorProjectReference(name: "ConnectionLifetime", path: rootURL.path),
+            settings: settings,
+            service: service
+        )
+        await model?.loadSessions()
+        #expect(model?.activeSession != nil)
+        #expect(await service.connectionCount() == 0)
+        model?.panelDidAppear()
+        for _ in 0..<100 where await service.connectionCount() == 0 { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(await service.connectionCount() == 1)
+        weak var released = model
+        model = nil
+        for _ in 0..<100 where await service.shutdownCount == 0 { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(released == nil)
+        #expect(await service.shutdownCount == 1)
+    }
+
     @Test("view model sends prompt with token attachments through service")
     @MainActor
     func viewModelSendUsesFakeService() async throws {
@@ -577,6 +603,7 @@ actor FakeEditorAgentService: EditorAgentServicing {
 
     var lastRequest: EditorAgentRunRequest?
     var connectCount = 0
+    var shutdownCount = 0
 
     func connect(
         _ request: EditorAgentRunRequest,
@@ -627,7 +654,7 @@ actor FakeEditorAgentService: EditorAgentServicing {
     func resolvePermission(requestID _: String, optionID _: String?) async {}
 
     func cancel(sessionID _: String) async {}
-    func shutdown() async {}
+    func shutdown() async { shutdownCount += 1 }
 }
 
 private func makeAgentTemporaryDirectory(named name: String) throws -> URL {

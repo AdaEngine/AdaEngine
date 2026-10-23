@@ -126,6 +126,11 @@ struct ProjectOpeningRecentProjectTests {
         }
         _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Launcher.Rename.Name"))
         model.renamedProjectNameBinding.wrappedValue = "Renamed from Menu"
+        for _ in 0..<30 {
+            container.update(1.0 / 60.0)
+            container.layoutIfNeeded()
+            try await Task.sleep(for: .milliseconds(10))
+        }
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Launcher.Rename.Save"))
         #expect(try store.loadProjects().first?.name == "Renamed from Menu")
         #expect(model.projectBeingRenamed == nil)

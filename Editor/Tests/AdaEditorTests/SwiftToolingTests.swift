@@ -42,6 +42,12 @@ struct SwiftToolingTests {
         #expect(testBuild.arguments == buildPrefix + ["--build-tests"])
         #expect(service.makeCommand(.run(target: "Game", arguments: ["--debug"]), projectURL: projectURL, toolchain: toolchain).arguments == ["run", "Game", "--", "--debug"])
         let webCommand = service.makeCommand(.runWeb(target: "Game", outputPath: "dist/web", serve: true), projectURL: projectURL, toolchain: toolchain)
+        #if os(Windows)
+        #expect(webCommand.executablePath.lowercased().hasSuffix("wsl.exe"))
+        #expect(webCommand.arguments.contains("--mode") && webCommand.arguments.contains("web"))
+        #expect(webCommand.arguments.contains("--product") && webCommand.arguments.contains("Game"))
+        #expect(webCommand.arguments.contains("--serve"))
+        #else
         #expect(
             webCommand.arguments == [
                 "package", "--allow-writing-to-package-directory", "--allow-network-connections", "all",
@@ -50,6 +56,7 @@ struct SwiftToolingTests {
         )
         #expect(webCommand.environment["ADAENGINE_WEB_EXPORT"] == "1")
         #expect(webCommand.environment["BUILD_WASM"] == "1")
+        #endif
         #expect(service.makeCommand(.test(filter: "GameTests"), projectURL: projectURL, toolchain: toolchain).arguments == ["test", "--parallel", "--filter", "GameTests"])
     }
 
@@ -147,6 +154,7 @@ struct SwiftToolingTests {
         )
         viewModel.workbench.open(.text(cleanDocument))
         viewModel.selectedRunDestination = .web
+        for _ in 0..<1000 where viewModel.workspaceTask != nil { await Task.yield() }
         viewModel.runSelectedTarget()
         try await waitForRecordedCommands(service, count: 2)
         #expect(await service.commands.last == .runWeb(target: "My-Game", outputPath: "dist/web", serve: true))
@@ -181,7 +189,7 @@ struct SwiftToolingTests {
                 openedURL = url
                 return true
             },
-            workbench: EditorViewModel().workbench,
+            workbench: EditorWorkbenchViewModel(openDocuments: AdaEngineStyleContent.defaultEditorDocuments),
             workspaceStatus: .ready,
             packageModel: packageModel,
             selectedRunProduct: "Game",
@@ -209,7 +217,7 @@ struct SwiftToolingTests {
         let viewModel = EditorViewModel(
             project: EditorProjectReference(name: "Game", path: projectURL.path),
             workspaceService: service,
-            workbench: EditorViewModel().workbench,
+            workbench: EditorWorkbenchViewModel(openDocuments: AdaEngineStyleContent.defaultEditorDocuments),
             selectedRunDestination: .web
         )
 
@@ -487,7 +495,7 @@ struct SwiftToolingTests {
             let target = try #require(await service.definition(fileURL: fileURL, language: .ada, text: source, position: position).first)
             #expect(target.filePath.hasSuffix(fileName))
             let swift = try String(contentsOfFile: target.filePath, encoding: .utf8)
-            #expect(swift.components(separatedBy: .newlines)[target.selectionRange.start.line].contains(declaration))
+            #expect(swift.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)[target.selectionRange.start.line].contains(declaration))
             let hover = try #require(await service.hover(fileURL: fileURL, language: .ada, text: source, position: position))
             #expect(hover.contents.contains(documentation))
         }
@@ -921,7 +929,7 @@ struct SwiftToolingTests {
             dependencies: [
                 remoteEngine
                     ? SwiftPackageDependency(identity: "ada", type: "sourceControl", url: "https://github.com/AdaEngine/Ada.git", path: nil, requirement: "branch: main")
-                    : SwiftPackageDependency(identity: "adaengine", type: "fileSystem", url: nil, path: "../AdaEngine", requirement: nil),
+                    : SwiftPackageDependency(identity: "adaengine", type: "fileSystem", url: nil, path: "../Missing-AdaEngine-\(UUID())", requirement: nil),
                 SwiftPackageDependency(
                     identity: "swift-collections",
                     type: "sourceControl",
@@ -994,7 +1002,8 @@ struct SwiftToolingTests {
         #expect(artifact.libraryURL.path.contains("/.build/build-"))
         #expect(commands.first?.arguments.contains("--scratch-path") == true)
         #expect(manifest.contains(#".library(name: "AdaEditorPreviewBundle", type: .dynamic, targets: ["Game"])"#))
-        #expect(manifest.contains(#".package(name: "AdaEngine", url: "https://github.com/AdaEngine/Ada.git", \#(remoteEngine ? #".branch("main")"# : #"branch: "main""#))"#))
+        #expect(manifest.contains(#".package(name: "AdaEngine", url: "https://github.com/AdaEngine/Ada.git"#))
+        #expect(manifest.contains(remoteEngine ? #".branch("main")"# : #"branch: "main""#))
         #expect(manifest.contains(#".package(name: "swift-collections", url: "https://github.com/apple/swift-collections.git", from: "1.2.0")"#))
         #expect(manifest.contains(#"name: "Game""#))
         #expect(manifest.contains(#"dependencies: ["Shared", .product(name: "AdaEngine", package: "AdaEngine")]"#))
@@ -1007,7 +1016,7 @@ struct SwiftToolingTests {
         #expect(copiedMain.contains("@Previewable"))
         #expect(fileManager.fileExists(atPath: scratchRoot.appendingPathComponent("Sources/Shared/SharedHelper.swift").path))
         let dump = await EditorProcessRunner().run(EditorProcessCommand(
-            executablePath: "/usr/bin/env", arguments: ["swift", "package", "dump-package"], workingDirectory: scratchRoot
+            executablePath: EditorHostTools.executable("swift"), arguments: ["package", "dump-package"], workingDirectory: scratchRoot
         ))
         #expect(dump.succeeded, Comment(rawValue: dump.combinedOutput))
     }

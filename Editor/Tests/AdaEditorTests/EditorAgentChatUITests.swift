@@ -86,6 +86,7 @@ struct EditorAgentChatUITests {
         let service = FakeEditorAgentService(connectionError: .providerFailure("Unavailable"))
         let model = EditorAgentViewModel(project: .init(name: "Retry", path: root.path), settings: settings, service: service)
         await model.loadSessions()
+        let container = makeContainer(model)
         for _ in 0..<100 {
             if case .failed = model.currentConnectionState { break }
             try await Task.sleep(for: .milliseconds(10))
@@ -94,7 +95,11 @@ struct EditorAgentChatUITests {
             Issue.record("Expected automatic connection to fail")
             return
         }
-        let container = makeContainer(model)
+        for _ in 0..<100 where container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.Agent.Retry")).isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+            container.update(0.016)
+            container.layoutIfNeeded()
+        }
         _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Retry"))
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Retry"))
         for _ in 0..<100 {

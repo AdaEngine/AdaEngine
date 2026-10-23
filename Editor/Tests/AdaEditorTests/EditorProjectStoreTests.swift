@@ -332,7 +332,7 @@ struct EditorProjectStoreTests {
         #expect(AdaEngineStyleLayoutSpec.outputPanelHeight == 42)
         #expect(AdaEngineStyleLayoutSpec.footerHeight == 24)
         #expect(AdaEngineStyleLayoutSpec.aiFlightBoxWidth == 560)
-        #expect(AdaEngineStyleContent.logLines.count == 4)
+        #expect(AdaEngineStyleContent.logLines.isEmpty)
     }
 
     @Test("project open picker resolves selected package manifest to project directory")
@@ -389,7 +389,7 @@ struct EditorProjectStoreTests {
 
     @Test("incoming project URL is buffered until the opening view model is ready")
     @MainActor
-    func incomingProjectURLIsBufferedUntilOpeningViewModelIsReady() throws {
+    func incomingProjectURLIsBufferedUntilOpeningViewModelIsReady() async throws {
         let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorIncomingProjectURL")
         defer { removeEditorStoreTemporaryDirectory(rootURL) }
 
@@ -405,6 +405,7 @@ struct EditorProjectStoreTests {
         )
 
         notificationCenter.post(name: notificationName, object: projectURL)
+        try await Task.sleep(for: .milliseconds(10))
         #expect(viewModel.projectToOpenInEditor == nil)
 
         #expect(router.attach(viewModel))
@@ -414,7 +415,7 @@ struct EditorProjectStoreTests {
 
     @Test("incoming project URL reaches an already active opening view model")
     @MainActor
-    func incomingProjectURLReachesActiveOpeningViewModel() throws {
+    func incomingProjectURLReachesActiveOpeningViewModel() async throws {
         let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorRunningProjectURL")
         defer { removeEditorStoreTemporaryDirectory(rootURL) }
 
@@ -431,6 +432,7 @@ struct EditorProjectStoreTests {
         #expect(!router.attach(viewModel))
 
         notificationCenter.post(name: notificationName, object: projectURL)
+        try await Task.sleep(for: .milliseconds(10))
 
         #expect(viewModel.projectToOpenInEditor?.path == projectURL.standardizedFileURL.path)
         #expect(viewModel.projectToOpenInEditorToken == 1)
@@ -725,12 +727,11 @@ private func createSwiftPMManifest(at projectURL: URL) throws {
 
 private func runSwiftPackageDump(at projectURL: URL) throws -> (status: Int32, error: String) {
     let process = Process()
-    let standardOutput = Pipe()
     let standardError = Pipe()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    process.arguments = ["swift", "package", "--disable-sandbox", "dump-package"]
+    process.executableURL = URL(fileURLWithPath: EditorHostTools.executable("swift"))
+    process.arguments = ["package", "--disable-sandbox", "dump-package"]
     process.currentDirectoryURL = projectURL
-    process.standardOutput = standardOutput
+    process.standardOutput = FileHandle.nullDevice
     process.standardError = standardError
     try process.run()
     process.waitUntilExit()

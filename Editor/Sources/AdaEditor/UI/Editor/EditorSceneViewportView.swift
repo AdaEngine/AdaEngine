@@ -140,9 +140,9 @@ struct EditorSceneViewportView: View {
                     AdaptiveSceneView(
                         layout: nil,
                         frameCaptureLabel: EditorGameFrameCapture.gameLabel,
+                        useSceneCameras: true,
                         make: configurePlayWorld,
                         updateContent: { world, _ in
-                            Self.synchronizePlayCamera(in: world)
                             world.getResource(EditorSkeleton3DOverlay.self)?.isEnabled = showsBones && displayMode == .threeD
                         }
                     )
@@ -202,7 +202,9 @@ struct EditorSceneViewportView: View {
                 || FileManager.default.fileExists(atPath: candidate.appendingPathComponent("Package.swift").path) {
                 return candidate
             }
-            candidate.deleteLastPathComponent()
+            let parent = candidate.deletingLastPathComponent().standardizedFileURL
+            guard parent.pathComponents.count < candidate.pathComponents.count else { break }
+            candidate = parent
         }
         return resourceRoot
     }

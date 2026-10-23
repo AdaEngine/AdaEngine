@@ -136,7 +136,7 @@ struct EditorScreenshotFixesTests {
         #expect(await GitRepositoryService.currentBranchFooter(projectURL: root) == nil)
         let runner = EditorProcessRunner()
         func git(_ arguments: [String]) async throws {
-            let result = await runner.run(EditorProcessCommand(executablePath: "/usr/bin/git", arguments: arguments, workingDirectory: root))
+            let result = await runner.run(EditorProcessCommand(executablePath: EditorHostTools.executable("git"), arguments: arguments, workingDirectory: root))
             #expect(result.succeeded, "\(result.combinedOutput)")
         }
         try await git(["init", "-b", "screenshot-test"])

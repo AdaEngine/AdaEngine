@@ -9,7 +9,7 @@ struct EditorPackageConfigurationTests {
         let manifest = try String(contentsOf: editorRoot.appendingPathComponent("Package.swift"), encoding: .utf8)
 
         #expect(manifest.contains("name: \"AdaEditor\""))
-        #expect(manifest.contains(".package(name: \"AdaEngine\", path: \"..\")"))
+        #expect(manifest.contains(".package(name: \"AdaEngine\", path: adaEngineLocalPath)"))
         #expect(manifest.contains("name: \"AdaEditor\""))
         #expect(manifest.contains(".product(name: \"AdaEngine\", package: \"AdaEngine\")"))
         #expect(manifest.contains(".product(name: \"AdaScriptCompilerCore\", package: \"AdaEngine\")"))
@@ -49,7 +49,7 @@ struct EditorPackageConfigurationTests {
     @Test("XcodeGen packages the AdaEngine Icon Composer app icon")
     func xcodegenPackagesAppIcon() throws {
         let editorRoot = try editorPackageRoot()
-        let project = try String(contentsOf: editorRoot.appendingPathComponent("project.yml"), encoding: .utf8)
+        let project = try String(contentsOf: editorRoot.appendingPathComponent("project.yml"), encoding: .utf8).replacingOccurrences(of: "\r\n", with: "\n")
         let iconURL =
             editorRoot
             .deletingLastPathComponent()
@@ -57,7 +57,7 @@ struct EditorPackageConfigurationTests {
 
         #expect(project.contains("\"icon\":\n      file: true"))
         #expect(project.contains("path: ../Assets/AdaEngine.icon"))
-        #expect(project.components(separatedBy: "ASSETCATALOG_COMPILER_APPICON_NAME: AdaEngine").count == 3)
+        #expect(project.components(separatedBy: "ASSETCATALOG_COMPILER_APPICON_NAME: AdaEngine").count == 6)
         #expect(FileManager.default.fileExists(atPath: iconURL.appendingPathComponent("icon.json").path))
     }
 
