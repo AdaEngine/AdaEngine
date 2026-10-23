@@ -156,10 +156,19 @@
                 var requestStatus: WebGPU.GPURequestDeviceStatus?
                 var requestedDevice: WebGPU.GPUDevice?
                 var requestMessage: String?
+                var supportedLimits = WebGPU.GPULimits()
+                guard adapter.getLimits(limits: &supportedLimits) == .success else {
+                    throw WebGPUBackendError.requestDeviceFailed("Unable to query adapter limits.")
+                }
+                // The complete PBR texture set and graph bindings exceed the baseline of 16.
+                let requiredLimits = WebGPU.GPULimits(
+                    maxSampledTexturesPerShaderStage: min(32, supportedLimits.maxSampledTexturesPerShaderStage),
+                    maxSamplersPerShaderStage: min(32, supportedLimits.maxSamplersPerShaderStage)
+                )
                 let descriptor = WebGPU.GPUDeviceDescriptor(
                     label: "AdaEngine WebGPU Device",
                     requiredFeatures: [.depth32FloatStencil8, .float32Filterable],
-                    requiredLimits: nil,
+                    requiredLimits: requiredLimits,
                     defaultQueue: WebGPU.GPUQueueDescriptor(),
                     deviceLostCallbackInfo: WebGPU.GPUDeviceLostCallbackInfo(mode: .allowProcessEvents) { _, deviceLostReason, message in
                         logger.info("Device lost: \(deviceLostReason.rawValue): \(message)")

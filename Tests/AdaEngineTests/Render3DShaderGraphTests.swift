@@ -21,8 +21,16 @@ extension Render3DGPUTests {
             let scene = try await DebugViews.makeScene()
             let material = try #require(scene.groundMaterial)
             material.graphMaterial = instance
+            material.baseColorFactor = .one
+            material.baseColorTexture = .whiteTexture
+            material.metallicRoughnessTexture = .whiteTexture
+            material.normalTexture = .whiteTexture
+            material.occlusionTexture = .whiteTexture
+            material.emissiveTexture = .whiteTexture
             material.layerTextures = Dictionary(uniqueKeysWithValues: PBRLayerTexture.allCases.map { ($0, .init(texture: .whiteTexture)) })
+            var previousRed: Float = 0
             for layers in 0..<8 {
+                try instance.setValue([Float(layers + 1) / 10, 0.6, 0.2, 1], for: "tint")
                 material.clearcoatFactor = layers & 1 == 0 ? 0 : 1
                 material.sheenColorFactor = layers & 2 == 0 ? .zero : .one
                 material.anisotropyStrength = layers & 4 == 0 ? 0 : 0.5
@@ -34,7 +42,9 @@ extension Render3DGPUTests {
                     #expect(fragment.wgsl.contains("@fragment"))
                 }
                 let image = try await scene.render(.albedo)
-                #expect(!image.data.isEmpty)
+                let red = image.getPixel(x: image.width / 2, y: image.height - 30).red
+                #expect(red > previousRed + 0.02, "Every layered variant must submit a fresh frame with its own tint")
+                previousRed = red
                 #expect(instance.hasPreparedPipeline && instance.compilationError == nil)
             }
         }

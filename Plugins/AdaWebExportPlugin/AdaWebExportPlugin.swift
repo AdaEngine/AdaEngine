@@ -1579,8 +1579,14 @@ private func mainJS(product: String) -> String {
       }
       const optionalFeatures = ["float32-filterable"];
       const requiredFeatures = optionalFeatures.filter((feature) => adapter.features.has(feature));
+      // Layered PBR plus graph textures can exceed the WebGPU baseline of 16.
+      // Request supported capacity without rejecting baseline-only adapters.
+      const requiredLimits = {
+        maxSampledTexturesPerShaderStage: Math.min(32, adapter.limits.maxSampledTexturesPerShaderStage),
+        maxSamplersPerShaderStage: Math.min(32, adapter.limits.maxSamplersPerShaderStage),
+      };
       updateLoader(64, "Creating WebGPU device…");
-      const device = await adapter.requestDevice({ requiredFeatures });
+      const device = await adapter.requestDevice({ requiredFeatures, requiredLimits });
       if (new URLSearchParams(location.search).has("stats")) {
         const panel = document.createElement("output");
         panel.id = "ada-performance";
