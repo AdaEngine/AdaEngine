@@ -1,6 +1,6 @@
 #if os(macOS)
 @testable import AdaCorePipelines
-import AdaRender
+@testable import AdaRender
 import AdaScene
 import AdaTransform
 import Foundation
@@ -10,6 +10,30 @@ extension Render3DGPUTests {
     @MainActor
     @Suite("Shader Graph GPU rendering")
     struct ShaderGraphs {
+        @Test(.enabled(if: GoldenFrame.activeBackend == .webgpu && ProcessInfo.processInfo.environment["ADAENGINE_SHADER_GRAPH_ARCHIVE"] != nil))
+        func hostBakedWGSLRendersThroughTheProductionSurfacePipeline() async throws {
+            let path = try #require(ProcessInfo.processInfo.environment["ADAENGINE_SHADER_GRAPH_ARCHIVE"])
+            let archive = try JSONDecoder().decode(ShaderGraphArchive.self, from: Data(contentsOf: URL(fileURLWithPath: path)))
+            try ShaderGraphRuntimeLibrary.install(archive)
+            let graph = try #require(archive.graphs.values.first { $0.target == .pbrSurface })
+            let material = try ShaderGraphMaterial(source: .init(graph: graph))
+            let source = material.program.inserting(in: try ShaderGraph3DPipeline.fragmentTemplate())
+            let fragment = try #require(ShaderGraphRuntimeLibrary.fragment(source: source, defines: []))
+            #expect(fragment.wgsl.contains("@fragment"))
+            let scene = try await DebugViews.makeScene()
+            let ground = try #require(scene.groundMaterial)
+            ground.baseColorFactor = [0.2, 0.6, 0.9, 1]
+            let stock = try await scene.render(.albedo)
+            ground.baseColorFactor = .one
+            ground.graphMaterial = material
+            try material.setValue([0.2, 0.6, 0.9, 1], for: "tint")
+            let image = try await scene.render(.albedo)
+            // Compare equivalent stock/graph factors through the same display conversion.
+            // Graph color also multiplies the ordinary instance/vertex tint.
+            #expect(image.data == stock.data)
+            #expect(material.compilationError == nil)
+        }
+
         @Test(.enabled(if: GoldenFrame.activeBackend == .metal))
         func alphaMaskRunsThroughActualTemporalMotionRendering() async throws {
             let scene = try await DebugViews.makeScene(temporalRenderScale: 0.67)
