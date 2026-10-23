@@ -18,6 +18,9 @@ Local Swift binding fixes:
 - `GravityCompiler.swift`: pass the source's UTF-8 byte count to the C compiler.
 - `GravityVirtualMachine+Bridge.swift`: imported files also report UTF-8 bytes.
 - `GravityVirtualMachine.swift`: global symbol lookups use UTF-8 key length.
+- `NativeModule.swift`: validate string/list lengths with a failable `UInt32`
+  conversion. Converting `UInt32.max` to `Int` traps on 32-bit WASM, including
+  ordinary host getters returning vectors, parameter names and parameter IDs.
 
 Byte counts matter for both non-ASCII text and CRLF: Swift counts a CRLF pair as
 one Character, while the C lexer consumes two bytes. The previous count truncated
