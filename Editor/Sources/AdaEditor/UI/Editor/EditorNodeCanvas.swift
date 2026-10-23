@@ -121,12 +121,12 @@ struct EditorNodeCanvas: View {
         }
         var x = state.pan.x.truncatingRemainder(dividingBy: step)
         while x < size.width {
-            context.drawLine(start: [x, 0], end: [x, size.height], lineWidth: 1, color: theme.editorColors.border.opacity(0.25))
+            context.drawLine(start: [x, 0], end: [x, -size.height], lineWidth: 1, color: theme.editorColors.border.opacity(0.25))
             x += step
         }
         var y = state.pan.y.truncatingRemainder(dividingBy: step)
         while y < size.height {
-            context.drawLine(start: [0, y], end: [size.width, y], lineWidth: 1, color: theme.editorColors.border.opacity(0.25))
+            context.drawLine(start: [0, -y], end: [size.width, -y], lineWidth: 1, color: theme.editorColors.border.opacity(0.25))
             y += step
         }
     }
@@ -138,7 +138,8 @@ struct EditorNodeCanvas: View {
         for index in 1...24 {
             let t = Float(index) / 24, u = 1 - t
             let point = start * (u * u * u) + a * (3 * u * u * t) + b * (3 * u * t * t) + end * (t * t * t)
-            context.drawLine(start: previous, end: point, lineWidth: 2, color: color)
+            // Layout and picking use downward Y; primitive line commands use the renderer's upward Y.
+            context.drawLine(start: [previous.x, -previous.y], end: [point.x, -point.y], lineWidth: 2, color: color)
             previous = point
         }
     }

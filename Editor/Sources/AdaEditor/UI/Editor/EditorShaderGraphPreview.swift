@@ -14,6 +14,8 @@ import Observation
     var selectedModel: EditorModelAssetPreviewModel?
     @ObservationIgnored private var generation: UInt64 = 0
     @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var lastValidMaterial: ShaderGraphMaterial?
+    @ObservationIgnored private var validatedSource: String?
     @ObservationIgnored var elapsed: Float = 0
 
     func schedule(_ graph: ShaderGraph?, basePath: String?) {
@@ -26,12 +28,17 @@ import Observation
             do {
                 try await Task.sleep(for: .milliseconds(180))
                 guard let graph else { throw EditorShaderGraphFileError.unavailable }
-                try await Self.validate(graph)
+                let source = try await Self.validate(graph, validatedSource: self?.validatedSource)
                 try Task.checkCancellation()
                 guard let self, self.generation == token else {
                     return
                 }
-                let next = try ShaderGraphMaterial(source: .init(graph: graph), resourceBasePath: basePath)
+                let root = basePath.map { EditorSceneViewportView.uiProjectRoot(from: URL(fileURLWithPath: $0).deletingLastPathComponent()) }
+                let assets = root.flatMap { root in
+                    (try? ProjectSystem.loadProject(at: root)).map { root.appendingPathComponent($0.paths.assets ?? "Assets").path }
+                }
+                let next = try ShaderGraphMaterial(source: .init(graph: graph), resourceBasePath: basePath, resourceRootPath: assets)
+                self.validatedSource = source
                 self.material = next
                 self.revision &+= 1
                 self.error = nil
@@ -61,16 +68,25 @@ import Observation
         material?.setTime(0)
     }
 
-    @concurrent private static func validate(_ graph: ShaderGraph) async throws { try graph.compileGLSL().validateGLSL() }
+    @concurrent private static func validate(_ graph: ShaderGraph, validatedSource: String?) async throws -> String {
+        let program = try graph.compileGLSL()
+        if program.source != validatedSource { try program.validateGLSL() }
+        return program.source
+    }
 
     func checkDeviceError() {
         guard let issue = material?.compilationError else {
+            if material?.hasPreparedPipeline == true { lastValidMaterial = material }
             return
         }
         let diagnostic = material?.program.diagnostic(for: issue)
         errorNode = diagnostic?.nodeID
         error = L10n.text("The renderer could not prepare this graph material.")
         isStale = true
+        if let lastValidMaterial, material !== lastValidMaterial {
+            material = lastValidMaterial
+            revision &+= 1
+        }
     }
 }
 

@@ -2,6 +2,13 @@ import AdaAssets
 import Foundation
 import Logging
 
+/// Explicit resource context for document-backed scenes prepared before their
+/// asset plugins start. Structured tasks inherit it; material instances retain
+/// their resolved root without changing another world's asset configuration.
+public enum ShaderGraphResourceScope {
+    @TaskLocal public static var rootPath: String?
+}
+
 /// Authored reference plus independent parameter overrides. Inline graphs support procedural materials.
 public struct ShaderGraphMaterialSource: Codable, Hashable, Sendable {
     public var path: String?
@@ -36,6 +43,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
     private let lock = NSLock()
     private var source: ShaderGraphMaterialSource
     private let resourceBasePath: String?
+    private let resourceRootPath: String?
     private var loadedTextures: [Int: Texture2D] = [:]
     private var revision: UInt64 = 0
     private var time: Float = 0
@@ -89,8 +97,11 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         if changed { Logger(label: "org.adaengine.shader-graph").error("\(message)") }
     }
 
-    public init(source: ShaderGraphMaterialSource, resourceBasePath: String? = nil) throws {
+    /// `resourceRootPath` supplies a physical root for document-backed previews
+    /// prepared before an application's scoped asset plugins have started.
+    public init(source: ShaderGraphMaterialSource, resourceBasePath: String? = nil, resourceRootPath: String? = ShaderGraphResourceScope.rootPath) throws {
         self.resourceBasePath = resourceBasePath
+        self.resourceRootPath = resourceRootPath
         let graph: ShaderGraph
         if let inline = source.graph, source.path == nil {
             graph = inline
@@ -98,7 +109,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
             #if WASM
                 graph = try ShaderGraphRuntimeLibrary.graph(at: path)
             #else
-                graph = try AssetsManager.loadFreshSync(ShaderGraphAsset.self, at: path).graph
+                graph = try AssetsManager.loadFreshSync(ShaderGraphAsset.self, at: Self.resolve(path, root: resourceRootPath)).graph
             #endif
         } else {
             throw ShaderGraphDiagnostic(code: .invalidReference)
@@ -111,7 +122,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         }
         for texture in program.textures {
             let path = texture.parameterID.flatMap { source.textures[$0] } ?? texture.path
-            if let path { loadedTextures[texture.binding] = try Self.loadTexture(path, relativeTo: source.path ?? resourceBasePath) }
+            if let path { loadedTextures[texture.binding] = try Self.loadTexture(path, relativeTo: source.path ?? resourceBasePath, root: resourceRootPath) }
         }
     }
 
@@ -124,17 +135,18 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
     public func makeInstance() -> ShaderGraphMaterial {
         lock.lock()
         defer { lock.unlock() }
-        let instance = ShaderGraphMaterial(program: program, source: source, textures: loadedTextures, resourceBasePath: resourceBasePath)
+        let instance = ShaderGraphMaterial(program: program, source: source, textures: loadedTextures, resourceBasePath: resourceBasePath, resourceRootPath: resourceRootPath)
         instance.time = time
         instance.automaticTime = automaticTime
         return instance
     }
 
-    private init(program: ShaderGraphProgram, source: ShaderGraphMaterialSource, textures: [Int: Texture2D], resourceBasePath: String?) {
+    private init(program: ShaderGraphProgram, source: ShaderGraphMaterialSource, textures: [Int: Texture2D], resourceBasePath: String?, resourceRootPath: String?) {
         self.program = program
         self.source = source
         self.loadedTextures = textures
         self.resourceBasePath = resourceBasePath
+        self.resourceRootPath = resourceRootPath
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -159,7 +171,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         guard let texture = program.textures.first(where: { $0.parameterID == id }) else {
             throw ShaderGraphDiagnostic(code: .invalidReference, nodeID: id)
         }
-        let loaded = try Self.loadTexture(path, relativeTo: descriptor.path ?? resourceBasePath)
+        let loaded = try Self.loadTexture(path, relativeTo: descriptor.path ?? resourceBasePath, root: resourceRootPath)
         lock.lock()
         defer { lock.unlock() }
         source.textures[id] = path
@@ -244,7 +256,17 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         }
     }
 
-    private static func loadTexture(_ path: String, relativeTo graph: String?) throws -> Texture2D {
+    private static func resolve(_ path: String, root: String?) throws -> String {
+        guard let root, path.hasPrefix("@res://") else {
+            return path
+        }
+        let base = URL(fileURLWithPath: root).resolvingSymlinksInPath().standardizedFileURL
+        let url = base.appendingPathComponent(String(path.dropFirst(7))).resolvingSymlinksInPath().standardizedFileURL
+        guard url.path.hasPrefix(base.path + "/") else { throw ShaderGraphDiagnostic(code: .invalidReference, nodeID: path) }
+        return url.path
+    }
+
+    private static func loadTexture(_ path: String, relativeTo graph: String?, root: String?) throws -> Texture2D {
         let resolved: String
         if !path.hasPrefix("@"), !path.hasPrefix("/"), let graph, let slash = graph.lastIndex(of: "/") {
             resolved = String(graph[...slash]) + path
@@ -252,7 +274,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         #if WASM
             return try ShaderGraphRuntimeLibrary.texture(at: resolved)
         #else
-            return try AssetsManager.loadSync(Texture2D.self, at: resolved).asset
+            return try AssetsManager.loadSync(Texture2D.self, at: resolve(resolved, root: root)).asset
         #endif
     }
 }

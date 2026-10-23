@@ -41,7 +41,7 @@ if [[ "${ADA_EDITOR_STANDALONE_SWIFTPM:-0}" == "1" ]]; then
         [[ -e "$editor_resource" ]] || continue
         /usr/bin/ditto "$editor_resource" "$editor_app/$(basename "$editor_resource")"
     done
-    /usr/bin/python3 "$editor_package_root/scripts/stage-build-sdk.py" --engine-root "$editor_engine_root" --compiler-root "${ADAENGINE_GRAVITY_PACKAGE_PATH:-$editor_scratch/checkouts/gravity-lang}" --output "$editor_app/Contents/Resources/BuildSDK"
+    /usr/bin/python3 "$editor_package_root/scripts/stage-build-sdk.py" --engine-root "$editor_engine_root" --compiler-root "${ADAENGINE_GRAVITY_PACKAGE_PATH:-$editor_engine_root/Sources/gravity-lang}" --output "$editor_app/Contents/Resources/BuildSDK"
     /usr/bin/python3 - "$editor_app/Contents/Info.plist" "$editor_app_name" <<'PY_PLIST'
 import plistlib,sys
 with open(sys.argv[1],"wb") as stream:

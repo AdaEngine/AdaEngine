@@ -12,6 +12,7 @@ final class EditorShaderGraphModel {
     let url: URL?
     private(set) var graph: ShaderGraph?
     var selection = Set<String>()
+    var expandedPorts = Set<String>()
     private(set) var isDirty = false
     private(set) var isReadOnly = false
     private(set) var issue: (any Error)?

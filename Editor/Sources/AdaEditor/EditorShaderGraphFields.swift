@@ -2,6 +2,7 @@
 import Foundation
 
 enum EditorShaderGraphFields {
+
     static var path: EditorComponentField {
         path(at: ["graphMaterial"])
     }
@@ -84,7 +85,8 @@ enum EditorShaderGraphFields {
 
     static func decode(in payload: EditorComponentPayload, target: ShaderGraph.Target) throws -> ShaderGraphMaterial? {
         guard let value = payload["graphMaterial"], value != .null else { return nil }
-        let material = try JSONDecoder().decode(ShaderGraphMaterial.self, from: JSONEncoder().encode(value))
+        let source = try JSONDecoder().decode(ShaderGraphMaterialSource.self, from: JSONEncoder().encode(value))
+        let material = try ShaderGraphMaterial(source: source)
         guard material.program.target == target else { throw ShaderGraphDiagnostic(code: .typeMismatch) }
         return material
     }

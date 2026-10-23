@@ -3,6 +3,19 @@
 import Testing
 
 @MainActor @Suite("Node canvas geometry") struct EditorNodeCanvasTests {
+    @Test func wireDrawingUsesTheSameLocalEndpointsAsPicking() throws {
+        var context = UIGraphicsContext()
+        context.translateBy(x: 10, y: -20)
+        EditorNodeCanvas.drawWire(context: &context, start: [40, 60], end: [100, 200], color: .white)
+        let lines = context.getDrawCommands().compactMap { command -> (Vector3, Vector3)? in
+            if case let .drawLine(start, end, _, _) = command { return (start, end) }
+            return nil
+        }
+        #expect(lines.count == 24)
+        #expect(lines.first?.0 == [50, -80, 0])
+        #expect(lines.last?.1 == [110, -220, 0])
+    }
+
     private var node: EditorNodeCanvasItem {
         .init(id: "node", title: "Node", position: [100, 80], inputs: [.init(id: "a", title: "A", type: "float")], outputs: [.init(id: "value", title: "Value", type: "float")])
     }

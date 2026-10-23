@@ -6,6 +6,8 @@ extension EditorShaderGraphModel {
         guard let graph else {
             return []
         }
+        var usedOutputs: [String: Set<String>] = [:]
+        for link in graph.nodes.flatMap({ $0.inputs.values }) { usedOutputs[link.node, default: []].insert(link.port) }
         return graph.nodes.enumerated().map { index, node in
             let position = graph.layout[node.id] ?? .init(x: Float(index % 4) * 260, y: Float(index / 4) * 240)
             @MainActor func ports(_ values: [String: ShaderGraph.ValueType]) -> [EditorNodeCanvasPort] {
@@ -16,7 +18,7 @@ extension EditorShaderGraphModel {
                 title: node.label ?? L10n.tr(Self.operationTitle(node.kind)),
                 position: [position.x, position.y],
                 inputs: ports(graph.inputPorts(for: node)),
-                outputs: ports(graph.outputPorts(for: node)),
+                outputs: ports(graph.outputPorts(for: node).filter { $0.key == "value" || usedOutputs[node.id]?.contains($0.key) == true || expandedPorts.contains(node.id) }),
                 subtitle: node.reference,
                 hasError: validation?.nodeID == node.id
             )
@@ -120,6 +122,7 @@ extension EditorShaderGraphModel {
         case .combine2: "Combine Vector2"
         case .combine3: "Combine Vector3"
         case .combine4: "Combine Vector4"
+        case .select: "Select Value"
         case .output: "Output"
         case nil: kind
         }

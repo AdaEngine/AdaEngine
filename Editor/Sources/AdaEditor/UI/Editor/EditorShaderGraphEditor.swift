@@ -9,6 +9,7 @@ struct EditorShaderGraphEditor: View {
     @State var interaction: EditorNodeCanvasInteraction?
     @State var search = EditorShaderGraphSearch()
     @State var canvasViewportSize = Size(width: 480, height: 400)
+    @State private var didFit = false
     @State private var showsInspector = true
     @State private var showsSource = false
     @State private var operation = "constant"
@@ -35,7 +36,13 @@ struct EditorShaderGraphEditor: View {
                             interaction: interaction,
                             decorations: model.canvasDecorations,
                             onKeyEvent: handleCanvasKey,
-                            viewportSizeChanged: { canvasViewportSize = $0 }
+                            viewportSizeChanged: { size in
+                                canvasViewportSize = size
+                                if !didFit, size.width > 0, size.height > 0 {
+                                    canvas.fit(model.canvasItems, in: size)
+                                    didFit = true
+                                }
+                            }
                         ).contextMenu { graphContextMenu }
                     }
                     if showsInspector { inspector.frame(width: min(270, geometry.size.width * 0.45)) }
@@ -194,6 +201,11 @@ struct EditorShaderGraphEditor: View {
     private func nodeInspector(_ node: ShaderGraph.Node) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(verbatim: L10n.tr(EditorShaderGraphModel.operationTitle(node.kind))).font(.system(size: 13, weight: .semibold))
+            if (model.graph?.outputPorts(for: node).count ?? 0) > 1 {
+                Button(model.expandedPorts.contains(node.id) ? L10n.text("Hide Channels") : L10n.text("Show Channels")) {
+                    if !model.expandedPorts.insert(node.id).inserted { model.expandedPorts.remove(node.id) }
+                }
+            }
             field("Name", value: node.label ?? "") { value in model.editNode(node.id) { $0.label = value.isEmpty ? nil : value } }
             if node.kind == "parameter" || node.kind == "texture" {
                 field(node.kind == "parameter" ? "Parameter ID" : "Texture", value: node.reference ?? "") { value in model.editNode(node.id) { $0.reference = value } }

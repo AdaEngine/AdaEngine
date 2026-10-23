@@ -46,16 +46,18 @@ enum EditorSceneFileLoader {
             registerEditorSceneComponents(loadsScriptableObjects: loadsScriptableObjects)
             let sceneModel = try EditorSceneModel.decode(from: content)
             let sourceURL = sourceURL?.resolvingSymlinksInPath().standardizedFileURL
-            return instantiate(
-                sceneModel,
-                in: world,
-                loadsScriptableObjects: loadsScriptableObjects,
-                sourceURL: sourceURL,
-                resourceRootURL: resourceRootURL,
-                parentEntity: nil,
-                idPrefix: "",
-                ancestry: sourceURL.map { Set([$0]) } ?? []
-            )
+            return ShaderGraphResourceScope.$rootPath.withValue(resourceRootURL?.path) {
+                instantiate(
+                    sceneModel,
+                    in: world,
+                    loadsScriptableObjects: loadsScriptableObjects,
+                    sourceURL: sourceURL,
+                    resourceRootURL: resourceRootURL,
+                    parentEntity: nil,
+                    idPrefix: "",
+                    ancestry: sourceURL.map { Set([$0]) } ?? []
+                )
+            }
         } catch {
             return .emptyWithWarnings([error.localizedDescription])
         }
@@ -72,16 +74,18 @@ enum EditorSceneFileLoader {
     ) -> EditorSceneRuntimeLoadResult {
         registerEditorSceneComponents(loadsScriptableObjects: loadsScriptableObjects)
         let sourceURL = sourceURL?.resolvingSymlinksInPath().standardizedFileURL
-        return instantiate(
-            sceneModel,
-            in: world,
-            loadsScriptableObjects: loadsScriptableObjects,
-            sourceURL: sourceURL,
-            resourceRootURL: resourceRootURL,
-            parentEntity: nil,
-            idPrefix: "",
-            ancestry: sourceURL.map { Set([$0]) } ?? []
-        )
+        return ShaderGraphResourceScope.$rootPath.withValue(resourceRootURL?.path) {
+            instantiate(
+                sceneModel,
+                in: world,
+                loadsScriptableObjects: loadsScriptableObjects,
+                sourceURL: sourceURL,
+                resourceRootURL: resourceRootURL,
+                parentEntity: nil,
+                idPrefix: "",
+                ancestry: sourceURL.map { Set([$0]) } ?? []
+            )
+        }
     }
 
     @MainActor

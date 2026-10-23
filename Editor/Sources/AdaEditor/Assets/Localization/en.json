@@ -2488,5 +2488,8 @@
   "Remove Comment": "Remove Comment",
   "Group": "Group",
   "Comment": "Comment",
-  "Parameters": "Parameters"
+  "Parameters": "Parameters",
+  "Show Channels": "Show Channels",
+  "Hide Channels": "Hide Channels",
+  "Select Value": "Select Value"
 }

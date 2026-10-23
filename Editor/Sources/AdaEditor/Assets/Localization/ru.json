@@ -2488,5 +2488,8 @@
   "Remove Comment": "Удалить заметку",
   "Group": "Группа",
   "Comment": "Заметка",
-  "Parameters": "Параметры"
+  "Parameters": "Параметры",
+  "Show Channels": "Показать каналы",
+  "Hide Channels": "Скрыть каналы",
+  "Select Value": "Выбор значения"
 }
