@@ -31,6 +31,7 @@ struct AdaShaderGraphBaker {
         var graphs: [String: ShaderGraph] = [:]
         var inline: [ShaderGraph] = []
         var paths = Set<String>()
+        var references = Set<String>()
         var textureMasks: Set<UInt32> = [0]
         for file in files {
             if file.pathExtension == "shadergraph" {
@@ -39,8 +40,11 @@ struct AdaShaderGraphBaker {
                 }
             }
             if ["ascn", "gltf", "glb"].contains(file.pathExtension), let object = try json(file) {
-                try collect(object, graphs: &inline, paths: &paths, textureMasks: &textureMasks)
+                try collect(object, graphs: &inline, paths: &paths, references: &references, textureMasks: &textureMasks)
             }
+        }
+        for reference in references where graphs[reference] == nil {
+            throw BakeError.message("Missing packaged Shader Graph: \(reference)")
         }
         guard !graphs.isEmpty || !inline.isEmpty else {
             return
@@ -66,7 +70,7 @@ struct AdaShaderGraphBaker {
                     for mask in textureMasks.sorted() {
                         for layers: UInt32 in 0..<8 {
                             for morph: UInt32 in [0, 1 << 11] {
-                                let features = PBRMaterial.ShaderFeatures(rawValue: mask | layers | morph)
+                                let features = ShaderGraphBakeVariants.features(textureMask: mask, layers: layers, morph: morph != 0)
                                 variants.append((try ShaderGraph3DPipeline.fragmentTemplate(), features.enablingMacros))
                             }
                         }
@@ -127,8 +131,9 @@ struct AdaShaderGraphBaker {
         return try JSONSerialization.jsonObject(with: data)
     }
 
-    private static func collect(_ object: Any, graphs: inout [ShaderGraph], paths: inout Set<String>, textureMasks: inout Set<UInt32>) throws {
+    private static func collect(_ object: Any, graphs: inout [ShaderGraph], paths: inout Set<String>, references: inout Set<String>, textureMasks: inout Set<UInt32>) throws {
         if let dictionary = object as? [String: Any] {
+            if let path = dictionary["path"] as? String, path.hasSuffix(".shadergraph") { references.insert(path) }
             if dictionary["target"] != nil, dictionary["nodes"] != nil {
                 graphs.append(try JSONDecoder().decode(ShaderGraph.self, from: JSONSerialization.data(withJSONObject: dictionary)))
             }
@@ -143,12 +148,13 @@ struct AdaShaderGraphBaker {
                 let mask = fields.enumerated().reduce(UInt32(0)) { keys.contains($1.element) ? $0 | (1 << UInt32(3 + $1.offset)) : $0 }
                 textureMasks.insert(mask)
             }
-            for value in dictionary.values { try collect(value, graphs: &graphs, paths: &paths, textureMasks: &textureMasks) }
+            for value in dictionary.values { try collect(value, graphs: &graphs, paths: &paths, references: &references, textureMasks: &textureMasks) }
         } else if let list = object as? [Any] {
-            for value in list { try collect(value, graphs: &graphs, paths: &paths, textureMasks: &textureMasks) }
-        } else if let text = object as? String, let data = Data(base64Encoded: text),
-            let nested = try? JSONSerialization.jsonObject(with: data) {
-            try collect(nested, graphs: &graphs, paths: &paths, textureMasks: &textureMasks)
+            for value in list { try collect(value, graphs: &graphs, paths: &paths, references: &references, textureMasks: &textureMasks) }
+        } else if let text = object as? String {
+            if let data = Data(base64Encoded: text), let nested = try? JSONSerialization.jsonObject(with: data) {
+                try collect(nested, graphs: &graphs, paths: &paths, references: &references, textureMasks: &textureMasks)
+            }
         }
     }
 
