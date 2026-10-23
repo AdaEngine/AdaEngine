@@ -5,6 +5,18 @@ import Testing
 
 @MainActor @Suite("Shader Graph scene resource scope", .serialized)
 struct EditorShaderGraphResourceTests {
+    @Test func importedModelOverridesSurviveTheEditorComponentDecoder() throws {
+        EditorComponentRegistry.registerBuiltIns()
+        let graph = EditorShaderGraphTemplates.basic(target: .pbrSurface)
+        var authored = Model3DSource(source: "@res://Models/Test.glb")
+        authored.graphMaterials = ["0": .init(graph: graph, values: ["tint": [0.1, 0.5, 0.8, 1]], textures: ["map": "@res://цвет.png"])]
+        let payload = try JSONDecoder().decode(EditorComponentPayload.self, from: JSONEncoder().encode(authored))
+        let restored = try #require(try EditorComponentRegistry.decode(typeName: EditorBuiltInComponentType.model3DSource, payload: payload) as? Model3DSource)
+        #expect(restored == authored)
+        let portable = try JSONDecoder().decode(Model3DSource.self, from: JSONEncoder().encode(restored))
+        #expect(portable.graphMaterials == authored.graphMaterials)
+    }
+
     @Test func sceneLoadsVirtualGraphBeforeAssetPluginsStart() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("GraphScene-\(UUID().uuidString)")
         let assets = root.appendingPathComponent("Assets")
