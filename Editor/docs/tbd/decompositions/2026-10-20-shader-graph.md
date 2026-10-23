@@ -72,10 +72,10 @@ budgets are estimates, not permission to hide implementation in generated files.
 | 12 | Open complete Shader Graph documents in Studio | Wire tab routing, creation, file IO, Inspector and parameter controls into the existing workbench. | Final small authoring registration | ~600 | 5, 7, 9, 11 | implemented locally; creation/routing/save/history/UI events pass |
 | 13 | Preview graph edits through the production renderer | Add revision-bound compilation, preview transport and visible diagnostic recovery. | Complete preview addition to working editor | ~600 | 8, 12 | implemented locally; CPU revision/recovery and real WebGPU pass |
 | 14 | Ship animated and procedural effect templates | Add Time/UV operations, base procedural noise, Dissolve and UV Scroll examples. | Independently runnable nodes/templates | ~550 | 13 | implemented locally; effect compilation and templates pass |
-| 15 | Navigate and organize larger graphs | Add context-aware node search, copy/paste, groups, comments and error navigation. | Complete usability additions | ~600 | 12 | planned |
-| 16 | Change exposed graph values from AdaScript | Add typed parameter access through the real runtime and native AOT binding paths. | Additive scripting API | ~550 | 5, 7 | planned |
-| 17 | Package graph materials for exported games | Bake/collect shader variants and resources and reject unsupported targets explicitly. | Additive export support | ~600 | 8, 14, 16 | planned |
-| 18 | Verify and document the complete authoring workflow | Exercise native UI, saved scenes, GPU parity and ordinary-material performance. | Separate QA artifacts/docs | ~400 | 13–17 | planned |
+| 15 | Navigate and organize larger graphs | Add context-aware node search, copy/paste, groups, comments and error navigation. | Complete usability additions | ~600 | 12 | implemented locally in 15a/15b; UI and capability-focus tests pass |
+| 16 | Change exposed graph values from AdaScript | Add typed parameter access through the real runtime and native AOT binding paths. | Additive scripting API | split into 16a–c | 5, 7 | implemented; real VM/AOT and scriptable bindings pass |
+| 17 | Package graph materials for exported games | Bake/collect shader variants and resources and reject unsupported targets explicitly. | Additive export support | split into runtime, baker and scene proxy | 8, 14, 16 | partial; WASM export builds, browser startup and packaged native pixels unaccepted |
+| 18 | Verify and document the complete authoring workflow | Exercise native UI, saved scenes, GPU parity and ordinary-material performance. | Separate QA artifacts/docs | ~400 | 13–17 | partial; native previews verified, final Play/export/performance pending |
 
 ## Architecture and compatibility
 
@@ -242,6 +242,16 @@ budgets are estimates, not permission to hide implementation in generated files.
 
 ## Decision log
 
+- 2026-10-23: User requested a PR and documentation of remaining work for another
+  PC. Stop expanding the implementation and deliver one draft handoff PR containing
+  the existing commit stack. This combined transfer PR exceeds the normal slice
+  budget (6,682 reviewable lines, excluding Markdown/generated C, in 136 files); it is
+  not a single review-sized merge unit. Preserve commit boundaries and use the map
+  when reviewing/splitting before merge. No merge or release is authorized.
+- Current status and reproducible fixture/setup are recorded in
+  [ShaderGraphHandoff.md](../../../Documentation/ShaderGraphHandoff.md).
+  Its dated failure/acceptance inventory supersedes the historical evidence below.
+
 - 2026-10-20: User explicitly requested uninterrupted implementation through all
   functionality and checks. Continue the approved sequence using separate local
   commit/branch boundaries; do not stop after each slice or require repeated
@@ -382,3 +392,30 @@ budgets are estimates, not permission to hide implementation in generated files.
   and preview transport takes explicit ownership. Persistent validation logs:
   `.shader-graph-effects-tests.log` (32 CPU/GLSL/WebGPU tests),
   `.shader-graph-editor-tests.log` (22 authoring/UI/localization checks).
+
+### 2026-10-21 verification and integration update
+
+- Parts 10–15 are connected in the production native workbench. Part 15 was
+  split into 15a (typed search/clipboard, grouping model, safe focused input)
+  and 15b (UI registration); both stay below the review budget.
+- Temporary /tmp evidence disappeared between runs. Fresh persistent checks now
+  live in ignored task artifacts under `.build-tools/shader-graph-*` and root
+  `.shader-graph-*.log` files. The original task scratch name is a symlink into
+  `.build-tools`, preserving incremental SwiftPM paths.
+- `.shader-graph-editor-tests.log`: 22 authoring/localization tests pass.
+  `.shader-graph-canvas-render-tests.log`: 23 pass after native-window QA found
+  and fixed the downward-layout/upward-renderer line coordinate mismatch.
+- Native Studio launched through `Editor/script/build_and_run.sh`, with its
+  production MCP server on task port 39487 and a project under
+  `.build-tools/shader-graph-evidence/project`. The saved native screenshot
+  `native-graph-editor-active.png` proves a real PBR sphere preview. A fresh
+  screenshot after the wire-coordinate/initial-fit fix is still required.
+- `.shader-graph-webgpu-full.log`: the expanded full gate passes 210 tests in
+  41 suites. Five missing WebGPU references were rendered, visually inspected,
+  and checked against Metal before being added. All existing assertions remain.
+  `.shader-graph-new-reference-agreement.log` holds the cross-backend comparison.
+- Part 16 query bindings have run successfully through both the real VM and a
+  generated standalone-ABI-3 AOT module. Stable IDs/display names, typed get/set,
+  readonly rejection and AOT stale-handle guards are exercised. Scriptable
+  component bindings were added subsequently; their focused validation is pending.
+- Parts 17 and final release/runtime evidence remain in scope and unfinished.

@@ -616,11 +616,12 @@ Guides: [Notifications.md](Documentation/Notifications.md),
 
 ## Confirmed boundaries and incomplete paths
 
-- Shader Graph currently provides a versioned `ShaderGraph` value, a
-  `.shadergraph` asset envelope and validated typed IR in `AdaRender`. Shader
-  code generation, graph-material rendering and the Studio graph editor are
-  subsequent increments, not existing capabilities. See
-  [ShaderGraph.md](Documentation/ShaderGraph.md) and `ShaderGraphTests`.
+- Native Shader Graph includes typed graph/GLSL, Sprite and PBR materials,
+  the AdaUI workbench editor and real AdaScript VM/AOT parameter bindings.
+  Export acceptance is incomplete: browser Player startup, packaged native
+  playback, final device Play and performance checks remain. See
+  [ShaderGraph.md](Documentation/ShaderGraph.md) and
+  [ShaderGraphHandoff.md](Documentation/ShaderGraphHandoff.md) for current limits.
 - `EditorDistribution` gates capabilities: Swift projects require standalone;
   App Store distributions expose AdaScript templates. External process tooling
   and local ACP agents must not be assumed available on iOS.

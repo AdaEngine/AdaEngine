@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 3,
+  "project": {
+    "name": "ShaderGraphSmoke",
+    "displayName": "Shader Graph Smoke"
+  },
+  "paths": {
+    "sources": "Sources",
+    "assets": "Assets",
+    "resourceRoots": [
+      "Assets"
+    ]
+  },
+  "build": {
+    "system": "adascript"
+  },
+  "runtime": {
+    "entry": {
+      "scene": "Assets/Scenes/Main.ascn"
+    },
+    "moduleName": "ShaderGraphSmoke",
+    "plugins": {
+      "preset": "game2d",
+      "presetVersion": 1,
+      "enable": [],
+      "disable": []
+    }
+  },
+  "editor": {
+    "startupScene": "Assets/Scenes/Main.ascn"
+  }
+}
