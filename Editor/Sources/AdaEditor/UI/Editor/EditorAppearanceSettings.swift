@@ -108,7 +108,7 @@ struct EditorCodeDisplaySettings: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Toggle("Show indentation marks", isOn: Binding(
+            Toggle(L10n.text("Show indentation marks"), isOn: Binding(
                 get: { settings.showsIndentationMarkers },
                 set: { settings.showsIndentationMarkers = $0 }
             ))
@@ -143,7 +143,7 @@ struct EditorCodeDisplaySettings: View {
     }
 
     private func settingToggle(_ title: String, isOn: Binding<Bool>, identifier: String) -> some View {
-        Toggle(title, isOn: isOn)
+        Toggle(L10n.tr(title), isOn: isOn)
             .toggleStyle(.editorSettings(colors: theme.editorColors))
             .accessibilityIdentifier("AdaEditor.Settings.\(identifier)")
     }
@@ -155,24 +155,24 @@ struct EditorAgentGlowSettings: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle("Agent activity glow", isOn: Binding(
+            Toggle(L10n.text("Agent activity glow"), isOn: Binding(
                 get: { settings.agentActivityGlowEnabled },
                 set: { settings.agentActivityGlowEnabled = $0 }
             ))
             .toggleStyle(.editorSettings(colors: theme.editorColors))
             .accessibilityIdentifier("AdaEditor.Settings.AgentActivityGlow")
-            Text("Show colored window edges while an agent works or needs attention. Applies immediately to all editor windows.")
+            Text(L10n.text("Show colored window edges while an agent works or needs attention. Applies immediately to all editor windows."))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
             VStack(alignment: .leading, spacing: 6) {
-                Text("Accent color").font(.system(size: 13))
+                Text(L10n.text("Accent color")).font(.system(size: 13))
                 EditorUIColorField(value: accentHex, supportsAlpha: false) { value in
                     if let color = EditorUIColorField.color(value) {
                         settings.setAccentColor(color)
                     }
                 }
                 .accessibilityIdentifier("AdaEditor.Settings.AgentGlow.Accent")
-                Button("Use theme color") { settings.useThemeAccent() }
+                Button(L10n.text("Use theme color")) { settings.useThemeAccent() }
                     .font(.system(size: 11))
                     .accessibilityIdentifier("AdaEditor.Settings.AgentGlow.ThemeAccent")
             }
@@ -182,7 +182,7 @@ struct EditorAgentGlowSettings: View {
             valueControl("Opacity", value: settings.agentGlowOpacity * 100, unit: "%", step: 5, id: "Opacity") {
                 settings.agentGlowOpacity = $0 / 100
             }
-            Text("Radius controls the inward glow width (4–100 px). Success, attention and error keep their status colors. Success fades out after 3 seconds.")
+            Text(L10n.text("Radius controls the inward glow width (4–100 px). Success, attention and error keep their status colors. Success fades out after 3 seconds."))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
         }
@@ -195,7 +195,7 @@ struct EditorAgentGlowSettings: View {
 
     private func valueControl(_ title: String, value: Double, unit: String, step: Double, id: String, onChange: @escaping (Double) -> Void) -> some View {
         HStack(spacing: 8) {
-            Text(title).font(.system(size: 13))
+            Text(L10n.tr(title)).font(.system(size: 13))
             Spacer()
             Button("−") { onChange(value - step) }
                 .frame(width: 28, height: 28)

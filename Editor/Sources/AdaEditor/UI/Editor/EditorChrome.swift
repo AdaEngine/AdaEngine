@@ -34,7 +34,7 @@ enum AdaEditorTitleFont {
 func adaEditorPanelTitle(_ title: String, trailing: String, theme: Theme) -> some View {
     let colors = theme.editorColors
     return HStack(spacing: 8) {
-        Text(title)
+        Text(L10n.tr(title))
             .font(.system(size: 12))
             .foregroundColor(colors.muted)
             .lineLimit(1)
@@ -55,7 +55,7 @@ func adaEditorPanelTitle(_ title: String, trailing: String, theme: Theme) -> som
 @MainActor
 func adaEditorInspectorTitle(theme: Theme) -> some View {
     HStack {
-        Text("Inspector")
+        Text(L10n.text("Inspector"))
             .font(.system(size: 14, weight: .bold))
             .foregroundColor(theme.editorColors.text)
         Spacer()

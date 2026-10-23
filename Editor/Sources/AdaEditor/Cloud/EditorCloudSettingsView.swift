@@ -18,16 +18,14 @@ struct EditorCloudSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(account.accountID == nil && EditorCloudAccount.supportsSignIn ? "Sign in to Ada Cloud" : "Ada Cloud account")
+                Text(account.accountID == nil && EditorCloudAccount.supportsSignIn ? L10n.text("Sign in to Ada Cloud") : L10n.text("Ada Cloud account"))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
-                Text(
-                    account.accountID == nil
+                Text(account.accountID == nil
                         ? (EditorCloudAccount.supportsSignIn
-                            ? "Connect Ada Studio to your Ada Cloud account. Continue securely in your browser."
-                            : "Ada Cloud sign-in is currently available on Apple platforms. Your editor settings are saved locally.")
-                        : (!account.cloudServicesAvailable ? "Cloud Services will open soon." : account.pro ? "Pro · Web publishing enabled" : "Free · Editor settings sync")
-                )
+                            ? L10n.text("Connect Ada Studio to your Ada Cloud account. Continue securely in your browser.")
+                            : L10n.text("Ada Cloud sign-in is currently available on Apple platforms. Your editor settings are saved locally."))
+                        : (!account.cloudServicesAvailable ? L10n.text("Cloud Services will open soon.") : account.pro ? L10n.text("Pro · Web publishing enabled") : L10n.text("Free · Editor settings sync")))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(3)
@@ -38,7 +36,7 @@ struct EditorCloudSettingsView: View {
                         account.perform { try await account.signInOnWebsite() }
                     }
                     if account.busy {
-                        Button("Cancel sign-in") { account.cancelBrowserSignIn() }
+                        Button(L10n.text("Cancel sign-in")) { account.cancelBrowserSignIn() }
                             .font(.system(size: 12))
                             .foregroundColor(theme.editorColors.blue)
                             .accessibilityIdentifier("AdaEditor.Cloud.CancelSignIn")
@@ -46,14 +44,14 @@ struct EditorCloudSettingsView: View {
                 }
             } else {
                 if let accountID = account.accountID {
-                    Text("Signed in · \(accountID)")
+                    Text(L10n.text("Signed in · \(accountID)"))
                         .font(.system(size: 12))
                         .foregroundColor(theme.editorColors.text)
                         .lineLimit(2)
                         .accessibilityIdentifier("AdaEditor.Cloud.AccountIdentity")
                 }
                 if let date = account.expiresAt {
-                    Text("Cloud Pro paid until \(date.formatted())").font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
+                    Text(L10n.text("Cloud Pro paid until \(date.formatted())")).font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
                 }
                 EditorAICreditsDetails()
                 HStack(spacing: 10) {
@@ -75,7 +73,7 @@ struct EditorCloudSettingsView: View {
                     actionButton("Restore purchases", id: "Restore") { account.perform { try await account.restorePurchases() } }
                 }
                 if account.cloudServicesAvailable {
-                    Text("One active build · ZIP up to 300 MB · Secret links last 48 hours")
+                    Text(L10n.text("One active build · ZIP up to 300 MB · Secret links last 48 hours"))
                         .font(.system(size: 11)).foregroundColor(theme.editorColors.muted).lineLimit(2)
                     actionButton("Choose ZIP and publish", id: "Publish") {
                         account.perform {
@@ -127,7 +125,7 @@ struct EditorCloudSettingsView: View {
         } label: {
 #if os(iOS)
             HStack {
-                Text(title)
+                Text(L10n.tr(title))
                     .font(.system(size: 16))
                     .foregroundColor(primary ? .white : theme.editorColors.text)
                 Spacer(minLength: 0)
@@ -142,7 +140,7 @@ struct EditorCloudSettingsView: View {
             .overlay { RoundedRectangleShape(cornerRadius: 15).stroke(primary ? theme.editorColors.blue : theme.editorColors.border, lineWidth: 1) }
             .opacity(account.busy ? 0.6 : 1)
 #else
-            Text(title).font(.system(size: 12))
+            Text(L10n.tr(title)).font(.system(size: 12))
                 .foregroundColor(primary ? .white : theme.editorColors.text)
                 .padding(.horizontal, 14)
                 .frame(height: 34)

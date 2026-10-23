@@ -94,9 +94,9 @@ struct EditorNotificationOverlay: View {
     private var panel: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                Button("Notifications (\(center.unreadCount))") { model.notificationTab = .notifications }
+                Button(L10n.text("Notifications (\(center.unreadCount))")) { model.notificationTab = .notifications }
                     .foregroundColor(model.notificationTab == .notifications ? theme.editorColors.blue : theme.editorColors.text)
-                Button("Activity (\(displayedActivities.count))") { model.notificationTab = .activity }
+                Button(L10n.text("Activity (\(displayedActivities.count))")) { model.notificationTab = .activity }
                     .foregroundColor(model.notificationTab == .activity ? theme.editorColors.blue : theme.editorColors.text)
                 Spacer()
                 Button("×") { model.showsNotifications = false }
@@ -110,10 +110,10 @@ struct EditorNotificationOverlay: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             if model.notificationTab == .notifications {
                 HStack(spacing: 14) {
-                    Button("Mark all read") { center.markAllRead() }
-                    Button("Clear history") { center.clear() }
+                    Button(L10n.text("Mark all read")) { center.markAllRead() }
+                    Button(L10n.text("Clear history")) { center.clear() }
                     Spacer()
-                    Button("Settings") { model.presentSettings(.notifications) }
+                    Button(L10n.text("Settings")) { model.presentSettings(.notifications) }
                 }
                 .font(.system(size: 12))
             }
@@ -129,12 +129,12 @@ struct EditorNotificationOverlay: View {
         VStack(alignment: .leading, spacing: 8) {
             if model.notificationTab == .notifications {
                 if center.notifications.isEmpty {
-                    Text("No notifications").padding(.all, 12)
+                    Text(L10n.text("No notifications")).padding(.all, 12)
                 }
                 ForEach(center.notifications) { item in EditorNotificationCard(item: item, center: center) }
             } else {
                 if displayedActivities.isEmpty {
-                    Text("No active work").padding(.all, 12)
+                    Text(L10n.text("No active work")).padding(.all, 12)
                 }
                 ForEach(displayedActivities) { item in activityCard(item) }
             }
@@ -144,8 +144,8 @@ struct EditorNotificationOverlay: View {
 
     private func activityCard(_ item: EditorOperationActivity) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(item.title).font(.system(size: 14))
-            Text([item.projectName, item.state == .needsAttention ? "Needs attention" : item.detail].compactMap { $0 }.joined(separator: " · "))
+            Text(L10n.tr(item.title)).font(.system(size: 14))
+            Text([item.projectName, item.state == .needsAttention ? L10n.text("Needs attention") : item.detail].compactMap { $0 }.joined(separator: " · "))
                 .font(.system(size: 12))
             if let fraction = item.fractionCompleted {
                 Text("\(Int(fraction * 100))%").font(.system(size: 12))
@@ -158,7 +158,7 @@ struct EditorNotificationOverlay: View {
                     Button(action.title) { center.perform(action) }
                 }
                 if center.activities.canCancel(item.id) {
-                    Button("Cancel") { center.activities.cancel(item.id) }
+                    Button(L10n.text("Cancel")) { center.activities.cancel(item.id) }
                 }
             }
         }
@@ -179,17 +179,17 @@ struct EditorNotificationCard: View {
             HStack(spacing: 8) {
                 Text(item.importance == .error || item.importance == .warning ? "!" : "●")
                     .foregroundColor(item.importance.isPersistent ? Color.fromHex(0xEAB856) : theme.editorColors.blue)
-                Text(item.source.rawValue + (item.isRead ? "" : " · New")).font(.system(size: 11))
+                Text(item.isRead ? L10n.tr(item.source.rawValue) : L10n.text("\(L10n.tr(item.source.rawValue)) · New")).font(.system(size: 11))
                 Spacer()
                 Text(item.createdAt.formatted(date: .omitted, time: .shortened)).font(.system(size: 11))
                 Button("×") { center.dismiss(item.id) }.accessibilityIdentifier("AdaEditor.Notification.Close.\(item.id)")
             }
-            Text(item.title).font(.system(size: 14)).lineLimit(3)
+            Text(L10n.tr(item.title)).font(.system(size: 14)).lineLimit(3)
             if let name = item.projectName {
                 Text(name).font(.system(size: 11))
             }
             if !item.detail.isEmpty {
-                Text(item.detail).font(.system(size: 12)).lineLimit(4)
+                Text(L10n.tr(item.detail)).font(.system(size: 12)).lineLimit(4)
             }
             HStack(spacing: 12) {
                 ForEach(Array(item.actions.enumerated()), id: \.offset) { entry in
@@ -197,7 +197,7 @@ struct EditorNotificationCard: View {
                         .accessibilityIdentifier("AdaEditor.Notification.Action.\(item.id).\(entry.offset)")
                 }
                 if !item.isRead {
-                    Button("Mark read") { center.markRead(item.id) }
+                    Button(L10n.text("Mark read")) { center.markRead(item.id) }
                 }
             }
             .foregroundColor(theme.editorColors.blue)
@@ -223,14 +223,14 @@ struct EditorNotificationSettings: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("SYSTEM NOTIFICATIONS").font(.system(size: 14))
+            Text(L10n.text("SYSTEM NOTIFICATIONS")).font(.system(size: 14))
             #if DEBUG && os(iOS)
                 if ProcessInfo.processInfo.environment["ADA_EDITOR_BACKGROUND_TEST"] == "1" {
-                    Button("Run background diagnostic") { EditorBackgroundDiagnostic.shared.start() }
+                    Button(L10n.text("Run background diagnostic")) { EditorBackgroundDiagnostic.shared.start() }
                         .accessibilityIdentifier("AdaEditor.Notifications.BackgroundDiagnostic")
                 }
             #endif
-            Toggle("System notifications", isOn: Binding(
+            Toggle(L10n.text("System notifications"), isOn: Binding(
                 get: { center.preferences.systemEnabled },
                 set: { isOn in
                     isRequestingPermission = true
@@ -244,7 +244,7 @@ struct EditorNotificationSettings: View {
             .disabled(isRequestingPermission)
             .accessibilityIdentifier("AdaEditor.Notifications.System")
             Text(center.authorizationStatus).font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
-            Toggle("Sound", isOn: Binding(
+            Toggle(L10n.text("Sound"), isOn: Binding(
                 get: { center.preferences.soundEnabled },
                 set: { isOn in
                     center.preferences.soundEnabled = isOn
@@ -253,8 +253,8 @@ struct EditorNotificationSettings: View {
             ))
             .toggleStyle(.editorSettings(colors: theme.editorColors, minimumLabelControlSpacing: 40))
             .accessibilityIdentifier("AdaEditor.Notifications.Sound")
-            Text("NOTIFICATION SOURCES").font(.system(size: 12, weight: .semibold)).padding(.top, 10)
-            Text("Choose which events can send system notifications.")
+            Text(L10n.text("NOTIFICATION SOURCES")).font(.system(size: 12, weight: .semibold)).padding(.top, 10)
+            Text(L10n.text("Choose which events can send system notifications."))
                 .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             VStack(spacing: 6) {
                 ForEach(EditorNotificationSource.allCases, id: \.self) { source in
@@ -273,7 +273,7 @@ struct EditorNotificationSettings: View {
                     .accessibilityIdentifier("AdaEditor.Notifications.Source.\(source.rawValue)")
                 }
             }
-            Text("Results and requests for attention appear in the system while AdaEditor is inactive. Notification history is always available in the editor.")
+            Text(L10n.text("Results and requests for attention appear in the system while AdaEditor is inactive. Notification history is always available in the editor."))
                 .font(.system(size: 12))
         }
         .foregroundColor(theme.editorColors.text)

@@ -25,7 +25,7 @@ struct EditorBuildSDK: Sendable {
         if let explicit = override ?? environment["ADA_STUDIO_SDK"] {
             return try load(at: URL(fileURLWithPath: explicit))
         }
-        #if os(Windows)
+        #if os(Windows) || os(Linux)
         let installed = executable.deletingLastPathComponent().appendingPathComponent("BuildSDK")
         if FileManager.default.fileExists(atPath: installed.path) {
             return try load(at: installed)

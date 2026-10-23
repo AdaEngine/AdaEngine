@@ -28,7 +28,7 @@ struct ProjectOpeningRecentProjectRow: View {
                             .lineLimit(1)
                         Spacer()
                         if availability?.containsSwiftCode == true {
-                            Text("SPM")
+                            Text(L10n.text("SPM"))
                                 .font(.system(size: 9))
                                 .foregroundColor(AdaColorPalette.accentOrange)
                         }
@@ -47,9 +47,9 @@ struct ProjectOpeningRecentProjectRow: View {
         .buttonStyle(LauncherPlainButtonStyle(active: isActive))
         .opacity(isAvailable ? 1 : 0.45)
         .contextMenu {
-            Button("Rename…") { viewModel.beginRenamingProject(project) }
+            Button(L10n.text("Rename…")) { viewModel.beginRenamingProject(project) }
             Divider()
-            Button("Remove from Recent Projects", role: .destructive) {
+            Button(L10n.text("Remove from Recent Projects"), role: .destructive) {
                 viewModel.removeRecentProject(project)
             }
         }

@@ -101,9 +101,9 @@ struct EditorTileMapAssetEditor: View {
 
     private var footer: some View {
         HStack(spacing: 12) {
-            Text("\(model.map.cellCount) cells · \(model.layers.count) layers")
+            Text(L10n.text("\(model.map.cellCount) cells · \(model.layers.count) layers"))
                 .foregroundColor(theme.editorColors.text)
-            Text("Zoom \(Int(model.zoom * 100))%")
+            Text(L10n.text("Zoom \(Int(model.zoom * 100))%"))
                 .foregroundColor(theme.editorColors.muted)
             Spacer()
             Text(hoveredTool ?? model.status)

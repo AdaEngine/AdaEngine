@@ -199,7 +199,7 @@ extension EditorViewModel {
             .text(
                 EditorTextDocument(
                     id: "raw:\(item.relativePath)",
-                    title: "\(item.title) Raw",
+                    title: L10n.text("\(item.title) Raw"),
                     relativePath: item.relativePath,
                     absolutePath: Self.absoluteFilePath(from: item.id),
                     language: .yaml,

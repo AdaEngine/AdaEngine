@@ -28,8 +28,7 @@ struct EditorUIColorField: View {
                 .buttonStyle(DefaultButtonStyle())
                 .accessibilityIdentifier("AdaEditor.UIScene.ColorPicker")
             #endif
-            TextField(
-                supportsAlpha ? "#RRGGBBAA" : "#RRGGBB",
+            TextField(supportsAlpha ? L10n.text("#RRGGBBAA") : L10n.text("#RRGGBB"),
                 text: Binding(
                     get: { value },
                     set: { text in

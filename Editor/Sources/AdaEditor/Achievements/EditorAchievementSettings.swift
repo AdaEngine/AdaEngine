@@ -14,20 +14,18 @@ struct EditorAchievementSettings: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("\(center.earnedCount) / \(EditorAchievement.catalog.count) achievements earned")
+            Text(L10n.text("\(center.earnedCount) / \(EditorAchievement.catalog.count) achievements earned"))
                 .font(.system(size: 20, weight: .semibold))
-            Text("Explore AdaEditor, build your worlds, and discover a few secrets along the way.")
+            Text(L10n.text("Explore AdaEditor, build your worlds, and discover a few secrets along the way."))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
             Text(center.status)
                 .font(.system(size: 12))
                 .accessibilityIdentifier("AdaEditor.Achievements.Connection")
             if !center.isConnected {
-                Text(
-                    center.snapshot.guestOwner == nil
-                        ? "Your local achievements will be added to the first Game Center account you connect."
-                        : "Offline progress stays with its local profile. Achievements from different accounts are kept separate."
-                )
+                Text(center.snapshot.guestOwner == nil
+                        ? L10n.text("Your local achievements will be added to the first Game Center account you connect.")
+                        : L10n.text("Offline progress stays with its local profile. Achievements from different accounts are kept separate."))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
             }
@@ -35,7 +33,7 @@ struct EditorAchievementSettings: View {
                 Text(error).font(.system(size: 12))
             }
             HStack(spacing: 12) {
-                Button(center.isConnected ? "Sync Game Center" : "Connect Game Center") {
+                Button(center.isConnected ? L10n.text("Sync Game Center") : L10n.text("Connect Game Center")) {
                     if center.isConnected {
                         center.synchronize()
                     } else {
@@ -49,19 +47,19 @@ struct EditorAchievementSettings: View {
                 .disabled(center.isSyncing)
                 .accessibilityIdentifier("AdaEditor.Achievements.Connect")
                 if center.isConnected {
-                    Button("Open Game Center") { center.showGameCenter() }
+                    Button(L10n.text("Open Game Center")) { center.showGameCenter() }
                         .font(.system(size: 12))
                         .accessibilityIdentifier("AdaEditor.Achievements.OpenGameCenter")
                 }
             }
-            Button(center.notificationsEnabled ? "Achievement notifications: On" : "Achievement notifications: Off") {
+            Button(center.notificationsEnabled ? L10n.text("Achievement notifications: On") : L10n.text("Achievement notifications: Off")) {
                 center.setNotificationsEnabled(!center.notificationsEnabled)
             }
             .font(.system(size: 12))
             .accessibilityIdentifier("AdaEditor.Achievements.Notifications")
             HStack(spacing: 8) {
                 ForEach(EditorAchievementFilter.allCases, id: \.rawValue) { item in
-                    Button(item.rawValue) { filter = item }
+                    Button(L10n.tr(item.rawValue)) { filter = item }
                         .font(.system(size: 12))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -98,13 +96,13 @@ struct EditorAchievementSettings: View {
                 .foregroundColor(progress.earnedAt == nil ? theme.editorColors.muted : theme.editorColors.blue)
                 .frame(width: 40, height: 40)
             VStack(alignment: .leading, spacing: 5) {
-                Text(hidden ? "Secret achievement" : achievement.title)
+                Text(hidden ? L10n.text("Secret achievement") : achievement.title)
                     .font(.system(size: 14, weight: .semibold))
-                Text(hidden ? "Keep exploring to discover this achievement." : achievement.detail)
+                Text(hidden ? L10n.text("Keep exploring to discover this achievement.") : achievement.detail)
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.muted)
                 if let date = progress.earnedAt {
-                    Text("Earned · \(date.formatted(date: .abbreviated, time: .omitted))")
+                    Text(L10n.text("Earned · \(date.formatted(date: .abbreviated, time: .omitted))"))
                         .font(.system(size: 11))
                         .foregroundColor(theme.editorColors.blue)
                 } else if !hidden, achievement.goal > 1 {
@@ -114,7 +112,7 @@ struct EditorAchievementSettings: View {
             }
             Spacer()
             if !hidden {
-                Text("\(achievement.points) pt").font(.system(size: 11))
+                Text(L10n.text("Points: \(achievement.points)")).font(.system(size: 11))
             }
         }
         .padding(14)

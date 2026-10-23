@@ -406,6 +406,7 @@
                         }
                     case .texture:
                         if let texture = resources.textures[slot] {
+                            cacheable = cacheable && texture.allowsBindingCache
                             keys.append(.init(slot: slot, owner: ObjectIdentifier(texture)))
                             owners.append(texture)
                         }

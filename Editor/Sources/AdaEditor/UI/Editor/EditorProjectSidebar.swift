@@ -61,8 +61,6 @@ struct EditorProjectSidebar: View {
     let onCopyPath: (EditorProjectSidebarViewModel.Item, Bool) -> Void
     let onDeleteItem: (EditorProjectSidebarViewModel.Item) -> Void
 
-    @State private var hoveredItemID: String?
-
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
 
@@ -74,7 +72,7 @@ struct EditorProjectSidebar: View {
                         viewModel.toggleDisplayModeMenu()
                     }) {
                         HStack(spacing: 4) {
-                            Text(viewModel.displayMode.title)
+                            Text(L10n.tr(viewModel.displayMode.title))
                                 .font(.system(size: 14, weight: .bold))
                             Text(EditorProjectTreeIcon.expandMore)
                                 .font(AdaEditorMaterialSymbolFont.font(size: 16))
@@ -92,7 +90,7 @@ struct EditorProjectSidebar: View {
                         HStack(spacing: 5) {
                             Text("\u{E145}")
                                 .font(AdaEditorMaterialSymbolFont.font(size: 14))
-                            Text("New")
+                            Text(L10n.text("New"))
                                 .font(.system(size: 11))
                         }
                         .foregroundColor(theme.editorColors.blue)
@@ -145,7 +143,7 @@ struct EditorProjectSidebar: View {
     }
 
     private var newFileAction: some View {
-        Button("New…") { onNewFile(nil) }
+        Button(L10n.text("New…")) { onNewFile(nil) }
     }
 
     private var displayModeMenu: some View {
@@ -189,29 +187,29 @@ struct EditorProjectSidebar: View {
                 }
             }) {
                 newFileAction
-                Button("Import Assets") {
+                Button(L10n.text("Import Assets")) {
                     onImportAssets()
                 }
                 Divider()
                 if let projectRootItem {
-                    Button("Reveal in Finder") {
+                    Button(L10n.text("Reveal in Finder")) {
                         onRevealItem(projectRootItem)
                     }
-                    Button("Open in Terminal") {
+                    Button(L10n.text("Open in Terminal")) {
                         onOpenInTerminal(projectRootItem)
                     }
-                    Button("Find in Folder...") {
+                    Button(L10n.text("Find in Folder...")) {
                         onFindInProjectRoot()
                     }
-                    Button("Copy Path") {
+                    Button(L10n.text("Copy Path")) {
                         onCopyPath(projectRootItem, false)
                     }
                     Divider()
                 }
-                Button("Expand All") {
+                Button(L10n.text("Expand All")) {
                     viewModel.expandAll()
                 }
-                Button("Collapse All") {
+                Button(L10n.text("Collapse All")) {
                     viewModel.collapseAll()
                 }
             }
@@ -219,6 +217,12 @@ struct EditorProjectSidebar: View {
     }
 
     private func projectTreeRow(_ item: EditorProjectSidebarViewModel.Item) -> some View {
+        EditorHoverRow { isHovered in
+            projectTreeRowContent(item, isHovered: isHovered)
+        }
+    }
+
+    private func projectTreeRowContent(_ item: EditorProjectSidebarViewModel.Item, isHovered: Bool) -> some View {
         Button(action: { onOpenItem(item) }) {
             HStack(spacing: 6) {
                 Text(disclosureIcon(for: item))
@@ -246,71 +250,64 @@ struct EditorProjectSidebar: View {
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 26, maxHeight: 26, alignment: .leading)
             .background(
                 RoundedRectangleShape(cornerRadius: 5)
-                    .fill(projectTreeRowBackground(for: item))
+                    .fill(projectTreeRowBackground(for: item, isHovered: isHovered))
             )
         }
         .buttonStyle(DefaultButtonStyle())
-        .onHover { isHovered in
-            if isHovered {
-                hoveredItemID = item.id
-            } else if hoveredItemID == item.id {
-                hoveredItemID = nil
-            }
-        }
         .contextMenu(onPresent: { viewModel.select(item) }) {
             newFileAction
-            Button(item.isFolder ? (viewModel.isCollapsed(item) ? "Expand" : "Collapse") : "Open") {
+            Button(item.isFolder ? (viewModel.isCollapsed(item) ? L10n.text("Expand") : L10n.text("Collapse")) : L10n.text("Open")) {
                 onOpenItem(item)
             }
             if item.kind == .scene {
-                Button("Open as Raw") {
+                Button(L10n.text("Open as Raw")) {
                     onOpenRawItem(item)
                 }
             }
             Divider()
-            Button("Reveal in Finder") {
+            Button(L10n.text("Reveal in Finder")) {
                 onRevealItem(item)
             }
             if !item.isFolder {
-                Button("Open in Default App") {
+                Button(L10n.text("Open in Default App")) {
                     onOpenInDefaultApplication(item)
                 }
             }
-            Button("Open in Terminal") {
+            Button(L10n.text("Open in Terminal")) {
                 onOpenInTerminal(item)
             }
-            Button("Find in Folder...") {
+            Button(L10n.text("Find in Folder...")) {
                 onFindInFolder(item)
             }
             Divider()
-            Button("Copy Path") {
+            Button(L10n.text("Copy Path")) {
                 onCopyPath(item, false)
             }
-            Button("Copy Relative Path") {
+            Button(L10n.text("Copy Relative Path")) {
                 onCopyPath(item, true)
             }
             if item.isFolder {
                 Divider()
-                Button("Expand All") {
+                Button(L10n.text("Expand All")) {
                     viewModel.expandAll()
                 }
-                Button("Collapse All") {
+                Button(L10n.text("Collapse All")) {
                     viewModel.collapseAll()
                 }
             }
             Divider()
-            Button("Delete", role: .destructive) {
+            Button(L10n.text("Delete"), role: .destructive) {
                 onDeleteItem(item)
             }
         }
         .accessibilityIdentifier("AdaEditor.ProjectTree.\(item.title)")
     }
 
-    private func projectTreeRowBackground(for item: EditorProjectSidebarViewModel.Item) -> Color {
+    private func projectTreeRowBackground(for item: EditorProjectSidebarViewModel.Item, isHovered: Bool) -> Color {
         if item.isActive {
             return theme.editorColors.blue.opacity(0.22)
         }
-        if hoveredItemID == item.id {
+        if isHovered {
             return theme.editorColors.blue.opacity(0.12)
         }
         return .clear

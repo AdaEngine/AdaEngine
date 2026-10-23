@@ -145,15 +145,13 @@ struct EditorGitDiffView: View {
                 .font(font)
                 .foregroundColor(line?.kind == .addition ? GitDiffColors.addition : line?.kind == .deletion ? GitDiffColors.deletion : theme.editorColors.muted)
                 .frame(width: 12)
-            Text(
-                EditorSourceHoverPresentation.attributedText(
+            Text(EditorSourceHoverPresentation.attributedText(
                     line?.text ?? "",
                     language: .detect(fileName: file.name),
                     palette: workbench.codeColorPalette,
                     font: font,
                     keywordFont: AdaEditorCodeFont.font(family: workbench.codeFontFamily, weight: workbench.keywordFontWeight, size: workbench.codeFontSize)
-                )
-            )
+                ))
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
             Spacer()
@@ -191,7 +189,7 @@ struct EditorGitDiffView: View {
 
     private func action(_ title: String, selected: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 11))
                 .padding(.horizontal, 8)
                 .frame(height: 25)
@@ -207,7 +205,7 @@ struct GitStatisticsView: View {
     var body: some View {
         HStack(spacing: 5) {
             if statistics.isBinary {
-                Text("Binary").font(.system(size: 10))
+                Text(L10n.text("Binary")).font(.system(size: 10))
             } else {
                 Text("+\(statistics.additions)").font(.system(size: 10)).foregroundColor(GitDiffColors.addition)
                 Text("−\(statistics.deletions)").font(.system(size: 10)).foregroundColor(GitDiffColors.deletion)

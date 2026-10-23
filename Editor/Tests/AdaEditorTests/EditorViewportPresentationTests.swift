@@ -8,6 +8,96 @@ import Testing
 @MainActor
 @Suite("Viewport presentation invalidation")
 struct EditorViewportPresentationTests {
+    @Test("Annotations display the captured frame, even when navigation has advanced")
+    func annotationsFollowPresentedFrame() throws {
+        let presentation = EditorViewportPresentation()
+        let viewport = EditorSceneViewportModel()
+        let model = EditorSceneModel.default(projectName: "Frame synchronization")
+        viewport.configure(sceneContent: try model.encodedYAML(), model: model,
+                           onSelectionChanged: { _ in }, onDocumentContentChanged: { _ in })
+        viewport.setViewportSize(Size(width: 640, height: 400))
+        let container = UIContainerView(rootView: EditorViewportDrawingLayer(
+            viewportModel: viewport, presentation: presentation, kind: .gizmos
+        ))
+        container.frame = Rect(origin: .zero, size: viewport.viewportSize)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+
+        func markerTransforms() -> [Transform3D] {
+            let context = UIGraphicsContext()
+            container.viewTree.rootNode.draw(with: context)
+            context.commitDraw()
+            return context.getDrawCommands().compactMap {
+                if case let .drawQuad(transform, _, _) = $0 { return transform }
+                return nil
+            }
+        }
+
+        let presentFirst = presentation.prepareFrame(viewportModel: viewport, theme: Theme())
+        presentFirst()
+        let first = markerTransforms()
+        #expect(!first.isEmpty)
+        viewport.twoDCenter = Vector2(1, 0)
+        presentation.refresh(viewportModel: viewport)
+        let presentSecond = presentation.prepareFrame(viewportModel: viewport, theme: Theme())
+        #expect(markerTransforms() == first)
+        viewport.twoDCenter = Vector2(2, 0)
+        presentation.refresh(viewportModel: viewport)
+        // No async yield, layout or view rebuild is needed to publish a frame.
+        presentSecond()
+        let second = markerTransforms()
+        #expect(second.count == first.count)
+        let firstMarker = try #require(first.first)
+        let secondMarker = try #require(second.first)
+        #expect(abs(secondMarker.origin.x - firstMarker.origin.x + viewport.twoDZoom) < 0.01)
+        #expect(markerTransforms() == second)
+
+        // While the next render target is resizing, both the old texture and
+        // its annotations are stretched into the new display rectangle.
+        container.frame.size = Size(width: 1_280, height: 800)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+        let resized = try #require(markerTransforms().first)
+        #expect(abs(resized.origin.x - secondMarker.origin.x * 2) < 0.01)
+        #expect(abs(resized.origin.y - secondMarker.origin.y * 2) < 0.01)
+    }
+
+    @Test("Unchanged frames reuse annotations and invalidation produces a new generation")
+    func annotationGeneration() {
+        let presentation = EditorViewportPresentation()
+        let viewport = EditorSceneViewportModel()
+        viewport.setViewportSize(Size(width: 640, height: 400))
+        presentation.prepareFrame(viewportModel: viewport, theme: Theme())()
+        let generation = presentation.presentedAnnotations?.generation
+        presentation.prepareFrame(viewportModel: viewport, theme: Theme())()
+        #expect(presentation.presentedAnnotations?.generation == generation)
+        presentation.invalidateAnnotations()
+        presentation.prepareFrame(viewportModel: viewport, theme: Theme())()
+        #expect(presentation.presentedAnnotations?.generation != generation)
+    }
+
+    @Test("3D rotation leaves unchanged status and hidden rulers alone")
+    func rotationDoesNotInvalidateLabels() {
+        let presentation = EditorViewportPresentation()
+        let viewport = EditorSceneViewportModel()
+        viewport.setDisplayMode(.threeD)
+        viewport.perspectiveBlend = 1
+        presentation.refresh(viewportModel: viewport)
+        let rulerRevision = presentation.rulerRevision
+        let status = presentation.statusSuffix
+        for _ in 0..<100 {
+            viewport.rotate3D(by: Vector2(1, 1))
+            presentation.refresh(viewportModel: viewport)
+        }
+        #expect(presentation.rulerRevision == rulerRevision)
+        #expect(presentation.statusSuffix == status)
+        viewport.setDisplayMode(.twoD)
+        viewport.perspectiveBlend = 0
+        presentation.refresh(viewportModel: viewport)
+        #expect(presentation.rulerRevision > rulerRevision)
+        #expect(presentation.statusSuffix != status)
+    }
+
     @Test("Camera changes refresh rulers and status without rebuilding their host")
     func cameraChangesStayLocal() async throws {
         if unsafe RenderEngine.shared == nil {
@@ -100,7 +190,7 @@ private struct PresentationHost: View {
         self.builds = builds
     }
 
-    func requestRedraw() { presentation.revision &+= 1 }
+    func requestRedraw() { presentation.refresh(viewportModel: viewport) }
 
     var body: some View {
         builds.count += 1

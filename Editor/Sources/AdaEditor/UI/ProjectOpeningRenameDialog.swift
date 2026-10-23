@@ -9,12 +9,12 @@ struct ProjectOpeningRenameDialog: View {
             Color.black.opacity(0.54)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             VStack(alignment: .leading, spacing: 16) {
-                Text("Rename Project")
+                Text(L10n.text("Rename Project"))
                     .font(.system(size: 18))
-                Text("Choose a display name. The project folder stays in its current location.")
+                Text(L10n.text("Choose a display name. The project folder stays in its current location."))
                     .font(.system(size: 12))
                     .foregroundColor(AdaColorPalette.muted)
-                TextField("Project name", text: viewModel.renamedProjectNameBinding)
+                TextField(L10n.text("Project name"), text: viewModel.renamedProjectNameBinding)
                     .textFieldStyle(PlainTextFieldStyle())
                     .font(.system(size: 14))
                     .padding(.horizontal, 8)
@@ -39,9 +39,9 @@ struct ProjectOpeningRenameDialog: View {
     private var actions: some View {
         HStack(spacing: 16) {
             Spacer()
-            Button("Cancel") { viewModel.cancelRenamingProject() }
+            Button(L10n.text("Cancel")) { viewModel.cancelRenamingProject() }
                 .accessibilityIdentifier("AdaEditor.Launcher.Rename.Cancel")
-            Button("Rename") { viewModel.renameRecentProject() }
+            Button(L10n.text("Rename")) { viewModel.renameRecentProject() }
                 .disabled(viewModel.renamedProjectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .accessibilityIdentifier("AdaEditor.Launcher.Rename.Save")
         }

@@ -270,13 +270,13 @@ struct EditorView: View {
                 isPresented: viewModel.isDeleteProjectItemAlertPresentedBinding,
                 presenting: viewModel.pendingDeleteProjectItem,
                 actions: { item in
-                    Button("Cancel", role: .cancel) {}
-                    Button("Delete", role: .destructive) {
+                    Button(L10n.text("Cancel"), role: .cancel) {}
+                    Button(L10n.text("Delete"), role: .destructive) {
                         viewModel.deleteProjectItem(item)
                     }
                 },
                 message: { item in
-                    Text("\(item.title) will be permanently deleted from the project.")
+                    Text(L10n.text("\(item.title) will be permanently deleted from the project."))
                 }
             )
             .menuBar(EditorMenuBar.makeMenus(), foregroundColor: theme.editorColors.text, backgroundColor: theme.editorColors.surface)

@@ -117,7 +117,7 @@ struct EditorProjectSwitcherPanel: View {
                 HStack(spacing: 8) {
                     Text("\u{E2C7}")
                         .font(AdaEditorMaterialSymbolFont.font(size: 16))
-                    Text("Open Local Project…")
+                    Text(L10n.text("Open Local Project…"))
                         .font(.system(size: 12))
                     Spacer()
                 }
@@ -162,7 +162,7 @@ struct EditorProjectSwitcherPanel: View {
             Text("\u{E8B6}")
                 .font(AdaEditorMaterialSymbolFont.font(size: 16))
                 .foregroundColor(theme.editorColors.muted)
-            TextField("Search projects…", text: viewModel.searchTextBinding)
+            TextField(L10n.text("Search projects…"), text: viewModel.searchTextBinding)
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
                 .textFieldStyle(PlainTextFieldStyle())
@@ -186,7 +186,7 @@ struct EditorProjectSwitcherPanel: View {
                 }
 
                 if viewModel.filteredRecentProjects.isEmpty {
-                    Text(viewModel.searchText.isEmpty ? "No other recent projects" : "No matching projects")
+                    Text(viewModel.searchText.isEmpty ? L10n.text("No other recent projects") : L10n.text("No matching projects"))
                         .font(.system(size: 11))
                         .foregroundColor(theme.editorColors.muted)
                         .padding(.horizontal, 12)
@@ -200,7 +200,7 @@ struct EditorProjectSwitcherPanel: View {
     }
 
     private func sectionTitle(_ title: String) -> some View {
-        Text(title)
+        Text(L10n.tr(title))
             .font(.system(size: 11))
             .foregroundColor(theme.editorColors.muted)
             .padding(.horizontal, 12)

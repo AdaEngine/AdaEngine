@@ -7,7 +7,7 @@ enum MobileSloppyChatAdapter {
     static func events(from sessionEvents: [AgentSessionEvent]) -> [EditorAgentEvent] {
         sessionEvents.sorted { $0.createdAt < $1.createdAt }.compactMap { event in
             if let call = event.toolCall {
-                return EditorAgentEvent(id: event.id, kind: .runStatus, createdAt: event.createdAt, title: "Using \(call.tool)")
+                return EditorAgentEvent(id: event.id, kind: .runStatus, createdAt: event.createdAt, title: L10n.text("Using \(call.tool)"))
             }
             if let result = event.toolResult {
                 return EditorAgentEvent(

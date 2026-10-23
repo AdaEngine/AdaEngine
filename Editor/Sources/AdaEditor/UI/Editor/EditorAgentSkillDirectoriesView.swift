@@ -7,7 +7,7 @@ struct EditorAgentSkillDirectoriesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Skill folders").font(.system(size: 12, weight: .semibold))
+                Text(L10n.text("Skill folders")).font(.system(size: 12, weight: .semibold))
                 Spacer()
                 Button("+") { agent.agentSkillsDirectories.append("") }
                     .frame(width: 30, height: 28)
@@ -16,7 +16,7 @@ struct EditorAgentSkillDirectoriesView: View {
             }
             ForEach(Array(agent.agentSkillsDirectories.indices), id: \.self) { index in
                 HStack(spacing: 8) {
-                    TextField("Project-relative folder", text: agent.skillDirectoryBinding(at: index))
+                    TextField(L10n.text("Project-relative folder"), text: agent.skillDirectoryBinding(at: index))
                         .textFieldStyle(PlainTextFieldStyle())
                         .font(.system(size: 12))
                         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 32)
@@ -35,7 +35,7 @@ struct EditorAgentSkillDirectoriesView: View {
                 .overlay { RoundedRectangleShape(cornerRadius: 6).stroke(theme.editorColors.border, lineWidth: 1) }
             }
             if agent.agentSkillsDirectories.isEmpty {
-                Text("No additional skill folders.").font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+                Text(L10n.text("No additional skill folders.")).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             }
         }
         .foregroundColor(theme.editorColors.text)

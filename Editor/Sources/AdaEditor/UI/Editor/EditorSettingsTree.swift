@@ -2,12 +2,13 @@
 import Foundation
 
 enum EditorSettingsPage {
+    static let language = "LANGUAGE"
     static let runtimeEntry = "RUNTIME ENTRY"
     static let editorDisplay = "EDITOR DISPLAY"
     static let studioTools = "STUDIO TOOLS"
 
-    static func title(_ page: String) -> String {
-        EditorBuildPlatform(rawValue: page)?.title ?? page.localizedCapitalized
+    @MainActor static func title(_ page: String) -> String {
+        L10n.tr(EditorBuildPlatform(rawValue: page)?.title ?? page.localizedCapitalized)
     }
 }
 
@@ -15,7 +16,7 @@ extension EditorSettingsWindowViewModel {
     func pages(in section: EditorSettingsSection) -> [String] {
         switch section {
         case .general:
-            let globalPages = ["ADA CLOUD", "APPEARANCE", EditorSettingsPage.editorDisplay]
+            let globalPages = ["ADA CLOUD", EditorSettingsPage.language, "APPEARANCE", EditorSettingsPage.editorDisplay]
             return editorViewModel == nil ? globalPages : globalPages + ["EDITOR FONT", "SYNTAX APPEARANCE"]
         case .buildExport:
             return EditorBuildPlatform.allCases.map(\.rawValue)
@@ -59,13 +60,13 @@ extension EditorSettingsWindowViewModel {
 
     func visiblePages(in section: EditorSettingsSection) -> [String] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if query.isEmpty || section.title.localizedCaseInsensitiveContains(query) {
+        if query.isEmpty || section.title.localizedCaseInsensitiveContains(query) || L10n.tr(section.title).localizedCaseInsensitiveContains(query) {
             return pages(in: section)
         }
         return pages(in: section).filter { page in
-            if page.localizedCaseInsensitiveContains(query) { return true }
+            if page.localizedCaseInsensitiveContains(query) || EditorSettingsPage.title(page).localizedCaseInsensitiveContains(query) { return true }
             guard section == .buildExport, let platform = EditorBuildPlatform(rawValue: page) else { return false }
-            return platform.fields.contains { $0.title.localizedCaseInsensitiveContains(query) || $0.id.localizedCaseInsensitiveContains(query) }
+            return platform.fields.contains { L10n.matches(query, keys: [$0.title, $0.id]) }
         }
     }
 
@@ -97,7 +98,7 @@ struct EditorSettingsTree: View {
                 group(section)
             }
             if viewModel.filteredSections.isEmpty {
-                Text("No matching settings").font(.system(size: 11)).padding(8)
+                Text(L10n.text("No matching settings")).font(.system(size: 11)).padding(8)
             }
         }
         .padding(.horizontal, 6)
@@ -114,7 +115,7 @@ struct EditorSettingsTree: View {
                     Text(hasChildren ? (expanded ? "\u{E5CF}" : "\u{E5CC}") : section.icon)
                         .font(AdaEditorMaterialSymbolFont.font(size: 16))
                         .frame(width: 18)
-                    Text(section.title).font(.system(size: 13, weight: .bold))
+                    Text(L10n.tr(section.title)).font(.system(size: 13, weight: .bold))
                     Spacer()
                 }
                 .padding(.horizontal, 6)

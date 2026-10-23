@@ -25,6 +25,16 @@ swift build
 swift test
 ```
 
+### Linux
+
+Studio Standalone can be built for X11/XWayland, including WSLg, with Swift 6.3.2
+and Vulkan. See [Linux setup and validation](../Documentation/Linux.md) for the
+pinned Swan/Dawn, Tint and UTF-8 Gravity setup, then run
+`bash script/run_studio_linux.sh` from the engine root. It builds and stages the
+editor, resources, Swift runtime and source BuildSDK before launching. File
+dialogs require Zenity; Linux is the local Run destination. This initial port
+does not establish parity for every desktop service or export target.
+
 ### Windows
 
 Use Swift 6.3 or newer for the Swan/WebGPU dependency, Visual Studio C++ Build
@@ -37,7 +47,15 @@ Tools, Python 3, CMake and Ninja. From the engine root, run:
 The launcher verifies/builds the pinned Tint shader compiler and prepares a
 pinned Gravity binding with native string allocation and UTF-8 lengths under
 `.build-tools/gravity-windows`; it never edits shared SwiftPM checkouts. It sets
-`ADAENGINE_GRAVITY_PACKAGE_PATH`, builds Studio and opens its window.
+`ADAENGINE_GRAVITY_PACKAGE_PATH`, builds Release and opens a complete Standalone
+folder under `.build-tools/standalone-studio`. Windows Studio is always Standalone.
+The launcher uses the release packager to include and verify the build SDK,
+AdaScript compiler, Tint, resources and runtime DLLs. Launching the bare SwiftPM
+executable does not provide that export toolchain.
+Web/Android cross-build caches stay inside WSL at
+`~/.local/share/AdaStudio/BuildTools/builds`. Windows-mounted scratch paths are
+redirected there to avoid slow SwiftPM file operations over the Windows mount;
+an explicit Linux scratch path is preserved.
 Use the same dependency override for manual Windows builds/tests:
 
 ```powershell
@@ -111,6 +129,11 @@ used for device discovery, installation and launch. See
 [Android setup](Documentation/Android.md). Web Run serves the export with
 WebGPU isolation headers and opens it in the browser. Build logs stay in the
 worker's build cache and compiler errors are repeated at the end of failures.
+
+Portable AdaScript exports select the full VM for modules containing `static`
+declarations, preserving the editor's shared class state. Other modules retain
+the native AOT path. The export marker records `runtime: interpreted` or
+`runtime: aot`; imported helpers are resolved and ordered before native compilation.
 
 ## Generating the Xcode Project
 

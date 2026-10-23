@@ -137,7 +137,7 @@ struct AdaEditorApp: App {
             .transformAppWorlds { worlds in
                 worlds.insertResource(ApplicationFramePacing(maximumFramesPerSecond: 120, minimumFramesPerSecond: 120))
             }
-        #elseif os(Windows)
+        #elseif os(Windows) || os(Linux)
             .transformAppWorlds { worlds in
                 worlds.insertResource(ApplicationFramePacing(
                     maximumFramesPerSecond: 60,

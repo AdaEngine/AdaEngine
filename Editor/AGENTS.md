@@ -16,6 +16,10 @@ and assess gaps before proposing new features.
 - Shared editor UI uses AdaUI. Native app wrappers and mobile-specific screens
   have separate platform boundaries; do not assume desktop/mobile feature parity.
 - Windows Studio is built/launched with [../script/run_studio_windows.ps1](../script/run_studio_windows.ps1).
+  Windows distributions are always Standalone. The launcher builds Release and
+  stages the complete SDK, compilers, runtime DLLs and resources through the release
+  packager before opening it. Do not launch a bare SwiftPM executable or a partial
+  staging folder for user validation; Android and Web require the bundled SDK.
   It prepares pinned Tint and a task-local Gravity binding with C-owned UTF-8
   strings, selecting it through `ADAENGINE_GRAVITY_PACKAGE_PATH`. Manual Windows
   builds/tests must use that override too. Native project/asset file pickers,
@@ -42,12 +46,44 @@ and assess gaps before proposing new features.
   open browser guides; they do not perform unattended installation.
 - Keep mocks, fixtures, and QA harnesses in test targets or separate executables.
   Do not add test-only objects or QA launch hooks to the main app, including Debug builds.
+- Linux Standalone uses X11/XWayland and Vulkan. Follow
+  [../Documentation/Linux.md](../Documentation/Linux.md) and launch through
+  `../script/run_studio_linux.sh` to stage resources, runtime libraries and BuildSDK.
+  Set the staged UTF-8 Gravity binding and Linux Swan overrides for builds/tests;
+  native dialogs require Zenity. The initial Linux workbench/local Run port does
+  not establish remote AdaPlayer, ACP, debugger, Cloud or cross-export parity.
 - Use an isolated scratch/module cache when necessary; never delete the shared
   `.build`. Preserve unrelated engine, demo, and editor changes.
 - Debug macOS builds accept `--editor-project=<absolute-path>` to open the
   production workspace directly for native UI validation.
 - Public scripting terminology is **AdaScript**. `Gravity*` names are internal
   compiler, VM, and language-tooling implementation names.
+
+## Localization (required for every UI change)
+
+- Ada Studio supports **English (`en`) and Russian (`ru`)**. Always write
+  user-facing text for localization, including labels, tooltips, placeholders,
+  menus, dialogs, accessibility labels, empty states and app-authored errors.
+- Add or update both translations automatically in the same change, under
+  `Sources/AdaEditor/Assets/Localization/en.json` and `ru.json`. Do not leave
+  Russian translations for a follow-up task. Use clear, friendly Russian that
+  a young reader can understand; keep product names and code/API identifiers.
+- Use `L10n.text("Text with \(value)")` for interpolated UI messages and
+  `L10n.tr(key)` when rendering a stable key supplied by a model or UI helper.
+  Preserve numbered placeholders in both catalogs. Never concatenate translated
+  sentence fragments or translate user text, source code, file paths, persisted
+  enum values, protocol keys or accessibility identifiers.
+- `EditorLocalization` owns the saved app language. The default follows the
+  system's preferred languages, selecting Russian or English with English as
+  fallback. Desktop General > Language and mobile Settings expose System,
+  English and Russian; changes update mounted UI through Observation.
+- Keep routing, settings page IDs and automation identifiers language-independent.
+  Translate at presentation boundaries. Shared AdaUI and native platform UI must
+  use the same preference; do not independently check `Locale.preferredLanguages`.
+- Run `python ../script/check_studio_localization.py` from `Editor/` and
+  `swift test --filter EditorLocalizationTests` after changing
+  localized UI. Test switching languages with the existing view mounted, and
+  check that longer Russian text fits the affected controls.
 
 ## Capability inventory
 
@@ -105,6 +141,24 @@ and Move/Scale/Rotate tools. Scene edits have undo/redo.
 2D sprite picking shares the runtime hit test: CPU alpha masks, atlas regions,
 anchors, image modes and composed parent transforms before ECS propagation.
 Coverage: [EditorSpritePickingTests.swift](Tests/AdaEditorTests/EditorSpritePickingTests.swift).
+Selection reuses the parsed scene model and retains preview entities for editor-only
+state changes. Large terrain payloads use bulk YAML node construction; regression
+coverage: [EditorSceneSelectionRegressionTests.swift](Tests/AdaEditorTests/EditorSceneSelectionRegressionTests.swift).
+The hierarchy and project tree own hover state and drawing caches per mounted row.
+Pointer-motion and neighboring-row cache coverage:
+[EditorSidebarHoverTests.swift](Tests/AdaEditorTests/EditorSidebarHoverTests.swift).
+Window dispatch coalesces consecutive hover moves while preserving the raw scene
+event stream and gesture boundaries. Coverage:
+[EditorWindowHoverInputTests.swift](Tests/AdaEditorTests/EditorWindowHoverInputTests.swift).
+Viewport annotations are captured with each scheduled scene frame and published
+with its completed texture at the next UI tick. Their Canvas drawing revisions
+refresh synchronously without rebuilding the viewport; 3D rotation leaves hidden
+rulers and unchanged status text alone. Coverage:
+[EditorViewportPresentationTests.swift](Tests/AdaEditorTests/EditorViewportPresentationTests.swift),
+[SceneViewTests.swift](../Tests/AdaEngineTests/SceneViewTests.swift).
+2D scene UI previews filter active authored UI components before sorting or
+decoding hierarchy transforms; scenes without UI skip preview preparation.
+Coverage: [EditorSceneViewportPreviewTests.swift](Tests/AdaEditorTests/EditorSceneViewportPreviewTests.swift).
 The Sprite Inspector authors anchor presets/custom coordinates, stretch/fit/fill,
 nine-slice borders and tiled axes/scale through normal scene history and Save.
 AdaScript constructors and query writes share these layout values; native AOT

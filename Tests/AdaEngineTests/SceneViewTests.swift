@@ -4,6 +4,12 @@ import Testing
 
 @MainActor
 struct SceneViewTests {
+    init() {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            RenderWorldPlugin().setup(in: AppWorlds(main: World(name: "SceneViewTests")))
+        }
+    }
 
     @Test
     func initializersCompile() {
@@ -145,10 +151,21 @@ struct SceneViewTests {
         unsafe RenderEngine.configurations.preferredBackend = .headless
 
         var completedFrames: [ObjectIdentifier] = []
+        var preparedFrame = 0
+        var presentedFrame = 0
+        var presentedFrames: [Int] = []
         let coordinator = SceneViewCoordinator(
             make: { _ in },
             updateContent: { _, _ in },
-            onFrameRendered: { completedFrames.append(ObjectIdentifier($0)) }
+            onFrameRendered: {
+                completedFrames.append(ObjectIdentifier($0))
+                presentedFrames.append(presentedFrame)
+            },
+            prepareFramePresentation: {
+                preparedFrame += 1
+                let snapshot = preparedFrame
+                return { presentedFrame = snapshot }
+            }
         )
         var displayTextureChangeCount = 0
         coordinator.renderTextureDidChange = {
@@ -176,17 +193,18 @@ struct SceneViewTests {
         let firstTarget = try #require(firstHandle.asset)
         #expect(completedFrames.isEmpty)
         firstTarget.notifyRenderCompleted()
-        for _ in 0..<50 where coordinator.renderTexture == nil {
-            await Task.yield()
-        }
+        for _ in 0..<50 { await Task.yield() }
+        #expect(coordinator.renderTexture == nil)
+        #expect(presentedFrame == 0)
+        coordinator.tick(0.016)
 
         let stableDisplayTexture = try #require(coordinator.renderTexture)
         let displayIdentity = ObjectIdentifier(stableDisplayTexture)
         let firstBackingIdentity = ObjectIdentifier(stableDisplayTexture.gpuTexture)
         #expect(displayTextureChangeCount == 1)
         #expect(completedFrames == [ObjectIdentifier(firstTarget)])
+        #expect(presentedFrames == [1])
 
-        coordinator.tick(0.016)
         let secondCamera = try #require(sceneViewCamera(in: appWorlds.main))
         guard case let .texture(secondHandle) = secondCamera.renderTarget else {
             Issue.record("SceneView camera must rotate to another RenderTexture.")
@@ -195,18 +213,41 @@ struct SceneViewTests {
         let secondTarget = try #require(secondHandle.asset)
         #expect(secondTarget !== firstTarget)
         secondTarget.notifyRenderCompleted()
-        for _ in 0..<50 where ObjectIdentifier(stableDisplayTexture.gpuTexture) == firstBackingIdentity {
-            await Task.yield()
-        }
+        for _ in 0..<50 { await Task.yield() }
+        #expect(ObjectIdentifier(stableDisplayTexture.gpuTexture) == firstBackingIdentity)
+        #expect(presentedFrames == [1])
+        coordinator.tick(0.016)
 
         #expect(ObjectIdentifier(try #require(coordinator.renderTexture)) == displayIdentity)
         #expect(ObjectIdentifier(stableDisplayTexture.gpuTexture) != firstBackingIdentity)
         #expect(displayTextureChangeCount == 1)
         #expect(completedFrames == [ObjectIdentifier(firstTarget), ObjectIdentifier(secondTarget)])
+        #expect(presentedFrames == [1, 2])
+
+        // Completion can be out of order. Publish only the newest contiguous
+        // completed frame and its matching snapshot, at a UI tick boundary.
+        let thirdCamera = try #require(sceneViewCamera(in: appWorlds.main))
+        guard case let .texture(thirdHandle) = thirdCamera.renderTarget else { return }
+        let thirdTarget = try #require(thirdHandle.asset)
+        coordinator.tick(0.016)
+        let fourthCamera = try #require(sceneViewCamera(in: appWorlds.main))
+        guard case let .texture(fourthHandle) = fourthCamera.renderTarget else { return }
+        let fourthTarget = try #require(fourthHandle.asset)
+        #expect(thirdTarget !== fourthTarget)
+        fourthTarget.notifyRenderCompleted()
+        for _ in 0..<50 { await Task.yield() }
+        coordinator.tick(0.016)
+        #expect(presentedFrames == [1, 2])
+        thirdTarget.notifyRenderCompleted()
+        for _ in 0..<50 { await Task.yield() }
+        #expect(presentedFrames == [1, 2])
+        coordinator.tick(0.016)
+        #expect(presentedFrames == [1, 2, 4])
+        #expect(completedFrames.last == ObjectIdentifier(fourthTarget))
         coordinator.shutdown()
         secondTarget.notifyRenderCompleted()
         for _ in 0..<50 { await Task.yield() }
-        #expect(completedFrames.count == 2)
+        #expect(completedFrames.count == 3)
     }
 
     @Test

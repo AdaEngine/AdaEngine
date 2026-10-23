@@ -27,6 +27,9 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         AdaScriptRuntimeCoordinator.lock.withLock { runtime.activeAsyncTaskCount }
     }
 
+    /// Runtime component schemas used when loading exported scene data.
+    @MainActor public var componentDescriptors: [RuntimeComponentDescriptor] { runtimeComponents }
+
     /// The `@test` functions loaded with `includeTests: true`; empty otherwise.
     public let tests: [AdaScriptTestCase]
 

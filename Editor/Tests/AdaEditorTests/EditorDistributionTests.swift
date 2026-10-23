@@ -5,6 +5,15 @@ import Testing
 
 @Suite("Editor distribution channels")
 struct EditorDistributionTests {
+    #if os(Windows)
+    @Test("Windows Studio always provides the standalone distribution")
+    func windowsIsStandalone() {
+        #expect(EditorDistribution.current == .standalone)
+        #expect(EditorDistribution.current.supportsSwiftProjects)
+        #expect(EditorDistribution.current.projectTemplates == EditorProjectTemplate.allCases)
+    }
+    #endif
+
     @Test func channelResolution() {
         #expect(EditorDistribution.resolve(channel: "standalone", isAppBundle: true) == .standalone)
         #expect(EditorDistribution.resolve(channel: "appStore", isAppBundle: true) == .appStore)

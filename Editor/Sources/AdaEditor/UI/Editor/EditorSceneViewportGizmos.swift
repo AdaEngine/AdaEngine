@@ -2,7 +2,7 @@
 import Math
 
 extension EditorSceneViewportModel {
-    func transformGizmo() -> EditorTransformGizmo? {
+    func transformGizmo(size: Size? = nil) -> EditorTransformGizmo? {
         guard
             !isPerspectiveTransitionActive,
             let selectedEditorID,
@@ -13,12 +13,13 @@ extension EditorSceneViewportModel {
         else {
             return nil
         }
+        let size = size ?? viewportSize
         return EditorTransformGizmo(
             tool: activeTool,
             transform: transform,
             parent: parent,
-            camera: cameraState(for: viewportSize),
-            size: viewportSize,
+            camera: cameraState(for: size),
+            size: size,
             is2D: displayMode == .twoD
         )
     }

@@ -44,7 +44,7 @@ struct EditorCodeFileView: View {
                 fileSearchBar
             }
             if let path = document.absolutePath, debugger?.modifiedSources.contains(path) == true {
-                Text("Source changed after launch. Restart debugging to use this version.")
+                Text(L10n.text("Source changed after launch. Restart debugging to use this version."))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .padding(.horizontal, 10)
@@ -132,7 +132,7 @@ extension EditorCodeFileView {
 
     private func symbolDocumentation(_ documentation: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Documentation")
+            Text(L10n.text("Documentation"))
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundColor(theme.editorColors.blue)
             Text(
@@ -162,7 +162,7 @@ extension EditorCodeFileView {
 
         return HStack(spacing: 8) {
             TextField(
-                "Find in file",
+                L10n.text("Find in file"),
                 text: Binding(
                     get: { document.fileSearch.query },
                     set: { onFileSearchQueryChange?(document.id, $0) }
@@ -223,7 +223,7 @@ extension EditorCodeFileView {
                                 .lineLimit(1)
                                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                             if let detail = EditorCompletionPresentation.detail(for: item) {
-                                Text(detail)
+                                Text(L10n.tr(detail))
                                     .font(.system(size: 10))
                                     .foregroundColor(theme.editorColors.muted)
                                     .lineLimit(1)
@@ -467,7 +467,7 @@ extension EditorCodeFileView {
 
     private func fileError(message: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Unable to open file")
+            Text(L10n.text("Unable to open file"))
                 .font(.system(size: 13))
                 .foregroundColor(theme.editorColors.text)
             Text(message)

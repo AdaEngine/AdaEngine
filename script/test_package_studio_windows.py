@@ -13,6 +13,18 @@ spec.loader.exec_module(packaging)
 
 
 class WindowsPackagingTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "Windows packaging requires the Windows Swift toolchain")
+    def test_standalone_staging_preserves_an_existing_destination(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            installed = output / "AdaStudio-local-windows-x86_64"
+            installed.mkdir()
+            marker = installed / "user-file.txt"
+            marker.write_text("keep", encoding="utf-8")
+            with self.assertRaises(FileExistsError):
+                packaging.package(Path("missing"), Path("missing"), Path("missing"), output, "local", stage_only=True)
+            self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
+
     def test_version_cannot_escape_output_directory(self):
         for version in ["../escape", "v1/a", "v1\\a", "", "a" * 81]:
             with self.subTest(version=version), self.assertRaises(ValueError):

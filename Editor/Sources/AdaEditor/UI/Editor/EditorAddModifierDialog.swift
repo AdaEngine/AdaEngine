@@ -69,10 +69,10 @@ struct EditorAddModifierDialog: View {
                 .frame(width: 36, height: 36)
                 .background(RoundedRectangleShape(cornerRadius: 8).fill(theme.editorColors.blue.opacity(0.15)))
             VStack(alignment: .leading, spacing: 4) {
-                Text("Add Modifier")
+                Text(L10n.text("Add Modifier"))
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
-                Text("Choose a modifier to add to \(targetName).")
+                Text(L10n.text("Choose a modifier to add to \(targetName)."))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .lineLimit(2)
@@ -96,7 +96,7 @@ struct EditorAddModifierDialog: View {
         HStack(spacing: 8) {
             symbol("\u{E8B6}", size: 18)
                 .foregroundColor(theme.editorColors.muted)
-            TextField("Search by name, category, or description", text: $search)
+            TextField(L10n.text("Search by name, category, or description"), text: $search)
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
                 .textFieldStyle(PlainTextFieldStyle())
@@ -124,10 +124,10 @@ struct EditorAddModifierDialog: View {
         if entries.isEmpty {
             VStack(spacing: 8) {
                 Spacer()
-                Text("No modifiers found")
+                Text(L10n.text("No modifiers found"))
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
-                Text("Try another name, category, or description.")
+                Text(L10n.text("Try another name, category, or description."))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                 Spacer()
@@ -190,11 +190,11 @@ struct EditorAddModifierDialog: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
-            Text("\(entries.count) available")
+            Text(L10n.text("\(entries.count) available"))
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.muted)
             Spacer()
-            Button("Cancel") { dismiss() }
+            Button(L10n.text("Cancel")) { dismiss() }
                 .buttonStyle(EditorUIDesignerButtonStyle(colors: theme.editorColors, bordered: true))
                 .accessibilityIdentifier("AdaEditor.AddModifier.Cancel")
         }

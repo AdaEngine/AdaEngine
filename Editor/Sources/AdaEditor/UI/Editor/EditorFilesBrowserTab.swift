@@ -22,18 +22,18 @@ struct EditorFilesBrowserTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("PROJECT FILES")
+                Text(L10n.text("PROJECT FILES"))
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
                 Spacer()
-                Text("\(filteredItems.count) files")
+                Text(L10n.text("\(filteredItems.count) files"))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
             }
             .padding(.horizontal, 18)
             .frame(height: 42)
 
-            TextField("Filter files by name or path", text: $searchText)
+            TextField(L10n.text("Filter files by name or path"), text: $searchText)
                 .textFieldStyle(PlainTextFieldStyle())
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
@@ -49,7 +49,7 @@ struct EditorFilesBrowserTab: View {
 
             if filteredItems.isEmpty {
                 VStack(spacing: 8) {
-                    Text(items.isEmpty ? "Open a project to browse its files." : "No matching files.")
+                    Text(items.isEmpty ? L10n.text("Open a project to browse its files.") : L10n.text("No matching files."))
                         .font(.system(size: 13))
                         .foregroundColor(theme.editorColors.muted)
                 }

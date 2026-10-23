@@ -111,6 +111,9 @@ struct EditorSceneViewportView: View {
                             }
                         }
                     )
+                    .onPrepareFramePresentation {
+                        viewportPresentation.prepareFrame(viewportModel: viewportModel, theme: viewportPresentation.annotationTheme)
+                    }
                     .frame(width: geometry.size.width, height: geometry.size.height)
 
                     viewportSceneOverlay
@@ -267,7 +270,7 @@ struct EditorSceneViewportView: View {
                 .foregroundColor(theme.editorColors.muted)
             #endif
             Spacer()
-            Text(isPlayingThisDocument ? "PLAY MODE" : isAssetPreview ? "MODEL PREVIEW" : "SCENE")
+            Text(isPlayingThisDocument ? L10n.text("PLAY MODE") : isAssetPreview ? L10n.text("MODEL PREVIEW") : L10n.text("SCENE"))
                 .font(.system(size: 10))
                 .foregroundColor(isPlayingThisDocument ? theme.editorColors.purple : theme.editorColors.muted)
         }
@@ -282,7 +285,7 @@ struct EditorSceneViewportView: View {
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
             Spacer()
-            Text("PLAY MODE")
+            Text(L10n.text("PLAY MODE"))
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.purple)
         }
@@ -446,7 +449,7 @@ struct EditorSceneViewportView: View {
 
     private func viewportMessage(title: String, message: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 13))
                 .foregroundColor(theme.editorColors.text)
             Text(message)

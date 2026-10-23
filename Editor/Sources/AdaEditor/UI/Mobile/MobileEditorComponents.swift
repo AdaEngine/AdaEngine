@@ -50,7 +50,7 @@ struct MobileEditorPrimaryButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                Text(title)
+                Text(L10n.tr(title))
                     .font(MobileEditorFont.font(size: 16))
                 Spacer()
                 Text("\u{E5CC}")
@@ -76,7 +76,7 @@ struct MobileEditorSectionHeading: View {
             Text(eyebrow.uppercased())
                 .font(MobileEditorFont.font(size: 11))
                 .foregroundColor(theme.editorColors.blue)
-            Text(title)
+            Text(L10n.tr(title))
                 .font(MobileEditorFont.font(size: 31))
                 .foregroundColor(theme.editorColors.text)
         }
@@ -92,7 +92,7 @@ struct MobileEditorProjectPlaceholderImage: View {
     var body: some View {
         ZStack {
             theme.editorColors.surfaceElevated
-            Text("Run your scene to create a preview")
+            Text(L10n.text("Run your scene to create a preview"))
                 .font(MobileEditorFont.font(size: 12))
                 .foregroundColor(theme.editorColors.muted)
         }

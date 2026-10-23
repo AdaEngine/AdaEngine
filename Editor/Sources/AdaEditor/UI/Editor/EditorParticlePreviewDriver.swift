@@ -56,7 +56,7 @@ struct EditorParticleLiveCount: View {
     let statistics: EditorParticlePreviewStatistics
 
     var body: some View {
-        Text("\(statistics.particleCount) particles")
+        Text(L10n.text("\(statistics.particleCount) particles"))
             .font(.system(size: 11))
             .frame(width: 112, alignment: .trailing)
             .accessibilityIdentifier("AdaEditor.ParticleFX.Count")

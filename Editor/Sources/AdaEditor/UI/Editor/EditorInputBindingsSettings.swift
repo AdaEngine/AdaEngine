@@ -117,15 +117,15 @@ struct EditorInputBindingsSettings: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("INPUT BINDINGS").font(.system(size: 11)).foregroundColor(theme.editorColors.blue)
+                Text(L10n.text("INPUT BINDINGS")).font(.system(size: 11)).foregroundColor(theme.editorColors.blue)
                 Spacer()
                 button("+ Action", id: "AddAction", action: draft.addAction)
             }
             Divider()
-            Text("Name an action, then bind keyboard, mouse, gamepad or touch inputs. Any binding can activate it.")
+            Text(L10n.text("Name an action, then bind keyboard, mouse, gamepad or touch inputs. Any binding can activate it."))
                 .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             if draft.actions.isEmpty {
-                Text("No actions yet. Add an action such as Jump, MoveLeft or Interact.")
+                Text(L10n.text("No actions yet. Add an action such as Jump, MoveLeft or Interact."))
                     .font(.system(size: 12)).foregroundColor(theme.editorColors.muted).padding(.vertical, 12)
             }
             ForEach(draft.actions) { action in
@@ -139,7 +139,7 @@ struct EditorInputBindingsSettings: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 TextField(
-                    "Action name",
+                    L10n.text("Action name"),
                     text: Binding(
                         get: { draft.actions.first { $0.id == action.id }?.name ?? "" },
                         set: { value in draft.edit(action.id) { $0.name = value } }
@@ -172,7 +172,7 @@ struct EditorInputBindingsSettings: View {
                 return false
             }) {
                 HStack(spacing: 8) {
-                    Text("Gamepad Dead Zone").font(.system(size: 11))
+                    Text(L10n.text("Gamepad Dead Zone")).font(.system(size: 11))
                     EditorEnumField(
                         cases: ["0.0", "0.1", "0.2", "0.3", "0.4", "0.5"],
                         selection: Binding(
@@ -230,7 +230,7 @@ struct EditorInputBindingsSettings: View {
 
     private func button(_ title: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title).font(.system(size: 11)).padding(.horizontal, 8).frame(height: 28)
+            Text(L10n.tr(title)).font(.system(size: 11)).padding(.horizontal, 8).frame(height: 28)
         }
         .buttonStyle(DefaultButtonStyle())
         .accessibilityIdentifier("AdaEditor.Settings.InputBindings.\(id)")

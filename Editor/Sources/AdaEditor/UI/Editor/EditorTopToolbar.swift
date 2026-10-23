@@ -58,7 +58,7 @@ struct EditorTopToolbar: View {
                     .font(AdaEditorMaterialSymbolFont.font(size: 16))
                     .accessibilityIdentifier(Self.projectSwitcherIconAccessibilityIdentifier)
                 if metrics.toolbarProjectSwitcherWidth > 32 {
-                    Text(project?.name ?? "Projects")
+                    Text(project?.name ?? L10n.text("Projects"))
                         .font(.system(size: 12))
                         .lineLimit(1)
                 }
@@ -168,7 +168,7 @@ struct EditorRunDestinationMenu: View {
                 ForEach(androidTargets) { target in
                     Button(action: { onSelectAndroid?(target) }) {
                         HStack(spacing: 8) {
-                            Text((target.kind == .emulator ? "Emulator · " : "Device · ") + target.title)
+                            Text((target.kind == .emulator ? L10n.text("Emulator · ") : L10n.text("Device · ")) + target.title)
                                 .font(.system(size: 11)).lineLimit(2)
                             Spacer()
                             if selectedAndroidTargetID == target.id { Text("✓").font(.system(size: 12)) }
@@ -182,8 +182,8 @@ struct EditorRunDestinationMenu: View {
                 }
                 }.frame(width: menuWidth, height: min(Float(androidTargets.count) * 42, 210))
                 HStack(spacing: 16) {
-                    Button("Refresh") { onRefreshAndroid?() }.foregroundColor(theme.editorColors.blue)
-                    Button("Android Settings…") { onAndroidSettings?() }.foregroundColor(theme.editorColors.blue)
+                    Button(L10n.text("Refresh")) { onRefreshAndroid?() }.foregroundColor(theme.editorColors.blue)
+                    Button(L10n.text("Android Settings…")) { onAndroidSettings?() }.foregroundColor(theme.editorColors.blue)
                 }
                 .font(.system(size: 11)).padding(10)
             }

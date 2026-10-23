@@ -108,7 +108,7 @@ public struct PointLightComponent: Codable, Sendable {
 
 /// An infinitely distant light. Its local +Z axis is the direction the light rays travel.
 @Component
-public struct DirectionalLightComponent: Sendable {
+public struct DirectionalLightComponent: Codable, Sendable {
     public var radiance: Vector3
     public var intensity: Float
     public var castShadows: Bool
@@ -130,6 +130,20 @@ public struct DirectionalLightComponent: Sendable {
         self.shadowDistance = shadowDistance
         self.shadowBias = shadowBias
         self.shadowSlopeBias = shadowSlopeBias
+    }
+
+    private enum CodingKeys: CodingKey { case radiance, intensity, castShadows, shadowDistance, shadowBias, shadowSlopeBias }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            radiance: try decodeLocalLightRadiance(values, key: .radiance),
+            intensity: try values.decodeIfPresent(Float.self, forKey: .intensity) ?? 1,
+            castShadows: try values.decodeIfPresent(Bool.self, forKey: .castShadows) ?? true,
+            shadowDistance: try values.decodeIfPresent(Float.self, forKey: .shadowDistance) ?? 30,
+            shadowBias: try values.decodeIfPresent(Float.self, forKey: .shadowBias) ?? 0.0008,
+            shadowSlopeBias: try values.decodeIfPresent(Float.self, forKey: .shadowSlopeBias) ?? 0.003
+        )
     }
 }
 

@@ -19,11 +19,11 @@
                     Divider()
                     if let error = viewModel.errorMessage {
                         ContentUnavailableView {
-                            Label("Documentation Unavailable", systemImage: "book.closed")
+                            Label(L10n.text("Documentation Unavailable"), systemImage: "book.closed")
                         } description: {
                             Text(error)
                         } actions: {
-                            Button("Retry", action: viewModel.reload)
+                            Button(L10n.text("Retry"), action: viewModel.reload)
                         }
                     } else if let article = viewModel.selectedArticle {
                         articleContent(article)
@@ -37,10 +37,10 @@
         private var sidebar: some View {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Documentation").font(.title2.bold())
-                    Label("Available offline", systemImage: "checkmark.circle")
+                    Text(L10n.text("Documentation")).font(.title2.bold())
+                    Label(L10n.text("Available offline"), systemImage: "checkmark.circle")
                         .font(.caption).foregroundStyle(.secondary)
-                    TextField("Search guides…", text: $viewModel.searchText)
+                    TextField(L10n.text("Search guides…"), text: $viewModel.searchText)
                         .textFieldStyle(.roundedBorder)
                         .accessibilityIdentifier("AdaEditor.Documentation.Search")
                         .padding(.top, 8)
@@ -97,7 +97,7 @@
                     .accessibilityLabel("Forward")
                     .accessibilityIdentifier("AdaEditor.Documentation.Forward")
                 Spacer()
-                Button(copiedItem == copyID(-1) ? "Copied" : "Copy Article", systemImage: "doc.on.doc") {
+                Button(copiedItem == copyID(-1) ? L10n.text("Copied") : L10n.text("Copy Article"), systemImage: "doc.on.doc") {
                     if let article = viewModel.selectedArticle {
                         EditorDocumentationWindowController.copy(article.plainText)
                         copiedItem = copyID(-1)
@@ -105,7 +105,7 @@
                 }
                 .disabled(viewModel.selectedArticle == nil)
                 if let onClose {
-                    Button("Done", action: onClose)
+                    Button(L10n.text("Done"), action: onClose)
                         .accessibilityIdentifier("AdaEditor.Documentation.Close")
                 }
             }
@@ -177,9 +177,9 @@
         private func codeBlock(_ block: EditorDocumentationBlock, index: Int) -> some View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text(block.language ?? "Code").font(.caption).foregroundStyle(.secondary)
+                    Text(block.language ?? L10n.text("Code")).font(.caption).foregroundStyle(.secondary)
                     Spacer()
-                    Button(copiedItem == copyID(index) ? "Copied" : "Copy Code", systemImage: "doc.on.doc") {
+                    Button(copiedItem == copyID(index) ? L10n.text("Copied") : L10n.text("Copy Code"), systemImage: "doc.on.doc") {
                         EditorDocumentationWindowController.copy(block.text)
                         copiedItem = copyID(index)
                     }

@@ -106,7 +106,7 @@ struct MobileEditorWorkspaceView: View {
                 Button(action: resumePreviousSession) {
                     HStack(spacing: 7) {
                         Text("\u{E5C4}").font(AdaEditorMaterialSymbolFont.font(size: 17))
-                        Text("Back to \(previousSession.title)")
+                        Text(L10n.text("Back to \(previousSession.title)"))
                             .font(MobileEditorFont.font(size: 12))
                             .lineLimit(1)
                     }
@@ -135,7 +135,7 @@ struct MobileEditorWorkspaceView: View {
                 if tab == .play { preparePlay() } else { selection = tab }
             }
         )) {
-            Tab("Build", value: MobileEditorWorkspaceTab.build) {
+            Tab(L10n.text("Build"), value: MobileEditorWorkspaceTab.build) {
                 MobileEditorBuildScreen(
                     project: project,
                     promptDraft: _promptDraft,
@@ -153,11 +153,11 @@ struct MobileEditorWorkspaceView: View {
                     topAccessory: expanded ? topAccessory : nil
                 )
             }
-            Tab("Files", value: MobileEditorWorkspaceTab.files) {
+            Tab(L10n.text("Files"), value: MobileEditorWorkspaceTab.files) {
                 MobileEditorFilesScreen(project: project, onOpenFile: onOpenFile)
             }
             if navigationControlsAxis != .vertical {
-                Tab("Play", value: MobileEditorWorkspaceTab.play, placement: .floating) {
+                Tab(L10n.text("Play"), value: MobileEditorWorkspaceTab.play, placement: .floating) {
                     EmptyView()
                 }
             }
@@ -204,7 +204,7 @@ struct MobileEditorBuildScreen: View {
                 if chatEvents.isEmpty {
                     VStack(spacing: 24) {
                         if inlineComposer == nil || geometry.size.height >= 340 {
-                            Text("What would you like\nto create today?")
+                            Text(L10n.text("What would you like\nto create today?"))
                                 .font(MobileEditorFont.font(size: 25))
                                 .foregroundColor(theme.editorColors.text)
                                 .multilineTextAlignment(.center)
@@ -246,7 +246,7 @@ struct MobileEditorBuildScreen: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         if isWorking {
-                            Text("You can switch screens while Ada works.")
+                            Text(L10n.text("You can switch screens while Ada works."))
                                 .font(.system(size: 11))
                                 .foregroundColor(theme.editorColors.muted)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -264,7 +264,7 @@ struct MobileEditorBuildScreen: View {
             if inlineComposer != nil {
                 HStack(spacing: 8) {
                     Text("\u{E65F}").font(AdaEditorMaterialSymbolFont.font(size: 20)).foregroundColor(theme.editorColors.blue)
-                    Text("Agent").font(MobileEditorFont.font(size: 16)).foregroundColor(theme.editorColors.text)
+                    Text(L10n.text("Agent")).font(MobileEditorFont.font(size: 16)).foregroundColor(theme.editorColors.text)
                     Spacer(minLength: 8)
                     if let topAccessory { topAccessory }
                 }
@@ -370,7 +370,7 @@ struct MobileEditorPlayEmptyScreen: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 21) {
             MobileEditorSectionHeading(eyebrow: "Play", title: "Your game will appear here")
-            Text(message ?? "Build a valid AdaScript project to see it here.")
+            Text(message ?? L10n.text("Build a valid AdaScript project to see it here."))
                 .font(MobileEditorFont.font(size: 15))
                 .foregroundColor(theme.editorColors.muted)
             MobileEditorPrimaryButton(title: "Go to Build", action: showBuild)

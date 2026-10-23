@@ -259,6 +259,8 @@ final class EditorViewModel {
             self.selectedRunDestination = selectedRunDestination
                 ?? savedDestination.flatMap { EditorRunDestination.availableCases.contains($0) ? $0 : nil }
                 ?? .windows
+        #elseif os(Linux)
+            self.selectedRunDestination = selectedRunDestination.flatMap { EditorRunDestination.availableCases.contains($0) ? $0 : nil } ?? .linux
         #else
             self.selectedRunDestination = selectedRunDestination ?? Self.editorRunDestination(from: savedProject?.run.destination ?? .macOS)
         #endif

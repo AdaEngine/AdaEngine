@@ -58,7 +58,7 @@ struct EditorDebugPanel: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Text("Debug")
+            Text(L10n.text("Debug"))
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(theme.editorColors.text)
             Text(debugger.status.isEmpty ? debugger.session.reason : debugger.status)
@@ -136,8 +136,7 @@ struct EditorDebugPanel: View {
             HStack(spacing: 10) {
                 Text(">")
                     .foregroundColor(theme.editorColors.muted)
-                TextField(
-                    debugger.selectedLanguage == .swift ? "LLDB command" : "AdaScript command",
+                TextField(debugger.selectedLanguage == .swift ? L10n.text("LLDB command") : L10n.text("AdaScript command"),
                     text: Binding(get: { debugger.command }, set: { debugger.command = $0 }),
                     onSubmit: debugger.sendCommand
                 )
@@ -145,7 +144,7 @@ struct EditorDebugPanel: View {
                 .foregroundColor(theme.editorColors.text)
                 .frame(minWidth: 0, maxWidth: .infinity, minHeight: 30, maxHeight: 30)
                 .accessibilityIdentifier("AdaEditor.Debug.Command")
-                Text("Enter")
+                Text(L10n.text("Enter"))
                     .font(.system(size: 10))
                     .foregroundColor(theme.editorColors.muted)
             }
@@ -162,7 +161,7 @@ struct EditorDebugPanel: View {
             ScrollView([.horizontal, .vertical]) {
                 VStack(alignment: .leading, spacing: 6) {
                     if debugger.breakpoints.isEmpty {
-                        Text("Click the source gutter to add a breakpoint.")
+                        Text(L10n.text("Click the source gutter to add a breakpoint."))
                     }
                     ForEach(debugger.breakpoints) { breakpoint in
                         let target = URL(fileURLWithPath: breakpoint.path).pathExtension == "swift" ? debugger.swift : debugger.adaScript
@@ -171,9 +170,9 @@ struct EditorDebugPanel: View {
                                 debugger.setBreakpointEnabled(breakpoint, enabled: !breakpoint.enabled)
                             }
                             Text("\(URL(fileURLWithPath: breakpoint.path).lastPathComponent):\(breakpoint.line)")
-                            Text(target.verifiedBreakpoints[breakpoint.id] == true ? "Verified" : "Pending")
+                            Text(target.verifiedBreakpoints[breakpoint.id] == true ? L10n.text("Verified") : L10n.text("Pending"))
                                 .foregroundColor(theme.editorColors.muted)
-                            Button("Remove") { debugger.toggleBreakpoint(path: breakpoint.path, line: breakpoint.line) }
+                            Button(L10n.text("Remove")) { debugger.toggleBreakpoint(path: breakpoint.path, line: breakpoint.line) }
                         }
                         if let message = target.breakpointMessages[breakpoint.id] {
                             Text(message)
@@ -186,7 +185,7 @@ struct EditorDebugPanel: View {
             ScrollView([.horizontal, .vertical]) {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(debugger.session.threads.map(\.id), id: \.self) { identifier in
-                        Button(debugger.session.threads.first { $0.id == identifier }?.name ?? "Thread") {
+                        Button(debugger.session.threads.first { $0.id == identifier }?.name ?? L10n.text("Thread")) {
                             Task { await debugger.session.selectThread(identifier) }
                         }
                     }
@@ -211,11 +210,11 @@ struct EditorDebugPanel: View {
         case "Watches":
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
-                    TextField("Expression", text: Binding(get: { debugger.watchExpression }, set: { debugger.watchExpression = $0 }), onSubmit: debugger.addWatch)
+                    TextField(L10n.text("Expression"), text: Binding(get: { debugger.watchExpression }, set: { debugger.watchExpression = $0 }), onSubmit: debugger.addWatch)
                         .textFieldStyle(PlainTextFieldStyle())
                         .foregroundColor(theme.editorColors.text)
                         .accessibilityIdentifier("AdaEditor.Debug.WatchExpression")
-                    Button("Add") { debugger.addWatch() }
+                    Button(L10n.text("Add")) { debugger.addWatch() }
                         .accessibilityIdentifier("AdaEditor.Debug.AddWatch")
                 }
                 ScrollView([.horizontal, .vertical]) {
@@ -223,7 +222,7 @@ struct EditorDebugPanel: View {
                         ForEach(debugger.watches, id: \.self) { expression in
                             HStack(spacing: 8) {
                                 Text("\(expression) = \(debugger.session.watchValues[expression] ?? "Pause to evaluate")")
-                                Button("Remove") { debugger.removeWatch(expression) }
+                                Button(L10n.text("Remove")) { debugger.removeWatch(expression) }
                             }
                         }
                     }

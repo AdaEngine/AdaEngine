@@ -100,7 +100,7 @@ struct EditorBottomPanel: View {
         case "Build":
             commandButton("Build All") { viewModel.buildAll() }
             ForEach(viewModel.packageModel?.targets.map(\.name).sorted() ?? [], id: \.self) { target in
-                commandButton("Build \(target)") { viewModel.buildTarget(target) }
+                commandButton(L10n.text("Build \(target)")) { viewModel.buildTarget(target) }
             }
             if let activity = viewModel.buildActivity {
                 outputSectionTitle(activity.title)
@@ -113,7 +113,7 @@ struct EditorBottomPanel: View {
         case "Tests":
             commandButton("Run All Tests") { viewModel.runTests() }
             ForEach(viewModel.testTargets, id: \.self) { target in
-                commandButton("Run \(target)") { viewModel.runTests(filter: target) }
+                commandButton(L10n.text("Run \(target)")) { viewModel.runTests(filter: target) }
             }
         case "References":
             if viewModel.symbolReferences.isEmpty {
@@ -167,7 +167,7 @@ struct EditorBottomPanel: View {
     }
 
     private func outputSectionTitle(_ title: String) -> some View {
-        Text(title)
+        Text(L10n.tr(title))
             .font(.system(size: 12))
             .foregroundColor(theme.editorColors.text)
             .padding(.top, 8)
@@ -179,11 +179,11 @@ struct EditorBottomPanel: View {
                 .font(.system(size: 12))
                 .foregroundColor(buildStepColor(for: step.state))
                 .frame(width: 14)
-            Text(step.title)
+            Text(L10n.tr(step.title))
                 .font(.system(size: 13))
                 .foregroundColor(step.state == .running ? theme.editorColors.text : theme.editorColors.muted)
             if let detail = step.detail {
-                Text(detail)
+                Text(L10n.tr(detail))
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.muted)
                     .lineLimit(1)
@@ -264,7 +264,7 @@ struct EditorBottomPanel: View {
 
     private func commandButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.blue)
                 .padding(.horizontal, 8)

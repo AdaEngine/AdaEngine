@@ -9,7 +9,7 @@ struct EditorInterfaceModePicker: View {
         HStack(spacing: 2) {
             ForEach(EditorInterfaceMode.allCases, id: \.self) { mode in
                 Button(action: { state.mode = mode }) {
-                    Text(mode.title)
+                    Text(L10n.tr(mode.title))
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(state.mode == mode ? theme.editorColors.blue : theme.editorColors.muted)
                         .frame(width: 48, height: 26)
@@ -75,7 +75,7 @@ struct EditorAgentWorkspace: View {
     private var sessions: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Agent Sessions").font(.system(size: 13, weight: .semibold))
+                Text(L10n.text("Agent Sessions")).font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Text("\(viewModel.agent.sessions.count)").font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             }
@@ -111,7 +111,7 @@ struct EditorAgentWorkspace: View {
             Button(action: { viewModel.presentSettings(.agent) }) {
                 HStack(spacing: 8) {
                     Text("\u{E8B8}").font(AdaEditorMaterialSymbolFont.font(size: 17))
-                    Text("Agent Settings").font(.system(size: 12))
+                    Text(L10n.text("Agent Settings")).font(.system(size: 12))
                     Spacer()
                 }
                 .padding(12)
@@ -148,7 +148,7 @@ struct EditorAgentWorkspace: View {
             .background(RoundedRectangleShape(cornerRadius: 5).fill(active ? theme.editorColors.blue.opacity(0.14) : .clear))
         }
         .buttonStyle(DefaultButtonStyle())
-        .contextMenu { Button("Delete session") { viewModel.agent.deleteSession(session) } }
+        .contextMenu { Button(L10n.text("Delete session")) { viewModel.agent.deleteSession(session) } }
         .accessibilityIdentifier("AdaEditor.AgentWorkspace.Session.\(session.id)")
     }
 
@@ -158,7 +158,7 @@ struct EditorAgentWorkspace: View {
                 Button(action: { viewModel.openAgentChangedFile(file.path) }) {
                     HStack(spacing: 8) {
                         Text("\u{E24D}").font(AdaEditorMaterialSymbolFont.font(size: 14))
-                        Text(file.title).font(.system(size: 12)).lineLimit(1)
+                        Text(L10n.tr(file.title)).font(.system(size: 12)).lineLimit(1)
                         Spacer()
                     }
                     .foregroundColor(theme.editorColors.blue)
@@ -193,7 +193,7 @@ struct EditorAgentWorkspace: View {
     private var artifact: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Workspace").font(.system(size: 12, weight: .semibold))
+                Text(L10n.text("Workspace")).font(.system(size: 12, weight: .semibold))
                 Spacer()
                 Button(action: { viewModel.interface.showsArtifact = false }) {
                     Text("\u{E5CD}").font(AdaEditorMaterialSymbolFont.font(size: 16)).frame(width: 28, height: 28)
@@ -215,7 +215,7 @@ struct EditorAgentWorkspace: View {
         Button(action: action) {
             HStack(spacing: 4) {
                 Text(symbol).font(AdaEditorMaterialSymbolFont.font(size: 15))
-                Text(title).font(.system(size: 11)).lineLimit(1)
+                Text(L10n.tr(title)).font(.system(size: 11)).lineLimit(1)
             }
             .padding(.horizontal, 7)
             .frame(height: 28)

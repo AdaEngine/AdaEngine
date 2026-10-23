@@ -128,7 +128,7 @@
                 #elseif os(Android)
                     WebGPU.GPURequestAdapterOptions(powerPreference: .highPerformance, backendType: .vulkan)
                 #elseif os(Linux)
-                    WebGPU.GPURequestAdapterOptions(powerPreference: .highPerformance)
+                    WebGPU.GPURequestAdapterOptions(powerPreference: .highPerformance, backendType: .vulkan)
                 #else
                     WebGPU.GPURequestAdapterOptions(powerPreference: .highPerformance)
                 #endif

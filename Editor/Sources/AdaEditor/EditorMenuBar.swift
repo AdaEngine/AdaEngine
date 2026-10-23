@@ -147,9 +147,9 @@ enum EditorMenuBar {
 
     private static func systemMenu() -> UIMenu {
         #if os(Windows) || os(Linux)
-        let menu = UIMenu(title: "Studio", placement: .application)
+        let menu = UIMenu(title: L10n.text("Studio"), placement: .application)
         #else
-        let menu = UIMenu(title: "System", placement: .application)
+        let menu = UIMenu(title: L10n.text("System"), placement: .application)
         #endif
         menu.add(item("Settings...", command: .showSettings, key: .comma))
         if EditorDistribution.current == .standalone {
@@ -291,7 +291,7 @@ enum EditorMenuBar {
     }
 
     private static func menu(_ title: String, items: [MenuItem]) -> UIMenu {
-        let menu = UIMenu(title: title)
+        let menu = UIMenu(title: L10n.tr(title))
         for item in items { menu.add(item) }
         return menu
     }
@@ -304,7 +304,7 @@ enum EditorMenuBar {
     ) -> MenuItem {
         var key = key
         var modifiers = modifiers
-        #if os(Windows)
+        #if os(Windows) || os(Linux)
         if key == .plus { key = .equals }
         if modifiers?.contains(.main) == true {
             modifiers?.remove(.main)
@@ -312,7 +312,7 @@ enum EditorMenuBar {
         }
         #endif
         return MenuItem(
-            title: title,
+            title: L10n.tr(title),
             action: UIEventAction { EditorMenuCommandRouter.shared.perform(command) },
             keyEquivalent: key,
             keyEquivalentModifierMask: modifiers

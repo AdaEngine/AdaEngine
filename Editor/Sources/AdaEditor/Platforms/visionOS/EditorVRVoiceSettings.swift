@@ -16,30 +16,30 @@
 
         var body: some SwiftUI.View {
             SwiftUI.VStack(spacing: 20) {
-                SwiftUI.Text("Voice with Ada").font(.title2)
-                SwiftUI.Text("Look at the bubble and pinch to dictate. To activate without hands, enable Dwell Control in Accessibility settings.")
+                SwiftUI.Text(L10n.text("Voice with Ada")).font(.title2)
+                SwiftUI.Text(L10n.text("Look at the bubble and pinch to dictate. To activate without hands, enable Dwell Control in Accessibility settings."))
                     .font(.callout).foregroundStyle(.secondary)
-                SwiftUI.Picker("Provider", selection: $provider) {
-                    SwiftUI.Text("API").tag(MobileAgentProvider.api)
-                    SwiftUI.Text("Codex").tag(MobileAgentProvider.codex)
+                SwiftUI.Picker(L10n.text("Provider"), selection: $provider) {
+                    SwiftUI.Text(L10n.text("API")).tag(MobileAgentProvider.api)
+                    SwiftUI.Text(L10n.text("Codex")).tag(MobileAgentProvider.codex)
                 }.pickerStyle(.segmented)
-                SwiftUI.TextField("Model ID", text: $model).textFieldStyle(.roundedBorder)
+                SwiftUI.TextField(L10n.text("Model ID"), text: $model).textFieldStyle(.roundedBorder)
                 if provider == .api {
-                    SwiftUI.SecureField("API key", text: $key).textFieldStyle(.roundedBorder)
-                    SwiftUI.TextField("API URL", text: $endpoint).textFieldStyle(.roundedBorder)
+                    SwiftUI.SecureField(L10n.text("API key"), text: $key).textFieldStyle(.roundedBorder)
+                    SwiftUI.TextField(L10n.text("API URL"), text: $endpoint).textFieldStyle(.roundedBorder)
                 } else {
                     if let device {
                         SwiftUI.Text(device.userCode).font(.title.monospaced()).textSelection(.enabled)
                         SwiftUI.Link("Complete sign-in", destination: device.verificationURL)
                     }
-                    SwiftUI.Button(MobileCodexCredentialStore.load() == nil ? "Sign in to Codex" : "Sign in again", action: signIn)
+                    SwiftUI.Button(MobileCodexCredentialStore.load() == nil ? L10n.text("Sign in to Codex") : L10n.text("Sign in again"), action: signIn)
                         .disabled(login != nil)
                 }
                 if let message { SwiftUI.Text(message).font(.caption).foregroundStyle(.secondary) }
                 SwiftUI.HStack {
-                    SwiftUI.Button("Cancel") { dismiss() }
+                    SwiftUI.Button(L10n.text("Cancel")) { dismiss() }
                     SwiftUI.Spacer()
-                    SwiftUI.Button("Save") {
+                    SwiftUI.Button(L10n.text("Save")) {
                         do {
                             try MobileSloppyCredentialStore.save(.init(apiKey: key, model: model.trimmingCharacters(in: .whitespacesAndNewlines), apiURL: endpoint, provider: provider))
                             dismiss()

@@ -161,20 +161,20 @@ private struct AdaPlayerHomeView: View {
                     .onDisappear { try? FileManager.default.removeItem(at: runtime.directory) }
             } else {
                 VStack(spacing: 24) {
-                    Text("AdaPlayer").font(.system(size: 32, weight: .bold))
+                    Text(L10n.text("AdaPlayer")).font(.system(size: 32, weight: .bold))
                     Text(controller.startupError ?? controller.host.status).font(.system(size: 16))
                     if let port = controller.host.port {
-                        Text("Port \(port)")
+                        Text(L10n.text("Port \(port)"))
                             .font(.system(size: 14))
                             .accessibilityIdentifier("AdaPlayer.ListeningAddress")
                     }
                     if !controller.host.isPaired {
                         Text(controller.host.code).font(.system(size: 42, weight: .bold))
                             .accessibilityIdentifier("AdaPlayer.PairingCode")
-                        Text("On the same Wi-Fi, choose AdaPlayer in AdaEditor and press Run. Enter this code to connect.")
+                        Text(L10n.text("On the same Wi-Fi, choose AdaPlayer in AdaEditor and press Run. Enter this code to connect."))
                             .font(.system(size: 16))
                     }
-                    Button("Restart connection") {
+                    Button(L10n.text("Restart connection")) {
                         controller.shutdown()
                         controller.start()
                     }
@@ -187,7 +187,7 @@ private struct AdaPlayerHomeView: View {
                 VStack {
                     HStack {
                         Spacer()
-                        Button("Disconnect") { controller.host.disconnect() }
+                        Button(L10n.text("Disconnect")) { controller.host.disconnect() }
                             .padding(.all, 12)
                             .background(.black.opacity(0.7))
                             .foregroundColor(.white)

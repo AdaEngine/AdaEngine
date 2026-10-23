@@ -1,4 +1,4 @@
-#if os(macOS) || os(Windows)
+#if os(macOS) || os(Windows) || os(Linux)
 @_spi(Internal) import AdaApp
 @testable import AdaCorePipelines
 import AdaECS

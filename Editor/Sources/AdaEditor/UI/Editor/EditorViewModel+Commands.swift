@@ -262,7 +262,7 @@ extension EditorViewModel {
         if let projectURL,
             let settings = projectSettings,
             settings.build.system == .adaScript,
-            (selectedRunDestination == .macOS || selectedRunDestination == .windows || selectedRunDestination == .visionOS) {
+            (selectedRunDestination == .macOS || selectedRunDestination == .windows || selectedRunDestination == .linux || selectedRunDestination == .visionOS) {
             let projectName = settings.project.displayName ?? settings.project.name ?? project?.name ?? "AdaScript Project"
             buildAdaScriptProject(
                 settings,
@@ -296,7 +296,7 @@ extension EditorViewModel {
             exportAndroidProject(launch: true)
         case .player:
             runOnAdaPlayer()
-        case .macOS, .windows:
+        case .macOS, .windows, .linux:
             executeWorkspaceCommand(
                 .run(target: product, arguments: projectSettings?.run.arguments ?? []),
                 statusTitle: product.map { "Run \($0) on \(selectedRunDestination.rawValue)" } ?? "Run on \(selectedRunDestination.rawValue)"

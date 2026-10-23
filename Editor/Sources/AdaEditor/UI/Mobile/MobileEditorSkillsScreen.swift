@@ -17,9 +17,9 @@ struct MobileEditorSkillsScreen: View {
                 MobileEditorPrimaryButton(title: "Install skill from Files", action: install)
                     .disabled(isBusy)
                     .accessibilityIdentifier("AdaEditor.Mobile.InstallSkill")
-                Text("BUILT-IN").font(MobileEditorFont.font(size: 11)).foregroundColor(theme.editorColors.muted)
+                Text(L10n.text("BUILT-IN")).font(MobileEditorFont.font(size: 11)).foregroundColor(theme.editorColors.muted)
                 ForEach(MobileAgentHarnessSkill.builtIns) { skill in skillCard(skill, removable: false) }
-                Text("INSTALLED").font(MobileEditorFont.font(size: 11)).foregroundColor(theme.editorColors.muted)
+                Text(L10n.text("INSTALLED")).font(MobileEditorFont.font(size: 11)).foregroundColor(theme.editorColors.muted)
                 if store.settings.installedSkills.isEmpty { detail("No custom skills installed yet.") }
                 ForEach(store.settings.installedSkills) { skill in skillCard(skill, removable: true) }
                 if isBusy { detail("Skills can be changed after the current agent run finishes.") }
@@ -39,13 +39,13 @@ struct MobileEditorSkillsScreen: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(skill.name).font(MobileEditorFont.navigationFont(size: 18)).foregroundColor(theme.editorColors.text)
                         detail(skill.summary)
-                        Text("Read instructions").font(MobileEditorFont.font(size: 13)).foregroundColor(theme.editorColors.blue)
+                        Text(L10n.text("Read instructions")).font(MobileEditorFont.font(size: 13)).foregroundColor(theme.editorColors.blue)
                     }
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }
                 .buttonStyle(DefaultButtonStyle())
                 HStack {
-                    Button(enabled ? "Enabled" : "Disabled") {
+                    Button(enabled ? L10n.text("Enabled") : L10n.text("Disabled")) {
                         perform { try store.setEnabled(!enabled, skillID: skill.id) }
                     }
                     .foregroundColor(enabled ? theme.editorColors.blue : theme.editorColors.muted)
@@ -53,7 +53,7 @@ struct MobileEditorSkillsScreen: View {
                     .accessibilityIdentifier("AdaEditor.Mobile.SkillToggle.\(skill.id)")
                     Spacer()
                     if removable {
-                        Button("Remove") { perform { try store.remove(skillID: skill.id) } }
+                        Button(L10n.text("Remove")) { perform { try store.remove(skillID: skill.id) } }
                             .foregroundColor(theme.editorColors.muted)
                             .frame(minHeight: 44)
                     }

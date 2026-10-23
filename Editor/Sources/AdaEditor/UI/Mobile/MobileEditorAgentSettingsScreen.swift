@@ -27,7 +27,7 @@ struct MobileEditorAgentSettingsScreen: View {
     var body: some View {
         MobileEditorPageScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Text("Connect an account, then choose a model for your projects.")
+                Text(L10n.text("Connect an account, then choose a model for your projects."))
                     .font(MobileEditorFont.font(size: 13))
                     .foregroundColor(theme.editorColors.muted)
 
@@ -38,7 +38,7 @@ struct MobileEditorAgentSettingsScreen: View {
                 }
                 MobileEditorCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Codex authorization")
+                        Text(L10n.text("Codex authorization"))
                             .font(MobileEditorFont.navigationFont(size: 20))
                             .foregroundColor(theme.editorColors.text)
                         Text(MobileCodexCredentialStore.load() == nil ? "Sign in with your ChatGPT account to use Codex." : "Codex is connected on this device.")
@@ -56,7 +56,7 @@ struct MobileEditorAgentSettingsScreen: View {
                                     UIPasteboard.general.string = deviceCode.userCode
                                     isCodeCopied = true
                                 } label: {
-                                    Text(isCodeCopied ? "Copied" : "Copy")
+                                    Text(isCodeCopied ? L10n.text("Copied") : L10n.text("Copy"))
                                         .font(MobileEditorFont.font(size: 13))
                                         .foregroundColor(theme.editorColors.blue)
                                         .padding(.horizontal, 12)
@@ -72,7 +72,7 @@ struct MobileEditorAgentSettingsScreen: View {
                                 .accessibilityIdentifier("AdaEditor.Mobile.CopyCodexDeviceCode")
                             }
                             .padding(.vertical, 8)
-                            Text("Paste this code in the sign-in window to finish signing in.")
+                            Text(L10n.text("Paste this code in the sign-in window to finish signing in."))
                                 .font(MobileEditorFont.font(size: 12))
                                 .foregroundColor(theme.editorColors.muted)
                         }
@@ -90,7 +90,7 @@ struct MobileEditorAgentSettingsScreen: View {
                                 .accessibilityIdentifier("AdaEditor.Mobile.CodexAuthorizationStatus")
                         }
                         if MobileCodexCredentialStore.load() != nil {
-                            Button("Disconnect Codex", action: disconnectCodex)
+                            Button(L10n.text("Disconnect Codex"), action: disconnectCodex)
                                 .foregroundColor(theme.editorColors.muted)
                                 .frame(minHeight: 44)
                                 .disabled(isAuthorizing)
@@ -102,7 +102,7 @@ struct MobileEditorAgentSettingsScreen: View {
 
                 MobileEditorCard {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("OpenAI compatible API")
+                        Text(L10n.text("OpenAI compatible API"))
                             .font(MobileEditorFont.navigationFont(size: 20))
                             .foregroundColor(theme.editorColors.text)
                         settingsField("API URL", placeholder: MobileSloppyCredentials.defaultAPIURL, text: Binding(get: { apiURL }, set: { apiURL = $0 }))
@@ -120,10 +120,10 @@ struct MobileEditorAgentSettingsScreen: View {
 
                 MobileEditorCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Image generation")
+                        Text(L10n.text("Image generation"))
                             .font(MobileEditorFont.navigationFont(size: 20))
                             .foregroundColor(theme.editorColors.text)
-                        Text("Generate and edit game textures with an OpenAI API key. Codex sign-in handles image understanding; image generation uses a separate API key.")
+                        Text(L10n.text("Generate and edit game textures with an OpenAI API key. Codex sign-in handles image understanding; image generation uses a separate API key."))
                             .font(MobileEditorFont.font(size: 12))
                             .foregroundColor(theme.editorColors.muted)
                         apiKeyButton(isConfigured: !imageAPIKey.isEmpty, emptyTitle: "Set image API key", action: updateImageAPIKey)
@@ -171,7 +171,7 @@ struct MobileEditorAgentSettingsScreen: View {
                 Text(isConfigured ? "API key saved securely" : emptyTitle)
                     .foregroundColor(theme.editorColors.text)
                 Spacer()
-                Text(isConfigured ? "Change" : "Add")
+                Text(isConfigured ? "Change" : L10n.text("Add"))
                     .foregroundColor(theme.editorColors.blue)
             }
             .font(MobileEditorFont.font(size: 14))
@@ -189,10 +189,10 @@ struct MobileEditorAgentSettingsScreen: View {
 
     private func settingsField(_ title: String, placeholder: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(MobileEditorFont.font(size: 11))
                 .foregroundColor(theme.editorColors.muted)
-            TextField(placeholder, text: text)
+            TextField(L10n.tr(placeholder), text: text)
                 .textFieldStyle(PlainTextFieldStyle())
                 .font(MobileEditorFont.font(size: 14))
                 .foregroundColor(theme.editorColors.text)
@@ -215,7 +215,7 @@ struct MobileEditorAgentSettingsScreen: View {
             MobileEditorCard {
                 HStack(spacing: 14) {
                     VStack(alignment: .leading, spacing: 7) {
-                        Text("MODEL · \(modelStore.selectedProviderTitle)")
+                        Text(L10n.text("MODEL · \(modelStore.selectedProviderTitle)"))
                             .font(MobileEditorFont.font(size: 11))
                             .foregroundColor(theme.editorColors.muted)
                         Text(modelStore.selectedModelID.isEmpty ? "Choose a model" : modelStore.selectedTitle)

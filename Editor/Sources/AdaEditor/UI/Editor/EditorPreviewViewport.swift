@@ -56,7 +56,7 @@ struct EditorPreviewViewport: View {
             .accessibilityIdentifier("AdaEditor.PreviewViewport.ZoomIn")
 
             Button(action: { settings.isInteractive.toggle() }) {
-                Text(settings.isInteractive ? "Interactive" : "Static")
+                Text(settings.isInteractive ? L10n.text("Interactive") : L10n.text("Static"))
                     .font(.system(size: 10, weight: settings.isInteractive ? .bold : .regular))
                     .frame(width: 62, height: 26)
             }

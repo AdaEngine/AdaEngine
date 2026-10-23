@@ -164,7 +164,7 @@ struct EditorModelPreviewViewport: View {
                     }
                 )
                 .frame(width: geometry.size.width, height: geometry.size.height)
-                Text("Drag to orbit · Scroll to zoom")
+                Text(L10n.text("Drag to orbit · Scroll to zoom"))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .padding(16)
