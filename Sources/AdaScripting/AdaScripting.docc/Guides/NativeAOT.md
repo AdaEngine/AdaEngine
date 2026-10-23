@@ -24,8 +24,13 @@ For an AdaScript project, choose **Build → Export AdaScript to macOS…** or
 
 The exporter loads project and locked library sources, performs type checking,
 prepares native host conveniences and calls Gravity's `tools/aot_build.py`.
-It creates the native archive, C accessor target, game executable package,
-resource bundle and detached scene payloads. It checks the generated module's
+Modules containing `static` declarations select the full AdaScript VM before
+compilation, because Gravity AOT does not yet implement static class state.
+These exports package the same source module and interpreter used by the editor;
+their `ada-native-export.json` marker records `runtime: interpreted`. Modules on
+the native path record `runtime: aot` and resolve imports before C generation.
+The native path creates the archive and C accessor target. Both paths create a
+game executable package, resource bundle and detached scene payloads. The native path checks the generated module's
 metadata, component/resource bindings and startup-system configuration before building the player. macOS
 exports include an `.app`; Web exports invoke the existing `export-web` plugin
 for the engine/game WASM, JavaScript loader and resource manifests.

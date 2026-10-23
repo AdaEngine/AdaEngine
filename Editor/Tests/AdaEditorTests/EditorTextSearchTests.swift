@@ -58,7 +58,7 @@ struct EditorTextSearchTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let file = root.appendingPathComponent("code.swift")
         try "let disk = 0".write(to: file, atomically: true, encoding: .utf8)
-        let editor = EditorViewModel(project: EditorProjectReference(name: "Search", path: root.path))
+        let editor = EditorViewModel(project: EditorProjectReference(name: "Search", path: root.path), autosaveDelay: .seconds(60))
         let item = try #require(editor.projectSidebar.items.first { $0.relativePath == "code.swift" })
         editor.openProjectItem(item)
         guard case let .text(document)? = editor.workbench.activeDocument else {
@@ -268,8 +268,8 @@ struct EditorTextSearchDialogTests {
     }
 
     private func refresh(_ container: UIView) async {
-        for _ in 0..<10 {
-            await Task.yield()
+        for _ in 0..<30 {
+            try? await Task.sleep(for: .milliseconds(10))
             container.update(1.0 / 60.0)
             container.layoutIfNeeded()
         }

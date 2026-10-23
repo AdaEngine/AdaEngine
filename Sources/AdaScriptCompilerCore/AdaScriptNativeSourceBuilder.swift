@@ -1,14 +1,31 @@
 /// Prepares host conveniences for Gravity's native compiler without changing
 /// annotated declarations or implementing a second language compiler.
 public enum AdaScriptNativeSourceBuilder {
+    /// Static declarations require the full VM until the native backend supports class state.
+    public static func requiresInterpretedRuntime(sources: [AdaScriptCompilerSource]) -> Bool {
+        sources.contains { source in
+            var lexer = Lexer(source: source.source)
+            return lexer.lex().contains { $0.kind == .identifier && $0.text == "static" }
+        }
+    }
+
     public static func prepare(sources: [AdaScriptCompilerSource], constructors: [String: [String]]) throws -> [AdaScriptCompilerSource] {
+        let graph = try AdaScriptModuleGraph(sources: sources)
+        let paths = try graph.order(roots: graph.sortedPaths)
+        let problems = graph.semanticDiagnostics(scope: Set(paths))
+        guard problems.isEmpty else {
+            throw NativeSourceError(problems.map { "\($0.path): \($0.message)" }.joined(separator: "\n"))
+        }
+        let sourceByPath = try Dictionary(uniqueKeysWithValues: sources.map { (try AdaScriptModulePaths.canonicalSourcePath($0.path), $0) })
         let schemas = try AdaScriptSchemaParser.parse(sources: sources)
         let commands = try AdaScriptSchemaParser.parseNetworkCommands(sources: sources)
         var calls = constructors.mapValues { ("__adaComponentFactory", $0) }
         for schema in schemas where schema.kind == .component { calls[schema.name] = ("__adaComponentFactory", schema.fields.map(\.name)) }
         for command in commands { calls[command.name] = ("__adaNetworkFactory", command.fields.map(\.name)) }
-        let prepared = try sources.map { source in
-            let layoutSource = AdaScriptSpriteLayoutLibrary.lowerForNative(source.source)
+        let prepared = try paths.compactMap { path -> AdaScriptCompilerSource? in
+            guard let source = sourceByPath[path], let tree = graph.modules[path]?.tree else { return nil }
+            let importFreeSource = AdaScriptImportLowering.lower(source: source.source, tree: tree, stripTests: true)
+            let layoutSource = AdaScriptSpriteLayoutLibrary.lowerForNative(importFreeSource)
             let assetSource = AdaScriptAssetsLowerer.lower(source: layoutSource)
             let typedSource = AdaScriptTypeAnnotationLowerer.lower(source: assetSource)
             return AdaScriptCompilerSource(

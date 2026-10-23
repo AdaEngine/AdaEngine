@@ -25,7 +25,7 @@ extension EditorSettingsWindowViewModel {
                 return []
             }
             var pages = ["PROJECT"]
-            #if os(macOS)
+            #if os(macOS) || os(Windows)
             pages.append(EditorSettingsPage.studioTools)
             #endif
             if isAdaScriptProject {

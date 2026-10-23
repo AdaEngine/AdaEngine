@@ -15,7 +15,9 @@ public final class Body2D: @unchecked Sendable {
     weak var world: PhysicsWorld2D?
     weak var entity: Entity?
 
+    var appliedMaterial: PhysicsMaterial?
     let bodyId: b2BodyId
+    private var shapeIDBuffer: [b2ShapeId] = []
 
     internal init(world: consuming PhysicsWorld2D, bodyId: b2BodyId, entity: consuming Entity) {
         self.world = world
@@ -47,12 +49,25 @@ public final class Body2D: @unchecked Sendable {
     }
 
     func getShapes() -> [BoxShape2D] {
-        let shapes = UnsafeMutablePointer<b2ShapeId>.allocate(capacity: Int(shapesCount))
-        unsafe b2Body_GetShapes(bodyId, shapes, shapesCount)
-        return unsafe Array(UnsafeBufferPointer(start: shapes, count: Int(shapesCount)))
-            .map {
-                BoxShape2D(shape: $0)
-            }
+        let count = shapesCount
+        guard count > 0 else {
+            return []
+        }
+        let shapes = UnsafeMutablePointer<b2ShapeId>.allocate(capacity: Int(count))
+        defer { shapes.deallocate() }
+        unsafe b2Body_GetShapes(bodyId, shapes, count)
+        return unsafe Array(UnsafeBufferPointer(start: shapes, count: Int(count))).map { BoxShape2D(shape: $0) }
+    }
+
+    /// Reuses native ID storage for per-step forces. Geometry changes resize it only when necessary.
+    func forEachNativeShape(_ action: (b2ShapeId) -> Void) {
+        let count = Int(shapesCount)
+        guard count > 0 else {
+            return
+        }
+        if shapeIDBuffer.count != count { shapeIDBuffer = Array(repeating: b2_nullShapeId, count: count) }
+        _ = unsafe shapeIDBuffer.withUnsafeMutableBufferPointer { unsafe b2Body_GetShapes(bodyId, $0.baseAddress, Int32($0.count)) }
+        for id in shapeIDBuffer { action(id) }
     }
 
     var gravityScale: Float {
@@ -70,7 +85,7 @@ public final class Body2D: @unchecked Sendable {
     }
 
     func getPosition() -> Vector2 {
-        b2Body_GetPosition(bodyId).asVector2
+        world?.localPosition(b2Body_GetPosition(bodyId)) ?? .zero
     }
 
     func getAngle() -> Angle {
@@ -84,11 +99,11 @@ public final class Body2D: @unchecked Sendable {
     }
 
     func getWorldCenter() -> Vector2 {
-        b2Body_GetWorldCenter(bodyId).asVector2
+        world?.localPosition(b2Body_GetWorldCenter(bodyId)) ?? .zero
     }
 
     func setTransform(position: Vector2, angle: Angle) {
-        b2Body_SetTransform(bodyId, position.b2Vec, b2MakeRot(angle.radians))
+        b2Body_SetTransform(bodyId, world?.nativePosition(position) ?? position.b2Position, b2MakeRot(angle.radians))
     }
 
     /// Set the linear velocity of the center of mass.
@@ -98,7 +113,7 @@ public final class Body2D: @unchecked Sendable {
 
     /// Apply a force at a world point. If the force is not applied at the center of mass, it will generate a torque and affect the angular velocity. This wakes up the body.
     func applyForce(force: Vector2, point: Vector2, wake: Bool) {
-        b2Body_ApplyForce(bodyId, force.b2Vec, point.b2Vec, wake)
+        b2Body_ApplyForce(bodyId, force.b2Vec, world?.nativePosition(point) ?? point.b2Position, wake)
     }
 
     /// Apply a force to the center of mass. This wakes up the body.
@@ -109,7 +124,7 @@ public final class Body2D: @unchecked Sendable {
     /// Apply an impulse at a point. This immediately modifies the velocity.
     /// It also modifies the angular velocity if the point of application is not at the center of mass. This wakes up the body.
     func applyLinearImpulse(_ impulse: Vector2, point: Vector2, wake: Bool) {
-        b2Body_ApplyLinearImpulse(bodyId, impulse.b2Vec, point.b2Vec, wake)
+        b2Body_ApplyLinearImpulse(bodyId, impulse.b2Vec, world?.nativePosition(point) ?? point.b2Position, wake)
     }
 
     /// Apply a torque. This affects the angular velocity without affecting the linear velocity of the center of mass. This wakes up the body.
@@ -122,7 +137,7 @@ public final class Body2D: @unchecked Sendable {
     /// - Returns: The world velocity of a point or zero if entity not attached to Physics2DWorld.
 
     func getLinearVelocityFromWorldPoint(_ worldPoint: Vector2) -> Vector2 {
-        return b2Body_GetWorldPointVelocity(bodyId, worldPoint.b2Vec).asVector2
+        return b2Body_GetWorldPointVelocity(bodyId, world?.nativePosition(worldPoint) ?? worldPoint.b2Position).asVector2
     }
 
     /// Get the world velocity of a local point.
@@ -147,6 +162,8 @@ final class BoxShape2D {
     init(shape: consuming b2ShapeId) {
         self.shape = shape
     }
+
+    var nativeID: b2ShapeId { shape }
 
     @inline(__always)
     var bodyId: b2BodyId {
@@ -200,28 +217,48 @@ final class BoxShape2D {
         bodyId: b2BodyId
     ) -> b2ShapeId {
         switch shape.fixture {
+        case let .segment(line):
+            return unsafe makeLine(line, kind: .segment, transform: transform, definition: shapeDef, body: bodyId)
+        case let .chain(line):
+            return unsafe makeLine(line, kind: .chain, transform: transform, definition: shapeDef, body: bodyId)
+        case let .chainSegment(line):
+            return unsafe makeLine(line, kind: .loose, transform: transform, definition: shapeDef, body: bodyId)
         case let .polygon(shape):
-            var hull = unsafe shape.verticies.withUnsafeBytes { ptr in
-                let baseAddress = unsafe ptr.assumingMemoryBound(to: b2Vec2.self).baseAddress
-                return unsafe b2ComputeHull(baseAddress, Int32(shape.verticies.count))
+            guard let polygon = unsafe makePolygon(vertices: shape.verticies, offset: shape.offset, scale: transform.scale.xy) else {
+                return b2_nullShapeId
             }
-
-            let polygon = unsafe b2MakeOffsetPolygon(&hull, shape.offset.b2Vec, b2Rot_identity)
             return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
                 unsafe withUnsafePointer(to: polygon) { polygonPtr in
                     unsafe b2CreatePolygonShape(bodyId, shapeDefPtr, polygonPtr)
                 }
             }
         case let .circle(shape):
-            var circle = b2Circle(center: Vector2.zero.b2Vec, radius: shape.radius * transform.scale.x)
+            var circle = b2Circle(center: (shape.offset * transform.scale.xy).b2Vec, radius: shape.radius * abs(transform.scale.x))
             return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
                 unsafe b2CreateCircleShape(bodyId, shapeDefPtr, &circle)
             }
+        case let .capsule(shape):
+            let start = (shape.start + shape.offset) * transform.scale.xy
+            let end = (shape.end + shape.offset) * transform.scale.xy
+            let radius = shape.radius * max(abs(transform.scale.x), abs(transform.scale.y))
+            guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite,
+                radius.isFinite, radius > 0 else {
+                return b2_nullShapeId
+            }
+            var capsule = b2Capsule(center1: start.b2Vec, center2: end.b2Vec, radius: radius)
+            return unsafe withUnsafePointer(to: shapeDef) { unsafe b2CreateCapsuleShape(bodyId, $0, &capsule) }
+        case let .roundedPolygon(shape):
+            let radius = shape.radius * max(abs(transform.scale.x), abs(transform.scale.y))
+            guard let polygon = unsafe makePolygon(vertices: shape.vertices, offset: shape.offset, scale: transform.scale.xy, radius: radius) else {
+                return b2_nullShapeId
+            }
+            return unsafe withUnsafePointer(to: shapeDef) { definition in
+                unsafe withUnsafePointer(to: polygon) { unsafe b2CreatePolygonShape(bodyId, definition, $0) }
+            }
         case let .box(shape):
-            let polygon = b2MakeBox(
-                transform.scale.x * shape.halfWidth,
-                transform.scale.y * shape.halfHeight
-            )
+            guard let polygon = NativeBox2D.make(shape, scale: transform.scale.xy) else {
+                return b2_nullShapeId
+            }
 
             return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
                 unsafe withUnsafePointer(to: polygon) { polygonPtr in
@@ -229,5 +266,28 @@ final class BoxShape2D {
                 }
             }
         }
+    }
+
+    private static func makePolygon(vertices: [Vector2], offset: Vector2, scale: Vector2, angle: Float = 0, radius: Float = 0) -> b2Polygon? {
+        guard (3...Int(B2_MAX_POLYGON_VERTICES)).contains(vertices.count), angle.isFinite,
+            radius.isFinite, radius >= 0 else {
+            return nil
+        }
+        let cosine = Math.cos(angle)
+        let sine = Math.sin(angle)
+        let vertices = vertices.map { vertex in
+            let rotated = Vector2(cosine * vertex.x - sine * vertex.y, sine * vertex.x + cosine * vertex.y)
+            return ((rotated + offset) * scale).b2Vec
+        }
+        guard vertices.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else {
+            return nil
+        }
+        var hull = unsafe vertices.withUnsafeBufferPointer { buffer in
+            unsafe b2ComputeHull(buffer.baseAddress, Int32(buffer.count))
+        }
+        guard hull.count >= 3 else {
+            return nil
+        }
+        return unsafe b2MakePolygon(&hull, radius)
     }
 }

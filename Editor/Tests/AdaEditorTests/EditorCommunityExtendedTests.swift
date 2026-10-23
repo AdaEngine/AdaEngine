@@ -200,7 +200,10 @@ struct EditorCommunityExtendedTests {
         #expect(app.main.getEntityByName("SceneView_Camera") == nil)
         #expect(app.main.getEntityByName("DisabledCamera")?.components[Camera.self]?.isActive == false)
         let poolSize = max(3, unsafe RenderEngine.configurations.maxFramesInFlight + 2)
-        for _ in 0...poolSize { coordinator.tick(0.016) }
+        for _ in 0...poolSize {
+            coordinator.tick(0.016)
+            for _ in 0..<1000 where coordinator.standaloneTickInFlight { await Task.yield() }
+        }
         let exhausted = try #require(entity.components[Camera.self])
         #expect(exhausted.isActive)
         if case .window(.primary) = exhausted.renderTarget {} else { Issue.record("Exhausted viewport reused a pending render target") }

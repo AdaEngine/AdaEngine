@@ -63,70 +63,75 @@ actor EditorAdaScriptNativeExporter {
         defer { try? FileManager.default.removeItem(at: stage) }
         let catalog = try EditorScriptableObjectCatalogLoader.load(project: project, at: root)
         let sources = catalog.playRuntime.sources
+        let interpreted = AdaScriptNativeSourceBuilder.requiresInterpretedRuntime(sources: sources)
         guard !sources.isEmpty else { throw EditorAdaScriptProjectBuildError.noSources(path: project.paths.sources ?? "Sources") }
         // The analyzer and Gravity compiler both run before publishing any output.
         var environment = AdaScriptTypeEnvironment.standard
         environment.register(schemas: try AdaScriptSchemaParser.parse(sources: sources))
         try AdaScriptAnalyzer.analyze(sources: sources, environment: environment).requireValidTypes(mode: project.build.adaScriptTypeChecking)
-        let constructors = await MainActor.run {
-            EditorComponentRegistry.registerBuiltIns()
-            return Dictionary(uniqueKeysWithValues: RuntimeTypeRegistry.registeredRuntimeComponentConstructors().map { ($0.name, $0.parameters.map(\.name)) })
+        if interpreted {
+            try AdaScriptPlugin.validate(sources: sources, name: project.runtime.moduleName, startupSystemIdentifier: project.runtime.entry.startupSystem)
+        } else {
+            let constructors = await MainActor.run {
+                EditorComponentRegistry.registerBuiltIns()
+                return Dictionary(uniqueKeysWithValues: RuntimeTypeRegistry.registeredRuntimeComponentConstructors().map { ($0.name, $0.parameters.map(\.name)) })
+            }
+            let nativeSources = try AdaScriptNativeSourceBuilder.prepare(sources: sources, constructors: constructors)
+            let sourceDirectory = stage.appendingPathComponent("AdaScriptSources", isDirectory: true)
+            try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
+            var inputPaths: [String] = []
+            for (index, source) in nativeSources.enumerated() {
+                let url = sourceDirectory.appendingPathComponent("\(index)-\(URL(fileURLWithPath: source.path).lastPathComponent)")
+                try source.source.write(to: url, atomically: true, encoding: .utf8)
+                inputPaths.append(url.path)
+            }
+            let native = stage.appendingPathComponent("Sources/GameplayNative", isDirectory: true)
+            let archive = native.appendingPathComponent("libada_game.a")
+            #if os(Windows)
+            let hostCompiler = options.gravityRoot.appendingPathComponent("gravity.exe")
+            guard FileManager.default.isExecutableFile(atPath: hostCompiler.path) else {
+                throw EditorPreviewBuildFailure(message: "Run script/ensure_windows_export_tools.py to prepare the AdaScript native compiler.")
+            }
+            #else
+            if !FileManager.default.isExecutableFile(atPath: options.gravityRoot.appendingPathComponent("gravity").path) {
+                try await run("/usr/bin/make", ["-j4"], at: options.gravityRoot, environment: options.buildEnvironment, log: log)
+            }
+            #endif
+            let tool = options.gravityRoot.appendingPathComponent("tools/aot_build.py")
+            guard FileManager.default.fileExists(atPath: tool.path) else { throw EditorPreviewBuildFailure(message: "The Gravity checkout does not contain tools/aot_build.py.") }
+            #if os(Windows)
+            try await run(
+                EditorHostTools.executable("python3", windowsName: "python.exe"),
+                [tool.path] + inputPaths + ["--module", "ada_game", "--output", native.appendingPathComponent("ada_game.c").path, "--gravity", hostCompiler.path],
+                at: stage, environment: options.buildEnvironment, log: log
+            )
+            let inspection = stage.appendingPathComponent("ada_game-inspection.dll")
+            try await run(
+                EditorHostTools.executable("clang"),
+                ["-std=c11", "-shared", native.appendingPathComponent("ada_game.c").path, "-I", native.path, "-Wl,/EXPORT:ada_game_get_module", "-o", inspection.path],
+                at: stage, environment: options.buildEnvironment, log: log
+            )
+            #else
+            try await run(
+                "/usr/bin/python3", [tool.path] + inputPaths + ["--module", "ada_game", "--output", archive.path],
+                at: stage, environment: options.buildEnvironment, log: log
+            )
+            let inspection = stage.appendingPathComponent("libada_game-inspection.dylib")
+            try await run(
+                "/usr/bin/clang", ["-std=c11", "-dynamiclib", native.appendingPathComponent("ada_game.c").path, "-I", native.path, "-o", inspection.path],
+                at: stage, environment: options.buildEnvironment, log: log
+            )
+            #endif
+            try await Self.validateMetadata(at: inspection, project: project, sources: sources)
+            try FileManager.default.removeItem(at: inspection)
+            let include = native.appendingPathComponent("include", isDirectory: true)
+            try FileManager.default.createDirectory(at: include, withIntermediateDirectories: true)
+            try "#include <shared/gravity_aot_runtime.h>\nconst gravity_aot_module *ada_game_get_module(void);\n".write(
+                to: include.appendingPathComponent("GameplayNative.h"),
+                atomically: true,
+                encoding: .utf8
+            )
         }
-        let nativeSources = try AdaScriptNativeSourceBuilder.prepare(sources: sources, constructors: constructors)
-        let sourceDirectory = stage.appendingPathComponent("AdaScriptSources", isDirectory: true)
-        try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
-        var inputPaths: [String] = []
-        for (index, source) in nativeSources.enumerated() {
-            let url = sourceDirectory.appendingPathComponent("\(index)-\(URL(fileURLWithPath: source.path).lastPathComponent)")
-            try source.source.write(to: url, atomically: true, encoding: .utf8)
-            inputPaths.append(url.path)
-        }
-        let native = stage.appendingPathComponent("Sources/GameplayNative", isDirectory: true)
-        let archive = native.appendingPathComponent("libada_game.a")
-        #if os(Windows)
-        let hostCompiler = options.gravityRoot.appendingPathComponent("gravity.exe")
-        guard FileManager.default.isExecutableFile(atPath: hostCompiler.path) else {
-            throw EditorPreviewBuildFailure(message: "Run script/ensure_windows_export_tools.py to prepare the AdaScript native compiler.")
-        }
-        #else
-        if !FileManager.default.isExecutableFile(atPath: options.gravityRoot.appendingPathComponent("gravity").path) {
-            try await run("/usr/bin/make", ["-j4"], at: options.gravityRoot, environment: options.buildEnvironment, log: log)
-        }
-        #endif
-        let tool = options.gravityRoot.appendingPathComponent("tools/aot_build.py")
-        guard FileManager.default.fileExists(atPath: tool.path) else { throw EditorPreviewBuildFailure(message: "The Gravity checkout does not contain tools/aot_build.py.") }
-        #if os(Windows)
-        try await run(
-            EditorHostTools.executable("python3", windowsName: "python.exe"),
-            [tool.path] + inputPaths + ["--module", "ada_game", "--output", native.appendingPathComponent("ada_game.c").path, "--gravity", hostCompiler.path],
-            at: stage, environment: options.buildEnvironment, log: log
-        )
-        let inspection = stage.appendingPathComponent("ada_game-inspection.dll")
-        try await run(
-            EditorHostTools.executable("clang"),
-            ["-std=c11", "-shared", native.appendingPathComponent("ada_game.c").path, "-I", native.path, "-Wl,/EXPORT:ada_game_get_module", "-o", inspection.path],
-            at: stage, environment: options.buildEnvironment, log: log
-        )
-        #else
-        try await run(
-            "/usr/bin/python3", [tool.path] + inputPaths + ["--module", "ada_game", "--output", archive.path],
-            at: stage, environment: options.buildEnvironment, log: log
-        )
-        let inspection = stage.appendingPathComponent("libada_game-inspection.dylib")
-        try await run(
-            "/usr/bin/clang", ["-std=c11", "-dynamiclib", native.appendingPathComponent("ada_game.c").path, "-I", native.path, "-o", inspection.path],
-            at: stage, environment: options.buildEnvironment, log: log
-        )
-        #endif
-        try await Self.validateMetadata(at: inspection, project: project, sources: sources)
-        try FileManager.default.removeItem(at: inspection)
-        let include = native.appendingPathComponent("include", isDirectory: true)
-        try FileManager.default.createDirectory(at: include, withIntermediateDirectories: true)
-        try "#include <shared/gravity_aot_runtime.h>\nconst gravity_aot_module *ada_game_get_module(void);\n".write(
-            to: include.appendingPathComponent("GameplayNative.h"),
-            atomically: true,
-            encoding: .utf8
-        )
         let player = stage.appendingPathComponent("Sources/AdaNativeGame", isDirectory: true)
         try FileManager.default.createDirectory(at: player, withIntermediateDirectories: true)
         let assets = player.appendingPathComponent("GameAssets", isDirectory: true)
@@ -141,8 +146,8 @@ actor EditorAdaScriptNativeExporter {
         try JSONEncoder().encode(project.inputActions).write(to: assets.appendingPathComponent("input-actions.json"))
         try JSONEncoder().encode(project).write(to: stage.appendingPathComponent("project.json"))
         let plugins = try EditorAdaScriptRuntimePluginResolver.resolve(project.runtime.plugins)
-        try Self.manifest(options: options).write(to: stage.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
-        try Self.player(project: project, sources: sources, plugins: plugins, destination: options.destination).write(to: player.appendingPathComponent("Game.swift"), atomically: true, encoding: .utf8)
+        try Self.manifest(options: options, interpreted: interpreted).write(to: stage.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        try Self.player(project: project, sources: sources, plugins: plugins, destination: options.destination, interpreted: interpreted).write(to: player.appendingPathComponent("Game.swift"), atomically: true, encoding: .utf8)
         let scriptDirectory = stage.appendingPathComponent("script")
         try FileManager.default.createDirectory(at: scriptDirectory, withIntermediateDirectories: true)
         let script = scriptDirectory.appendingPathComponent("build_and_run.sh")
@@ -225,7 +230,7 @@ actor EditorAdaScriptNativeExporter {
             try await run(options.swiftExecutable, arguments, at: stage, environment: webEnv, log: log)
             #endif
         }
-        try Data("{\"version\":1,\"destination\":\"\(options.destination.rawValue)\"}".utf8).write(to: stage.appendingPathComponent("ada-native-export.json"))
+        try Data("{\"version\":1,\"destination\":\"\(options.destination.rawValue)\",\"runtime\":\"\(interpreted ? "interpreted" : "aot")\"}".utf8).write(to: stage.appendingPathComponent("ada-native-export.json"))
         try Task.checkCancellation()
         // Build paths are absolute in Bundle.module: ship a relative resource
         // fallback in the player and preserve the generated package for rebuilding.
@@ -401,11 +406,15 @@ actor EditorAdaScriptNativeExporter {
         return "\"" + escaped + "\""
     }
 
-    private static func manifest(options: EditorAdaScriptNativeExportOptions) -> String {
+    private static func manifest(options: EditorAdaScriptNativeExportOptions, interpreted: Bool) -> String {
         let product = options.destination == .android
             ? ".library(name: \"AdaNativeGame\", type: .dynamic, targets: [\"AdaNativeGame\"])"
             : ".executable(name: \"AdaNativeGame\", targets: [\"AdaNativeGame\"])"
         let targetKind = options.destination == .android ? "target" : "executableTarget"
+        let nativeTarget = interpreted ? "" : """
+        .target(name: "GameplayNative", dependencies: [.product(name: "CGravity", package: "gravity-lang")], exclude: ["libada_game.a", "ada_game.h", "ada_game.sources.json"], publicHeadersPath: "include"),
+        """
+        let nativeDependency = interpreted ? "" : "\"GameplayNative\", "
         return """
         // swift-tools-version: 6.2
         import Foundation
@@ -419,13 +428,13 @@ actor EditorAdaScriptNativeExporter {
                 ?? .package(url: "https://github.com/AdaEngine/gravity-lang.git", branch: "master"),
             .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", exact: "0.53.0")
         ], targets: [
-            .target(name: "GameplayNative", dependencies: [.product(name: "CGravity", package: "gravity-lang")], exclude: ["libada_game.a", "ada_game.h", "ada_game.sources.json"], publicHeadersPath: "include"),
-            .\(targetKind)(name: "AdaNativeGame", dependencies: ["GameplayNative", .product(name: "AdaEngine", package: "AdaEngine"), .product(name: "AdaMultiplayer", package: "AdaEngine"), .product(name: "GravityAOT", package: "gravity-lang"), .product(name: "JavaScriptKit", package: "JavaScriptKit", condition: .when(platforms: [.wasi]))], resources: [.copy("GameAssets")], linkerSettings: [.unsafeFlags(["-Xclang-linker", "-mexec-model=reactor", "-Xlinker", "--export-if-defined=main", "-Xlinker", "--export-if-defined=__main_argc_argv"], .when(platforms: [.wasi])), .unsafeFlags(["-Xlinker", "--strip-debug"], .when(platforms: [.wasi], configuration: .release))])
+            \(nativeTarget)
+            .\(targetKind)(name: "AdaNativeGame", dependencies: [\(nativeDependency).product(name: "AdaEngine", package: "AdaEngine"), .product(name: "AdaMultiplayer", package: "AdaEngine"), .product(name: "GravityAOT", package: "gravity-lang"), .product(name: "JavaScriptKit", package: "JavaScriptKit", condition: .when(platforms: [.wasi]))], resources: [.copy("GameAssets")], linkerSettings: [.unsafeFlags(["-Xclang-linker", "-mexec-model=reactor", "-Xlinker", "--export-if-defined=main", "-Xlinker", "--export-if-defined=__main_argc_argv"], .when(platforms: [.wasi])), .unsafeFlags(["-Xlinker", "--strip-debug"], .when(platforms: [.wasi], configuration: .release))])
         ])
         """
     }
 
-    private static func player(project: AdaProject, sources: [AdaScriptSource], plugins: EditorAdaScriptResolvedRuntimePlugins, destination: EditorAdaScriptNativeExportOptions.Destination) -> String {
+    private static func player(project: AdaProject, sources: [AdaScriptSource], plugins: EditorAdaScriptResolvedRuntimePlugins, destination: EditorAdaScriptNativeExportOptions.Destination, interpreted: Bool) -> String {
         let entryPoint = destination == .android ? """
         #if os(Android)
         @_cdecl("ada_android_start")
@@ -438,6 +447,14 @@ actor EditorAdaScriptNativeExporter {
         let scene = entryScene.hasPrefix(assetsPrefix) ? String(entryScene.dropFirst(assetsPrefix.count)) : entryScene
         let title = project.runtime.window.title ?? project.project.displayName ?? project.project.name ?? "AdaScript Game"
         let metadata = sources.map { "AdaScriptSource(path: \(quote($0.path)), source: \(quote($0.source)))" }.joined(separator: ",\n")
+        let pluginType = interpreted ? "AdaScriptPlugin" : "AdaScriptNativePlugin"
+        let moduleSetup = interpreted ? "" : """
+        guard let pointer = ada_game_get_module() else { throw NativeRuntimeError.malformedMetadata("Missing native gameplay module") }
+        let module = unsafe try NativeModule(module: pointer)
+        """
+        let initializerArguments = interpreted
+            ? "sources: [\(metadata)], name: \(quote(project.runtime.moduleName))"
+            : "module: module, name: \(quote(project.runtime.moduleName)), sources: [\(metadata)]"
         let upscalingModifier: String = switch plugins.rendering.upscaling {
         case .none: ""
         case .disabled?: "\n                    .renderUpscaling(.disabled)"
@@ -471,7 +488,7 @@ actor EditorAdaScriptNativeExporter {
             import AdaMultiplayer
             import Foundation
             import GravityAOT
-            import GameplayNative
+            \(interpreted ? "" : "import GameplayNative")
             #if os(WASI)
             import JavaScriptKit
             #endif
@@ -493,7 +510,7 @@ actor EditorAdaScriptNativeExporter {
             }
             }
             @MainActor private struct GameView: View {
-                var body: some View { SceneView(make: { app in
+                var body: some View { SceneView(useSceneCameras: \(plugins.contains(.core3D)), make: { app in
                     do {
                         let base = Bundle.main.bundleURL
                         let candidates = ["AdaNativeGame_AdaNativeGame.bundle", "AdaNativeGame_AdaNativeGame.resources"].map { base.appendingPathComponent($0 + "/GameAssets") }
@@ -505,12 +522,11 @@ actor EditorAdaScriptNativeExporter {
                         app.addPlugin(TransformPlugin()).addPlugin(InputPlugin(actions: actions)).addPlugin(RenderWorldPlugin()).addPlugin(EventsPlugin()).addPlugin(CameraPlugin())
                         app.addPlugin(AssetsPlugin(assetDirectory: assets)).addPlugin(VisibilityPlugin()).addPlugin(TextPlugin()).addPlugin(ScenePlugin(includesModel3D: \(plugins.contains(.model3D)))).addPlugin(ScriptableObjectPlugin())
                         \(pluginCode)
-                        guard let pointer = ada_game_get_module() else { throw NativeRuntimeError.malformedMetadata("Missing native gameplay module") }
-                        let module = unsafe try NativeModule(module: pointer)
-                        let plugin = try AdaScriptNativePlugin(module: module, name: \(quote(project.runtime.moduleName)), sources: [\(metadata)], startupSystemIdentifier: \(project.runtime.entry.startupSystem.map(quote) ?? "nil"), preloadedAssets: \(preloadExpression))
+                        \(moduleSetup)
+                        let plugin = try \(pluginType)(\(initializerArguments), startupSystemIdentifier: \(project.runtime.entry.startupSystem.map(quote) ?? "nil")\(interpreted ? "" : ", preloadedAssets: " + preloadExpression))
                         app.addPlugin(plugin)
                         app.addPlugin(NativeGameEntry(plugin: plugin, assets: assets))
-                        NativeGameLog.write("[AdaScript AOT] Native module linked")
+                        NativeGameLog.write("\(interpreted ? "[AdaScript] Interpreter module loaded" : "[AdaScript AOT] Native module linked")")
                     } catch { NativeGameLog.write("[AdaScript AOT] Startup failed: \\(error)") }
                 }, updateContent: { _, _ in }) }
                 private static func preloadedAssetPaths(_ assets: URL) -> [String] {
@@ -560,7 +576,7 @@ actor EditorAdaScriptNativeExporter {
                 }
             }
             private struct NativeGameEntry: Plugin {
-                let plugin: AdaScriptNativePlugin
+                let plugin: \(pluginType)
                 let assets: URL
                 @MainActor func setup(in app: borrowing AppWorlds) {
                     do {
@@ -571,7 +587,7 @@ actor EditorAdaScriptNativeExporter {
                                 let url = assets.appendingPathComponent(relative).resolvingSymlinksInPath().standardizedFileURL
                                 guard url.path.hasPrefix(assets.path + "/") else { throw AdaScriptError.invalidManifest("Scene path is outside assets") }
                                 let document = try JSONDecoder().decode(AdaScriptNativeSceneDocument.self, from: Data(contentsOf: url))
-                                return try document.makeScene(components: plugin.componentDescriptors, resourceRoot: assets, sourceURL: url, tileMaps: plugin.preloadedTileMaps)
+                                return try document.makeScene(components: plugin.componentDescriptors, resourceRoot: assets, sourceURL: url, tileMaps: \(interpreted ? "[:]" : "plugin.preloadedTileMaps"))
                             }
                             navigator.setSceneLoader { path in try await load(path) }
                             navigator.installInitialScene(try load(\(quote(scene))), make: { try load(\(quote(scene))) })

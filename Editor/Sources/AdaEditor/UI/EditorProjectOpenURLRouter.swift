@@ -23,12 +23,12 @@ final class EditorProjectOpenURLRouter {
         self.observer = notificationCenter.addObserver(
             forName: notificationName,
             object: nil,
-            queue: .main
+            queue: nil
         ) { [weak self] notification in
             guard let url = notification.object as? URL else {
                 return
             }
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
                 self?.receive(url)
             }
         }

@@ -7,7 +7,7 @@ public enum EditorDistribution: String, Sendable {
     case standalone
 
     public static let current: Self = {
-        #if os(Linux)
+        #if os(Windows) || os(Linux)
             return .standalone
         #elseif os(iOS) || os(tvOS) || os(visionOS) || os(Android)
             return .appStore

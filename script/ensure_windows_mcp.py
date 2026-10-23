@@ -5,7 +5,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-REVISION = "165bd5c00857a760ecea859022d023393350baad"  # Editor's AdaMCP v0.2.0
+REVISION = "ed7bb9076f9f8c91e2584ca9b7201df0e03defb1"  # Tool metadata support; keep in sync with Editor/Package.swift.
 
 
 PATCH_VERSION = "async-readback-v1"

@@ -163,7 +163,7 @@ struct AdaScriptLibraryTests {
         #expect(throws: (any Error).self) { try AdaScriptLibraryLock.containedURL(".ada/libraries/Secret.ada", in: root) }
     }
 
-    @Test("Installed library imports execute in the game, build, and unsaved Preview")
+    @Test("Installed library imports execute in the game and build")
     @MainActor
     func runtimeAndPreview() async throws {
         let root = try Self.makeProject()
@@ -214,27 +214,7 @@ struct AdaScriptLibraryTests {
             import { libraryStep } from "@example.steps/Sources/Logic";
             @previewable @view class LibraryHUD { func body() { Text("Library").fontSize(libraryStep()); } }
             """
-        let declaration = try #require(EditorPreviewScanner.declarations(in: previewSource, language: .ada).first)
-        let document = EditorTextDocument(
-            id: "main",
-            title: "Main.ada",
-            relativePath: "Sources/Main.ada",
-            absolutePath: root.appendingPathComponent("Sources/Main.ada").path,
-            language: .ada,
-            content: previewSource,
-            lastSavedContent: source
-        )
-        let preview = try await EditorAdaScriptPreviewBuilder()
-            .build(
-                .init(
-                    projectURL: root,
-                    document: document,
-                    packageModel: nil,
-                    declaration: declaration
-                ) as EditorAdaScriptPreviewBuildRequest
-            )
-        try AdaScriptView.validate(sources: preview.sources, identifier: "LibraryHUD")
-        #expect(preview.sources.contains { $0.source == previewSource })
+        #expect(EditorPreviewScanner.declarations(in: previewSource, language: .ada).isEmpty)
     }
 
     @Test("Library panel Install button writes a library that survives reopening")

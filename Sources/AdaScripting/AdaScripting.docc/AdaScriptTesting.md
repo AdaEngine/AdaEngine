@@ -31,6 +31,10 @@ func speedIsCapped() {
 
 `TestWorld()` creates an isolated world with the module's components and systems. Time moves only when the test says so.
 
+Run synchronous `TestWorld` steps on the host. Browser players cannot block their
+single thread while awaiting the scheduler; they report a diagnostic if asked to
+step a test world. Gameplay systems continue through the normal async frame loop.
+
 ```ada
 @test("a body falls")
 func falls() {

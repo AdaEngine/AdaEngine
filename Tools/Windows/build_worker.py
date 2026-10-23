@@ -33,6 +33,20 @@ def run(arguments, *, env=None):
         raise subprocess.CalledProcessError(code, arguments)
 
 
+def scratch_directory(package, mode, product, swift_sdk, requested=None):
+    cache_project = package.parent if package.name.startswith((".ada-aot-", ".ada-android-")) else package
+    project_key = hashlib.sha256((str(cache_project) + product + swift_sdk).encode()).hexdigest()[:16]
+    scratch = Path(requested).resolve() if requested else None
+    if scratch:
+        parts = scratch.parts
+        windows_mount = len(parts) >= 3 and parts[1] == "mnt" and len(parts[2]) == 1 and parts[2].isalpha()
+        # SwiftPM creates thousands of small files. Keep Windows-hosted build
+        # caches on the Linux filesystem, outside disposable export directories.
+        if windows_mount or (cache_project != package and scratch.is_relative_to(package)):
+            scratch = None
+    return (scratch or HOME / "builds" / mode / project_key).resolve()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=["web", "android"], required=True)
@@ -56,12 +70,7 @@ def main():
     env.pop("ADAENGINE_GRAVITY_PACKAGE_PATH", None)
     if args.gravity:
         env["ADAENGINE_GRAVITY_PACKAGE_PATH"] = str(Path(args.gravity).resolve())
-    cache_project = package.parent if package.name.startswith((".ada-aot-", ".ada-android-")) else package
-    project_key = hashlib.sha256((str(cache_project) + args.product + args.swift_sdk).encode()).hexdigest()[:16]
-    scratch = Path(args.scratch).resolve() if args.scratch else None
-    if scratch and cache_project != package and scratch.is_relative_to(package):
-        scratch = None
-    scratch = (scratch or HOME / "builds" / args.mode / project_key).resolve()
+    scratch = scratch_directory(package, args.mode, args.product, args.swift_sdk, args.scratch)
     scratch.mkdir(parents=True, exist_ok=True)
     env["ADA_STUDIO_BUILD_LOG"] = str(scratch / "build.log")
     os.chdir(package)

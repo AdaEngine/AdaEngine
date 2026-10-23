@@ -147,6 +147,11 @@ final class EditorAgentViewModel {
         }
     }
 
+    deinit {
+        let service = service
+        Task { await service.shutdown() }
+    }
+
     @ObservationIgnored private var onApplyA2UITool: ((EditorAgentA2UIToolRequest) throws -> EditorAgentA2UIToolResult)?
     @ObservationIgnored private var onUndoA2UITool: ((EditorAgentA2UIToolResult) throws -> String)?
 
@@ -367,7 +372,7 @@ final class EditorAgentViewModel {
                 try await store.setActiveSession(id: first.id)
                 if isPanelVisible { connectIfNeeded() }
             } else {
-                try await createSession()
+                try await createSession(connectAutomatically: isPanelVisible)
             }
         } catch {
             statusMessage = error.localizedDescription

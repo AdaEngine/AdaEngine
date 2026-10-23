@@ -61,8 +61,6 @@ struct EditorProjectSidebar: View {
     let onCopyPath: (EditorProjectSidebarViewModel.Item, Bool) -> Void
     let onDeleteItem: (EditorProjectSidebarViewModel.Item) -> Void
 
-    @State private var hoveredItemID: String?
-
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
 
@@ -219,6 +217,12 @@ struct EditorProjectSidebar: View {
     }
 
     private func projectTreeRow(_ item: EditorProjectSidebarViewModel.Item) -> some View {
+        EditorHoverRow { isHovered in
+            projectTreeRowContent(item, isHovered: isHovered)
+        }
+    }
+
+    private func projectTreeRowContent(_ item: EditorProjectSidebarViewModel.Item, isHovered: Bool) -> some View {
         Button(action: { onOpenItem(item) }) {
             HStack(spacing: 6) {
                 Text(disclosureIcon(for: item))
@@ -246,17 +250,10 @@ struct EditorProjectSidebar: View {
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 26, maxHeight: 26, alignment: .leading)
             .background(
                 RoundedRectangleShape(cornerRadius: 5)
-                    .fill(projectTreeRowBackground(for: item))
+                    .fill(projectTreeRowBackground(for: item, isHovered: isHovered))
             )
         }
         .buttonStyle(DefaultButtonStyle())
-        .onHover { isHovered in
-            if isHovered {
-                hoveredItemID = item.id
-            } else if hoveredItemID == item.id {
-                hoveredItemID = nil
-            }
-        }
         .contextMenu(onPresent: { viewModel.select(item) }) {
             newFileAction
             Button(item.isFolder ? (viewModel.isCollapsed(item) ? L10n.text("Expand") : L10n.text("Collapse")) : L10n.text("Open")) {
@@ -306,11 +303,11 @@ struct EditorProjectSidebar: View {
         .accessibilityIdentifier("AdaEditor.ProjectTree.\(item.title)")
     }
 
-    private func projectTreeRowBackground(for item: EditorProjectSidebarViewModel.Item) -> Color {
+    private func projectTreeRowBackground(for item: EditorProjectSidebarViewModel.Item, isHovered: Bool) -> Color {
         if item.isActive {
             return theme.editorColors.blue.opacity(0.22)
         }
-        if hoveredItemID == item.id {
+        if isHovered {
             return theme.editorColors.blue.opacity(0.12)
         }
         return .clear

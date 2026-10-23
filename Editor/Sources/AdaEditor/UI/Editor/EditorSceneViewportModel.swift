@@ -88,6 +88,7 @@ final class EditorSceneViewportModel {
     @discardableResult
     func configure(
         sceneContent: String,
+        model preparedModel: EditorSceneModel? = nil,
         sourceURL: URL? = nil,
         resourceRootURL: URL? = nil,
         scriptableObjectCatalog: [EditorScriptableObjectDescriptor] = [],
@@ -118,12 +119,17 @@ final class EditorSceneViewportModel {
         self.sceneContent = sceneContent
         transformDrag = nil
         hoveredGizmoHandle = nil
-        sceneModel = EditorSceneFileLoader.model(from: sceneContent)
+        var previousModel = sceneModel
+        sceneModel = preparedModel ?? EditorSceneFileLoader.model(from: sceneContent)
         guard let model = sceneModel else {
             return nil
         }
         selectedEditorID = model.editor?.selectedEntity
-        let loadResult = reloadSceneRuntimeIfReady()
+        previousModel?.editor = nil
+        var runtimeModel = model
+        runtimeModel.editor = nil
+        // Selection and hierarchy foldouts must not destroy the running preview.
+        let loadResult = previousModel == runtimeModel ? nil : reloadSceneRuntimeIfReady()
         onSelectionChanged(selectedEntityViewModel(editorID: selectedEditorID, model: model))
         return loadResult
     }
@@ -393,9 +399,9 @@ final class EditorSceneViewportModel {
 
         do {
             sceneContent = try EditorSceneYAMLDocument.upsertGizmo(gizmo, entityID: selectedEditorID, in: sceneContent)
-            onDocumentContentChanged?(sceneContent)
             if let model = EditorSceneFileLoader.model(from: sceneContent) {
                 sceneModel = model
+                onDocumentContentChanged?(sceneContent)
                 onSelectionChanged?(selectedEntityViewModel(editorID: selectedEditorID, model: model))
             }
         } catch {
@@ -1121,6 +1127,7 @@ extension EditorSceneViewportModel {
 
 extension EditorSceneViewportModel {
     private func selectEntity(_ editorID: String?) {
+        guard selectedEditorID != editorID else { return }
         cancelTransformInspectorUpdate()
         selectedEditorID = editorID
         guard var model = sceneModel else {

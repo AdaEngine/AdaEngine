@@ -306,7 +306,11 @@ actor GitRepositoryService: GitRepositoryServicing {
             }
         }
         var command = makeCommand(kind, projectURL: root)
+        #if os(Windows)
+        command.arguments.insert("--literal-pathspecs", at: 0)
+        #else
         command.arguments.insert("--literal-pathspecs", at: 1)
+        #endif
         return await processRunner.run(command)
     }
 }

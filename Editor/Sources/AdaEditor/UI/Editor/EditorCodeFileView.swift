@@ -878,23 +878,16 @@ private enum EditorTreeSitterSwiftSyntaxHighlighter {
             return nil
         }
 
-        do {
-            return try LanguageConfiguration(language, name: "Swift")
-        } catch {
-            guard let queriesURL = swiftQueriesDirectoryURL() else {
-                return nil
-            }
-
-            do {
-                return try LanguageConfiguration(language, name: "Swift", queriesURL: queriesURL)
-            } catch {
-                return nil
-            }
-        }
+        guard let queriesURL = swiftQueriesDirectoryURL() else { return nil }
+        return try? LanguageConfiguration(language, name: "Swift", queriesURL: queriesURL)
     }()
 
     private static func swiftQueriesDirectoryURL() -> URL? {
-        let bundleName = "TreeSitterSwift_TreeSitterSwift.bundle"
+        let bundleNames = ["TreeSitterSwift_TreeSitterSwift.resources", "TreeSitterSwift_TreeSitterSwift.bundle"]
+        #if os(Windows)
+        // Foundation's loaded-bundle discovery is not needed for SwiftPM's adjacent resources.
+        let bundleRoots: [URL] = []
+        #else
         let bundleRoots: [URL] = Bundle.allBundles.flatMap { bundle -> [URL] in
             var roots = [
                 bundle.bundleURL,
@@ -905,6 +898,7 @@ private enum EditorTreeSitterSwiftSyntaxHighlighter {
             }
             return roots
         }
+        #endif
         let roots =
             bundleRoots
             + [
@@ -916,44 +910,20 @@ private enum EditorTreeSitterSwiftSyntaxHighlighter {
             .compactMap(\.self)
 
         for root in roots {
-            let bundleURL = root.appendingPathComponent(bundleName, isDirectory: true)
-            let queryURLs = [
-                bundleURL.appendingPathComponent("queries", isDirectory: true),
-                bundleURL.appendingPathComponent("Contents/Resources/queries", isDirectory: true),
-            ]
-
-            if let readableURL = queryURLs.first(where: { FileManager.default.isReadableFile(atPath: $0.path) }) {
-                return readableURL
-            }
-        }
-
-        return findSwiftQueriesDirectoryInLocalBuild(bundleName: bundleName)
-    }
-
-    private static func findSwiftQueriesDirectoryInLocalBuild(bundleName: String) -> URL? {
-        let currentDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
-        let buildDirectories = [
-            currentDirectory.appendingPathComponent(".build", isDirectory: true),
-            currentDirectory.appendingPathComponent("Editor/.build", isDirectory: true),
-        ]
-
-        for buildDirectory in buildDirectories where FileManager.default.fileExists(atPath: buildDirectory.path) {
-            guard let enumerator = FileManager.default.enumerator(at: buildDirectory, includingPropertiesForKeys: nil) else {
-                continue
-            }
-
-            for case let bundleURL as URL in enumerator where bundleURL.lastPathComponent == bundleName {
+            for bundleName in bundleNames {
+                let bundleURL = root.appendingPathComponent(bundleName, isDirectory: true)
                 let queryURLs = [
                     bundleURL.appendingPathComponent("queries", isDirectory: true),
                     bundleURL.appendingPathComponent("Contents/Resources/queries", isDirectory: true),
                 ]
-
                 if let readableURL = queryURLs.first(where: { FileManager.default.isReadableFile(atPath: $0.path) }) {
                     return readableURL
                 }
             }
         }
 
+        // Never recursively scan .build on the UI thread: it includes dependency checkouts
+        // and may contain millions of files. Missing queries use the ordinary Swift lexer.
         return nil
     }
 

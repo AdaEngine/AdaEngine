@@ -12,6 +12,7 @@ public struct AdaptiveSceneView: View {
     private let layout: DisplayLayout?
     private let fitsAvailableSpace: Bool
     private let frameCaptureLabel: String?
+    private let useSceneCameras: Bool
     private let make: @MainActor (inout AppWorlds) -> Void
     private let updateContent: @MainActor (World, AdaUtils.TimeInterval) -> Void
     @State private var session = AdaptiveSceneSession()
@@ -20,10 +21,12 @@ public struct AdaptiveSceneView: View {
         layout: DisplayLayout? = nil,
         fitsAvailableSpace: Bool = true,
         frameCaptureLabel: String? = nil,
+        useSceneCameras: Bool = false,
         make: @escaping @MainActor (inout AppWorlds) -> Void,
         updateContent: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void = { _, _ in }
     ) {
         self.frameCaptureLabel = frameCaptureLabel
+        self.useSceneCameras = useSceneCameras
         self.layout = layout
         self.fitsAvailableSpace = fitsAvailableSpace
         self.make = make
@@ -33,7 +36,13 @@ public struct AdaptiveSceneView: View {
     public var body: some View {
         GeometryReader { geometry in
             let resolved = layout ?? .standard(size: geometry.size)
-            let surface = session.configure(layout: resolved, frameCaptureLabel: frameCaptureLabel, make: make, updateContent: updateContent)
+            let surface = session.configure(
+                layout: resolved,
+                frameCaptureLabel: frameCaptureLabel,
+                useSceneCameras: useSceneCameras,
+                make: make,
+                updateContent: updateContent
+            )
             AdaptiveSurface(content: surface, contentSize: resolved.size, zoom: fitsAvailableSpace ? resolved.fitScale(in: geometry.size) : 1)
                 .mask(RectangleShape())
         }
@@ -52,6 +61,7 @@ final class AdaptiveSceneSession {
     func configure(
         layout: DisplayLayout,
         frameCaptureLabel: String? = nil,
+        useSceneCameras: Bool = false,
         make: @escaping @MainActor (inout AppWorlds) -> Void,
         updateContent: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void
     ) -> UIView {
@@ -61,7 +71,13 @@ final class AdaptiveSceneSession {
         if let surface {
             return surface
         }
-        let container = UIContainerView(rootView: AdaptiveSceneContent(session: self, frameCaptureLabel: frameCaptureLabel, make: make, updateContent: updateContent))
+        let container = UIContainerView(rootView: AdaptiveSceneContent(
+            session: self,
+            frameCaptureLabel: frameCaptureLabel,
+            useSceneCameras: useSceneCameras,
+            make: make,
+            updateContent: updateContent
+        ))
         container.backgroundColor = .clear
         surface = container
         return container
@@ -108,12 +124,14 @@ final class AdaptiveSceneSession {
 private struct AdaptiveSceneContent: View {
     let session: AdaptiveSceneSession
     let frameCaptureLabel: String?
+    let useSceneCameras: Bool
     let make: @MainActor (inout AppWorlds) -> Void
     let updateContent: @MainActor (World, AdaUtils.TimeInterval) -> Void
 
     var body: some View {
         HStack(spacing: 0) {
             SceneView(
+                useSceneCameras: useSceneCameras,
                 make: { app in
                     app.main.insertResource(EmbeddedDisplayLayout())
                     app.main.insertResource(session.layout)

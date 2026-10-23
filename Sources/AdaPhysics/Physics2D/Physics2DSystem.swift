@@ -21,6 +21,8 @@ public func Physics2DUpdate(
     let deltaTime = fixedTime.deltaTime
     let world = physicsWorld.world
     world.updateSimulation(deltaTime)
+    world.prepareCollisionEvents()
+    world.processJointEvents()
     performance.wrappedValue?.recordPerformance(from: world)
     world.processContacts()
     world.processSensors()
@@ -43,8 +45,7 @@ public struct Physics2DSyncSystem: Sendable {
     @Query<Entity, Ref<Collision2DComponent>, Ref<Transform>>
     private var collisionQuery
 
-    @Query<Entity, Ref<PhysicsJoint2DComponent>, Ref<Transform>>
-    private var jointsQuery
+    @PhysicsCoordinateAccess2D private var coordinates
 
     @Res<Physics2DWorldHolder>
     private var physicsWorld
@@ -60,23 +61,30 @@ public struct Physics2DSyncSystem: Sendable {
 
     private func syncPhysicsBodyEntities(in world: PhysicsWorld2D) {
         self.physicsBodyQuery.forEach { entity, physicsBody, transform in
+            guard let position = world.authoredPosition(entity, fallback: transform.position.xy) else {
+                physicsBody.runtimeBody = nil
+                return
+            }
             if let body = physicsBody.runtimeBody {
-                if physicsBody.mode == .static {
-                    body.setTransform(
-                        position: transform.position.xy,
-                        angle: transform.rotation.angle2D
-                    )
+                let hasGlobalPosition = entity.components[PhysicsPosition2DComponent.self] != nil
+                let movedGlobally = PhysicsPosition2D(b2Body_GetPosition(body.bodyId)) != PhysicsPosition2D(position)
+                let rotated = abs(Math.sin((body.getAngle().radians - transform.rotation.angle2D.radians) * 0.5)) > 0.00001
+                if (movedGlobally && (physicsBody.mode == .static || hasGlobalPosition)) || (physicsBody.mode == .static && rotated) {
+                    b2Body_SetTransform(body.bodyId, position, b2MakeRot(transform.rotation.angle2D.radians))
                 }
 
+                body.applyMotion(physicsBody.motion, fixedRotation: physicsBody.fixedRotation, massProperties: physicsBody.massProperties)
                 applyMassProperties(physicsBody.massProperties, fixedRotation: physicsBody.fixedRotation, to: body)
             } else {
                 var def = unsafe b2DefaultBodyDef()
-                unsafe def.motionLocks.angularZ = physicsBody.fixedRotation
-                unsafe def.position = transform.position.xy.b2Vec
+                unsafe physicsBody.motion.apply(to: &def, fixedRotation: physicsBody.fixedRotation)
+                unsafe def.position = position
+                unsafe def.rotation = b2MakeRot(transform.rotation.angle2D.radians)
                 unsafe def.type = physicsBody.mode.b2Type
                 unsafe def.gravityScale = physicsBody.gravityScale
                 unsafe def.linearVelocity = physicsBody.linearVelocity.b2Vec
                 unsafe def.angularVelocity = physicsBody.angularVelocity
+                unsafe physicsBody.dynamics.apply(to: &def)
 
                 let body = unsafe world.createBody(with: def, for: entity)
                 physicsBody.runtimeBody = body
@@ -84,8 +92,7 @@ public struct Physics2DSyncSystem: Sendable {
                 for shapeResource in physicsBody.wrappedValue.shapes {
                     var shapeDef = unsafe b2DefaultShapeDef()
                     unsafe shapeDef.density = physicsBody.material.density
-                    unsafe shapeDef.material.restitution = physicsBody.material.restitution
-                    unsafe shapeDef.material.friction = physicsBody.material.friction
+                    unsafe shapeDef.material = physicsBody.material.nativeSurface
                     unsafe shapeDef.enableContactEvents = true
                     unsafe shapeDef.enableSensorEvents = true
                     unsafe shapeDef.enableHitEvents = true
@@ -111,6 +118,7 @@ public struct Physics2DSyncSystem: Sendable {
                 applyMassProperties(physicsBody.massProperties, fixedRotation: physicsBody.fixedRotation, to: body)
             }
 
+            physicsBody.runtimeBody?.updateMaterial(physicsBody.material, massProperties: physicsBody.massProperties)
             if let shapes = physicsBody.runtimeBody?.getShapes() {
                 let collisionFilter = physicsBody.filter
 
@@ -127,6 +135,10 @@ public struct Physics2DSyncSystem: Sendable {
     }
 
     private func applyMassProperties(_ properties: PhysicsMassProperties, fixedRotation: Bool, to body: Body2D) {
+        // Box2D 3.2 SetMassData also changes non-dynamic inverse mass; preserve their zero mass.
+        guard b2Body_GetType(body.bodyId) == b2_dynamicBody else {
+            return
+        }
         var data = body.massData
         data.mass = properties.mass
         if fixedRotation {
@@ -139,16 +151,19 @@ public struct Physics2DSyncSystem: Sendable {
 
     private func syncCollisionEntities(in world: PhysicsWorld2D) {
         collisionQuery.forEach { entity, collisionBody, transform in
+            guard let position = world.authoredPosition(entity, fallback: transform.position.xy) else {
+                collisionBody.runtimeBody = nil
+                return
+            }
             if let body = collisionBody.runtimeBody {
-                if body.getPosition() != transform.position.xy {
-                    body.setTransform(
-                        position: transform.position.xy,
-                        angle: transform.rotation.angle2D
-                    )
+                let angleDelta = body.getAngle().radians - transform.rotation.angle2D.radians
+                if PhysicsPosition2D(b2Body_GetPosition(body.bodyId)) != PhysicsPosition2D(position) || abs(Math.sin(angleDelta * 0.5)) > 0.00001 {
+                    b2Body_SetTransform(body.bodyId, position, b2MakeRot(transform.rotation.angle2D.radians))
                 }
             } else {
                 var def = unsafe b2DefaultBodyDef()
-                unsafe def.position = transform.position.xy.b2Vec
+                unsafe def.position = position
+                unsafe def.rotation = b2MakeRot(transform.rotation.angle2D.radians)
                 unsafe def.type = b2_staticBody
 
                 let body = unsafe world.createBody(with: def, for: entity)
@@ -156,7 +171,8 @@ public struct Physics2DSyncSystem: Sendable {
 
                 for shapeResource in collisionBody.wrappedValue.shapes {
                     var shapeDef = unsafe b2DefaultShapeDef()
-                    unsafe shapeDef.density = 1
+                    unsafe shapeDef.density = collisionBody.material.density
+                    unsafe shapeDef.material = collisionBody.material.nativeSurface
                     if let debugColor = collisionBody.debugColor {
                         unsafe shapeDef.material.customColor = UInt32(debugColor.toHex)
                     }
@@ -177,6 +193,7 @@ public struct Physics2DSyncSystem: Sendable {
                 }
             }
 
+            collisionBody.runtimeBody?.updateMaterial(collisionBody.material)
             if let shapes = collisionBody.runtimeBody?.getShapes() {
                 let collisionFilter = collisionBody.filter
 
@@ -195,6 +212,7 @@ public struct Physics2DSyncSystem: Sendable {
 /// A system for writing back simulated 2D physics state into scene components.
 @PlainSystem
 public struct Physics2DWritebackSystem: Sendable {
+    @PhysicsCoordinateWriteAccess2D private var coordinates
     @Res<Physics2DWorldHolder>
     private var physicsWorld
 

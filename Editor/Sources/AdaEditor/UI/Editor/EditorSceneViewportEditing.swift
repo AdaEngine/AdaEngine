@@ -14,6 +14,7 @@ extension EditorSceneViewportView {
 
         let loadResult = viewportModel.configure(
             sceneContent: document.content,
+            model: document.sceneModel,
             sourceURL: document.absolutePath.map { URL(fileURLWithPath: $0) },
             resourceRootURL: resourceRootURL,
             scriptableObjectCatalog: inspectorViewModel.scriptableObjectCatalog,
@@ -23,14 +24,15 @@ extension EditorSceneViewportView {
                     onEntitySelected?()
                 }
             },
-            onDocumentContentChanged: { content in
+            onDocumentContentChanged: { [weak viewportModel] content in
+                guard let model = viewportModel?.sceneModel else { return }
                 var updatedDocument = document
                 updatedDocument.content = content
-                updatedDocument.sceneModel = EditorSceneFileLoader.model(from: content)
+                updatedDocument.sceneModel = model
                 updatedDocument.isDirty = true
                 updatedDocument.statusMessage = "Edited"
                 updatedDocument.errorMessage = nil
-                updatedDocument.loadSummary = EditorSceneFileLoader.summary(from: content)
+                updatedDocument.loadSummary = EditorSceneLoadSummary(entityCount: model.entities.count, warnings: [])
                 onDocumentChanged(updatedDocument)
             },
             onTransformChanged: { [weak inspectorViewModel] editorID, payload in

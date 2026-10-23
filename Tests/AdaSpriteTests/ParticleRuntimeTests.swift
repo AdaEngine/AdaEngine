@@ -23,19 +23,19 @@ struct ParticleRuntimeTests {
         world.addSystem(ParticleSimulationSystem.self, on: .postUpdate)
         let first = world.spawn { Transform(); ParticleEmitter(effect: effect) }
         let second = world.spawn { Transform(); ParticleEmitter(effect: effect, isPaused: true) }
-        await world.runScheduler(.postUpdate)
+        await world.runScheduler(.postUpdate, deltaTime: 1.0 / 60)
         #expect(first.components[ParticleEmitter.self]?.particleCount == 8)
         #expect(second.components[ParticleEmitter.self]?.particleCount == 0)
         first.components[ParticleEmitter.self]?.isPaused = true
         second.components[ParticleEmitter.self]?.isPaused = false
-        await world.runScheduler(.postUpdate)
+        await world.runScheduler(.postUpdate, deltaTime: 1.0 / 60)
         #expect(first.components[ParticleEmitter.self]?.particleCount == 8)
         #expect(second.components[ParticleEmitter.self]?.particleCount == 8)
         first.components[ParticleEmitter.self]?.restartCount = 1
-        await world.runScheduler(.postUpdate)
+        await world.runScheduler(.postUpdate, deltaTime: 1.0 / 60)
         #expect(first.components[ParticleEmitter.self]?.particleCount == 0)
         first.components[ParticleEmitter.self]?.isPaused = false
-        await world.runScheduler(.postUpdate)
+        await world.runScheduler(.postUpdate, deltaTime: 1.0 / 60)
         #expect(first.components[ParticleEmitter.self]?.particleCount == 8)
     }
 }

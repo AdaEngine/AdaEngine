@@ -39,17 +39,54 @@ struct Physics2DDemoMain {
             session.scan = false
             let app = AppWorlds(main: World())
             app.addPlugin(MainSchedulerPlugin()).addPlugin(TransformPlugin())
-                .addPlugin(Physics2DPlugin(gravity: scene == .raycast ? .zero : [0, -9.81]))
+                .addPlugin(Physics2DPlugin(gravity: scene.gravity))
                 .addPlugin(PhysicsDemoPlugin(session: session))
             try await app.build()
             app.main.insertResource(FixedTime(deltaTime: 1.0 / 60))
             await app.main.runScheduler(.startup)
-            for _ in 0..<240 {
-                for scheduler: SchedulerName in [.preUpdate, .fixedPreUpdate, .physicsSync, .physicsStep, .physicsWriteback, .postUpdate] {
-                    await app.main.runScheduler(scheduler)
-                }
-            }
-            if scene == .raycast {
+            await advance(app, steps: 240)
+            if scene == .largeWorld {
+                try await validateLargeWorld(app, session)
+            } else if scene == .advanced {
+                try await validateAdvanced(app, session)
+            } else if scene == .mechanisms {
+                guard session.connectedJoints == 9 else { throw Failure.mechanisms }
+                session.reverseRequested = true
+                await advance(app, steps: 30)
+                guard (session.targets[4].components[PhysicsBody2DComponent.self]?.angularVelocity ?? 0) < -1 else { throw Failure.mechanisms }
+                session.breakRequested = true
+                await advance(app, steps: 5)
+                guard session.jointBreaks > 0, session.connectedJoints == 8 else { throw Failure.mechanisms }
+                session.resetRequested = true
+                await advance(app, steps: 5)
+                guard session.connectedJoints == 9 else { throw Failure.mechanisms }
+                report("PASS: mechanisms · nine joint kinds / live reverse / break / repair")
+            } else if scene == .characters {
+                guard session.character?.components[CharacterController2DComponent.self]?.isGrounded == true else { throw Failure.character }
+                session.characterMode = .dynamic
+                await advance(app, steps: 90)
+                session.moveDirection = 1
+                await advance(app, steps: 150)
+                session.moveDirection = 0
+                await advance(app, steps: 30)
+                guard (session.crate?.components[Transform.self]?.position.x ?? -1) > -0.8 else { throw Failure.character }
+                session.jumpRequest = true
+                await advance(app, steps: 1)
+                guard session.character?.components[CharacterController2DComponent.self]?.isGrounded == false else { throw Failure.character }
+                report("PASS: characters · query ground / dynamic push / jump")
+            } else if scene == .queries {
+                guard session.queryEntities.count == 4 else { throw Failure.queries }
+                session.querySensors = false
+                await app.main.runScheduler(.postUpdate)
+                guard session.queryEntities.count == 3 else { throw Failure.queries }
+                session.probeMode = .overlap
+                await app.main.runScheduler(.postUpdate)
+                guard session.queryEntities.count == 1 else { throw Failure.queries }
+                session.probeMode = .area
+                await app.main.runScheduler(.postUpdate)
+                guard session.queryEntities.count == 3 else { throw Failure.queries }
+                report("PASS: geometry/query scene · cast / sensor exclusion / exact overlap / area")
+            } else if scene == .raycast {
                 guard session.lastHits.count == 3, session.lastHits[0].distance < session.lastHits[1].distance else { throw Failure.raycast }
                 session.allHits = false
                 await app.main.runScheduler(.postUpdate)
@@ -66,7 +103,15 @@ struct Physics2DDemoMain {
         }
     }
 
-    private static func waitForSource(_ label: String, excluding previous: SceneViewFrameSource? = nil) async throws -> SceneViewFrameSource {
+    static func advance(_ app: AppWorlds, steps: Int) async {
+        for _ in 0..<steps {
+            for scheduler: SchedulerName in [.preUpdate, .fixedPreUpdate, .physicsSync, .physicsStep, .physicsWriteback, .postUpdate] {
+                await app.main.runScheduler(scheduler)
+            }
+        }
+    }
+
+    static func waitForSource(_ label: String, excluding previous: SceneViewFrameSource? = nil) async throws -> SceneViewFrameSource {
         for _ in 0..<100 {
             if let source = SceneViewFrameRegistry.latest(label: label), source.frameSequence > 2, source !== previous {
                 return source
@@ -77,7 +122,7 @@ struct Physics2DDemoMain {
         throw Failure.sceneUnavailable
     }
 
-    private static func nextFrames(_ source: SceneViewFrameSource, count: Int = 5) async throws -> SceneViewCapturedFrame {
+    static func nextFrames(_ source: SceneViewFrameSource, count: Int = 5) async throws -> SceneViewCapturedFrame {
         var frame = try await source.captureFrame(after: source.frameSequence, timeout: .seconds(10))
         for _ in 1..<count {
             frame = try await source.captureFrame(after: frame.sequence, timeout: .seconds(10))
@@ -133,7 +178,7 @@ struct Physics2DDemoMain {
             if events.impacts > initialImpacts { break }
         }
         guard events.impacts > initialImpacts else { throw Failure.events }
-        let verification: [String: Any] = [
+        var verification: [String: Any] = [
             "passed": true, "backend": String(describing: unsafe RenderEngine.shared.type), "raycastAll": 3, "raycastNearest": 1, "raycastBlueMask": 2,
             "contactBegins": events.contactBegins, "contactEnds": events.contactEnds,
             "sensorBegins": events.sensorBegins, "sensorEnds": events.sensorEnds, "impacts": events.impacts,
@@ -147,8 +192,146 @@ struct Physics2DDemoMain {
         try tap("physics-demo.events")
         _ = try await waitForSource("Physics2D Events", excluding: eventSource)
         report("PASS: native events · sensor entry/exit, contact begin/end, impact, re-drop, scene re-entry")
+        try tap("physics-demo.queries")
+        let queriesSource = try await waitForSource("Physics2D Geometry & queries")
+        guard let queries = queriesSource.world?.getResource(PhysicsDemoSession.self) else { throw Failure.sceneUnavailable }
+        try tap("physics-demo.query-scan")
+        _ = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 4 else { throw Failure.queries }
+        try tap("physics-demo.query-sensors")
+        _ = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 3 else { throw Failure.queries }
+        try tap("physics-demo.query-mask")
+        _ = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 2 else { throw Failure.queries }
+        try tap("physics-demo.query-order")
+        _ = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 1 else { throw Failure.queries }
+        try tap("physics-demo.query-order")
+        try tap("physics-demo.query-mask")
+        try tap("physics-demo.query-sensors")
+        let geometryFrame = try await nextFrames(queriesSource)
+        report("Geometry debug \(queries.debugDrawState), options=\(queriesSource.world?.getResource(PhysicsDebugOptions.self)?.rawValue ?? 0)")
+        try write(geometryFrame.image, to: directory + "/geometry-cast.png")
+        try tap("physics-demo.query-kind")
+        _ = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 1 else { throw Failure.queries }
+        try tap("physics-demo.query-kind")
+        let areaFrame = try await nextFrames(queriesSource)
+        guard queries.queryEntities.count == 4 else { throw Failure.queries }
+        try write(areaFrame.image, to: directory + "/geometry-area.png")
+        try tap("physics-demo.query-kind")
+        try tap("physics-demo.raycasts")
+        _ = try await waitForSource("Physics2D Raycasts", excluding: rebuiltRay)
+        try tap("physics-demo.queries")
+        let rebuiltQueries = try await waitForSource("Physics2D Geometry & queries", excluding: queriesSource)
+        _ = try await nextFrames(rebuiltQueries)
+        guard queries.queryEntities.count == 4, queries.targets.count == 8 else { throw Failure.queries }
+        verification["querySceneReentry"] = true
+        verification["geometryQueries"] = true
+        report("PASS: native geometry · convex cast / overlap / area / masks / sensors / nearest")
+        try tap("physics-demo.mechanisms")
+        let mechanismSource = try await waitForSource("Physics2D Mechanisms")
+        guard let mechanisms = mechanismSource.world?.getResource(PhysicsDemoSession.self), mechanisms.connectedJoints == 9 else { throw Failure.mechanisms }
+        try tap("physics-demo.reverse")
+        _ = try await nextFrames(mechanismSource, count: 30)
+        guard mechanisms.driveDirection < 0, (mechanisms.targets[4].components[PhysicsBody2DComponent.self]?.angularVelocity ?? 0) < -1 else { throw Failure.mechanisms }
+        let mechanismFrame = try await nextFrames(mechanismSource)
+        try write(mechanismFrame.image, to: directory + "/mechanisms.png")
+        try tap("physics-demo.break")
+        for _ in 0..<30 {
+            _ = try await nextFrames(mechanismSource, count: 1)
+            if mechanisms.jointBreaks > 0 { break }
+        }
+        guard mechanisms.jointBreaks > 0, mechanisms.connectedJoints == 8 else { throw Failure.mechanisms }
+        try tap("physics-demo.repair")
+        _ = try await nextFrames(mechanismSource)
+        guard mechanisms.connectedJoints == 9 else { throw Failure.mechanisms }
+        verification["mechanisms"] = true
+        verification["jointBreaks"] = mechanisms.jointBreaks
+        report("PASS: native mechanisms · nine constraints / reverse / break / repair")
+        try tap("physics-demo.characters")
+        let characterSource = try await waitForSource("Physics2D Characters")
+        guard let characters = characterSource.world?.getResource(PhysicsDemoSession.self) else { throw Failure.character }
+        try await waitForGround(characterSource, characters)
+        guard !hasCharacterCollider(characterSource, characters) else { throw Failure.character }
+        let startX = characters.character?.components[Transform.self]?.position.x ?? -5
+        try tap("physics-demo.right")
+        _ = try await nextFrames(characterSource, count: 25)
+        guard (characters.character?.components[Transform.self]?.position.x ?? -5) > startX + 0.2 else { throw Failure.character }
+        try tap("physics-demo.stop")
+        _ = try await nextFrames(characterSource, count: 15)
+        try tap("physics-demo.jump")
+        try await waitForJump(characterSource, characters)
+        let queryFrame = try await nextFrames(characterSource, count: 10)
+        try write(queryFrame.image, to: directory + "/character-query.png")
+        try await waitForGround(characterSource, characters)
+        try tap("physics-demo.character-mode")
+        _ = try await nextFrames(characterSource)
+        guard characters.characterMode == .dynamic, hasCharacterCollider(characterSource, characters) else { throw Failure.character }
+        try tap("physics-demo.right")
+        _ = try await nextFrames(characterSource, count: 120)
+        try tap("physics-demo.stop")
+        _ = try await nextFrames(characterSource, count: 15)
+        guard (characters.crate?.components[Transform.self]?.position.x ?? -1) > -0.8 else { throw Failure.character }
+        let dynamicFrame = try await nextFrames(characterSource)
+        try write(dynamicFrame.image, to: directory + "/character-dynamic.png")
+        try tap("physics-demo.jump")
+        try await waitForJump(characterSource, characters)
+        try await waitForGround(characterSource, characters)
+        try tap("physics-demo.character-mode")
+        _ = try await nextFrames(characterSource)
+        guard !hasCharacterCollider(characterSource, characters) else { throw Failure.character }
+        let oldPlayer = characters.character
+        try tap("physics-demo.mechanisms")
+        _ = try await waitForSource("Physics2D Mechanisms", excluding: mechanismSource)
+        try tap("physics-demo.characters")
+        let rebuiltCharacter = try await waitForSource("Physics2D Characters", excluding: characterSource)
+        try await waitForGround(rebuiltCharacter, characters)
+        guard characters.character !== oldPlayer else { throw Failure.character }
+        verification["characterModes"] = ["query", "dynamic"]
+        verification["dynamicPush"] = true
+        verification["characterJumpBothModes"] = true
+        verification["characterColliderCleanup"] = true
+        verification["characterSceneReentry"] = true
+        report("PASS: native characters · move / stop / both jumps / physical push / mode cleanup / re-entry")
+        try await verifyAdvanced(to: directory, tap: tap)
+        verification["advancedPhysics"] = true
+        try await verifyLargeWorld(to: directory, tap: tap)
+        verification["largeWorldPrecision"] = true
+        verification["largeWorldMillimeterNudge"] = true
+        verification["largeWorldOriginShift"] = true
+        verification["largeWorldCharacters"] = true
+        verification["largeWorldSceneReentry"] = true
         try JSONSerialization.data(withJSONObject: verification, options: [.prettyPrinted, .sortedKeys])
             .write(to: URL(fileURLWithPath: directory + "/verification.json"), options: .atomic)
+    }
+
+    static func waitForGround(_ source: SceneViewFrameSource, _ session: PhysicsDemoSession) async throws {
+        for _ in 0..<150 {
+            if session.character?.components[CharacterController2DComponent.self]?.isGrounded == true {
+                return
+            }
+            _ = try await nextFrames(source, count: 1)
+        }
+        throw Failure.character
+    }
+
+    static func waitForJump(_ source: SceneViewFrameSource, _ session: PhysicsDemoSession) async throws {
+        for _ in 0..<30 {
+            _ = try await nextFrames(source, count: 1)
+            if session.character?.components[CharacterController2DComponent.self]?.isGrounded == false {
+                return
+            }
+        }
+        throw Failure.character
+    }
+
+    static func hasCharacterCollider(_ source: SceneViewFrameSource, _ session: PhysicsDemoSession) -> Bool {
+        guard let player = session.character, let bottom = player.components[Transform.self]?.position.xy, let physics = source.world?.physicsWorld2D else {
+            return false
+        }
+        return physics.overlap(at: bottom + [0, 0.9]).contains { $0.entity === player }
     }
 
     private static func requireEvents(_ session: PhysicsDemoSession) throws {
@@ -156,21 +339,26 @@ struct Physics2DDemoMain {
             session.sensorEnds > 0, session.impacts > 0, session.lastImpactSpeed > 0 else { throw Failure.events }
     }
 
-    private static func write(_ image: Image, to path: String) throws {
+    static func write(_ image: Image, to path: String) throws {
         guard image.width > 0, image.height > 0, !image.data.isEmpty else { throw Failure.emptyFrame }
         var bytes = Array(image.data)
         if image.format == .bgra8 || image.format == .bgra8_sRGB {
             for index in stride(from: 0, to: bytes.count, by: 4) { bytes.swapAt(index, index + 2) }
         }
+        var colors = Set<UInt32>()
+        for offset in stride(from: 0, to: bytes.count - 3, by: 64) {
+            colors.insert(UInt32(bytes[offset]) << 16 | UInt32(bytes[offset + 1]) << 8 | UInt32(bytes[offset + 2]))
+        }
         let png = try PNGWriter().encode(width: image.width, height: image.height, rgba: bytes)
         try png.write(to: URL(fileURLWithPath: path), options: .atomic)
+        guard image.width > 200, image.height > 200, colors.count > 3 else { report("Frame \(path) contains \(colors.count) sampled colors"); throw Failure.emptyFrame }
     }
 
-    private static func report(_ message: String) {
+    static func report(_ message: String) {
         FileHandle.standardOutput.write(Data((message + "\n").utf8))
     }
 
-    private enum Failure: Error {
-        case raycast, events, sceneUnavailable, emptyFrame
+    enum Failure: Error {
+        case raycast, events, queries, mechanisms, character, advanced, largeWorld, sceneUnavailable, emptyFrame
     }
 }

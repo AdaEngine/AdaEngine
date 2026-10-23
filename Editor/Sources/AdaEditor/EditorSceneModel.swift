@@ -23,6 +23,34 @@ enum EditorSceneEntityPreset: String, CaseIterable, Equatable, Sendable {
 
 typealias EditorSceneValue = StudioValue
 
+extension EditorSceneValue: @retroactive YAMLEncodable {
+    // Build payload collections once. Yams' Codable sequence container copies
+    // its accumulated nodes on each append, which stalls large terrain arrays.
+    public func box(options: Emitter.Options) -> Node {
+        switch self {
+        case .null:
+            return Node("null", Tag(.null))
+        case let .bool(value):
+            return value.box(options: options)
+        case let .int(value):
+            return value.box(options: options)
+        case let .uint(value):
+            return value.box(options: options)
+        case let .double(value):
+            return value.box(options: options)
+        case let .string(value):
+            var node = value.box(options: options)
+            if value.contains("\n") { node.scalar?.style = options.newLineScalarStyle }
+            return node
+        case let .array(values):
+            return Node(values.map { $0.box(options: options) }, .implicit, options.sequenceStyle)
+        case let .object(values):
+            let pairs = values.map { ($0.key.box(options: options), $0.value.box(options: options)) }
+            return Node(pairs, .implicit, options.mappingStyle)
+        }
+    }
+}
+
 extension EditorSceneValue {
     var jsonCompatibleValue: Any {
         switch self {

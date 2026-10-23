@@ -88,11 +88,16 @@ struct EditorFoldableTests {
         let type = EditorBuiltInComponentType.companionPanel
         scene.addComponent(typeName: type, to: entityID)
         scene.updateField(typeName: type, field: .init(key: "path", label: "UI", kind: .string), value: "@res://Missing.ui", in: entityID)
-        let result = EditorSceneFileLoader.load(content: try scene.encodedYAML(), into: World(), resourceRootURL: demoRoot.appendingPathComponent("Assets"))
-        #expect(result.warnings.contains { $0.contains("Missing.ui") })
+        let world = World()
+        let assets = demoRoot.appendingPathComponent("Assets")
+        world.insertResource(UIComponentRuntimeResource(UIComponentRuntime(resourceRoot: assets)))
+        let result = EditorSceneFileLoader.load(content: try scene.encodedYAML(), into: world, resourceRootURL: assets)
+        #expect(result.warnings.contains { $0.contains(type) })
+        #expect(world.getEntities().allSatisfy { $0.components[CompanionPanel.self] == nil })
     }
 
-    @Test func adaptiveContainerKeepsOneRuntimeAcrossLayoutChanges() async throws {
+    @Test(arguments: [false, true])
+    func adaptiveContainerKeepsOneRuntimeAcrossLayoutChanges(useSceneCameras: Bool) async throws {
         let session = AdaptiveSceneSession()
         var creations = 0
         var updates = 0
@@ -104,12 +109,26 @@ struct EditorFoldableTests {
             app.addPlugin(RenderWorldPlugin())
             app.addPlugin(CameraPlugin())
             app.addPlugin(Core2DPlugin())
+            if useSceneCameras {
+                var camera = Camera()
+                camera.projection = .orthographic(OrthographicProjection(scale: 3))
+                app.main.spawn("AuthoredCamera") { camera; Transform() }
+            }
         }
         let update: @MainActor (World, Float) -> Void = { world, _ in
             #expect(world.id == worldID)
+            #expect((world.getEntityByName("SceneView_Camera") == nil) == useSceneCameras)
+            if useSceneCameras {
+                let camera = world.getEntityByName("AuthoredCamera")?.components[Camera.self]
+                if case let .orthographic(projection)? = camera?.projection {
+                    #expect(projection.scale == 3)
+                } else {
+                    Issue.record("The adaptive viewport replaced its authored camera projection.")
+                }
+            }
             updates += 1
         }
-        let surface = session.configure(layout: .foldable(expanded: false), make: make, updateContent: update)
+        let surface = session.configure(layout: .foldable(expanded: false), useSceneCameras: useSceneCameras, make: make, updateContent: update)
         surface.frame = Rect(x: 0, y: 0, width: 400, height: 640)
         surface.layoutSubviews()
         for _ in 0..<20 {
@@ -121,12 +140,13 @@ struct EditorFoldableTests {
         #expect(updates > 0)
         for expanded in [true, false, true, false] {
             let layout = DisplayLayout.foldable(expanded: expanded)
-            #expect(session.configure(layout: layout, make: make, updateContent: update) === surface)
+            #expect(session.configure(layout: layout, useSceneCameras: useSceneCameras, make: make, updateContent: update) === surface)
             surface.frame = Rect(origin: .zero, size: layout.size)
             try await Task.sleep(for: .milliseconds(10))
             surface.layoutSubviews()
             let before = updates
             surface.update(0.016)
+            for _ in 0..<1000 where updates == before { await Task.yield() }
             #expect(updates == before + 1)
             #expect(creations == 1)
         }

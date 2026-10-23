@@ -12,6 +12,11 @@ private struct Physics2DDemoView: View {
     @State private var scene = PhysicsDemoScene.raycast
     @State private var raycast = PhysicsDemoSession(scene: .raycast)
     @State private var events = PhysicsDemoSession(scene: .events)
+    @State private var queries = PhysicsDemoSession(scene: .queries)
+    @State private var mechanisms = PhysicsDemoSession(scene: .mechanisms)
+    @State private var characters = PhysicsDemoSession(scene: .characters)
+    @State private var advanced = PhysicsDemoSession(scene: .advanced)
+    @State private var largeWorld = PhysicsDemoSession(scene: .largeWorld)
 
     var body: some View {
         VStack(spacing: 12) {
@@ -19,6 +24,11 @@ private struct Physics2DDemoView: View {
             HStack(spacing: 20) {
                 Button("Raycasts") { scene = .raycast }.accessibilityIdentifier("physics-demo.raycasts")
                 Button("Collisions & sensors") { scene = .events }.accessibilityIdentifier("physics-demo.events")
+                Button("Geometry & queries") { scene = .queries }.accessibilityIdentifier("physics-demo.queries")
+                Button("Mechanisms") { scene = .mechanisms }.accessibilityIdentifier("physics-demo.mechanisms")
+                Button("Characters") { scene = .characters }.accessibilityIdentifier("physics-demo.characters")
+                Button("Advanced") { scene = .advanced }.accessibilityIdentifier("physics-demo.advanced")
+                Button("Large worlds") { scene = .largeWorld }.accessibilityIdentifier("physics-demo.large-world")
             }
             if scene == .raycast {
                 HStack(spacing: 18) {
@@ -32,6 +42,16 @@ private struct Physics2DDemoView: View {
                     .frameCaptureLabel("Physics2D Raycasts")
                     .id(PhysicsDemoScene.raycast)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if scene == .largeWorld {
+                PhysicsLargeWorldDemoPane(session: largeWorld)
+            } else if scene == .advanced {
+                PhysicsAdvancedDemoPane(session: advanced)
+            } else if scene == .mechanisms {
+                PhysicsMechanismsDemoPane(session: mechanisms)
+            } else if scene == .characters {
+                PhysicsCharactersDemoPane(session: characters)
+            } else if scene == .queries {
+                PhysicsQueriesDemoPane(session: queries)
             } else {
                 Button("Drop box again") { events.resetRequested = true }.accessibilityIdentifier("physics-demo.drop")
                 Text("Blue box crosses the green sensor freely. Orange box bounces on the floor.")

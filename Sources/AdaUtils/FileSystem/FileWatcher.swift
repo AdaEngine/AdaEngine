@@ -174,10 +174,8 @@ private protocol _FileWatcher {
                 unsafe self.overlapped.hEvent = CreateEventW(nil, false, false, nil)
                 unsafe self.terminate = CreateEventW(nil, true, false, nil)
 
-                let EntrySize: Int =
-                    MemoryLayout<FILE_NOTIFY_INFORMATION>.stride + (Int(MAX_PATH) * MemoryLayout<WCHAR>.stride)
                 unsafe self.buffer =
-                    UnsafeMutableBufferPointer<DWORD>.allocate(capacity: EntrySize * 4 / MemoryLayout<DWORD>.stride)
+                    UnsafeMutableBufferPointer<DWORD>.allocate(capacity: 64 * 1024 / MemoryLayout<DWORD>.stride)
             }
 
             deinit {
@@ -207,8 +205,8 @@ private protocol _FileWatcher {
             self.settle = latency
             self.delegate = delegate
 
-            self.watches = paths.map {
-                unsafe $0.pathString.withCString(encodedAs: UTF16.self) {
+            self.watches = paths.map { path in
+                unsafe path.pathString.withCString(encodedAs: UTF16.self) {
                     let dwDesiredAccess: DWORD = DWORD(FILE_LIST_DIRECTORY)
                     let dwShareMode: DWORD = DWORD(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
                     let dwCreationDisposition: DWORD = DWORD(OPEN_EXISTING)
@@ -226,19 +224,7 @@ private protocol _FileWatcher {
                         )
                     unsafe assert(!(handle == INVALID_HANDLE_VALUE))
 
-                    let dwSize: DWORD = unsafe GetFinalPathNameByHandleW(handle, nil, 0, 0)
-                    // GetFinalPathNameByHandleW returns the size including null terminator
-                    // Allocate buffer with size + 1 to ensure we have space for null terminator
-                    let bufferSize = Int(dwSize) + 1
-                    var pathBuffer = [WCHAR](repeating: 0, count: bufferSize)
-                    let actualSize: DWORD = unsafe GetFinalPathNameByHandleW(handle, &pathBuffer, DWORD(bufferSize), 0)
-                    // actualSize should be <= bufferSize and includes null terminator
-                    assert(actualSize <= DWORD(bufferSize), "GetFinalPathNameByHandleW returned size \(actualSize) exceeding buffer size \(bufferSize)")
-                    // Ensure null terminator is present
-                    pathBuffer[Int(actualSize)] = 0
-                    let path: String = unsafe String(decodingCString: pathBuffer, as: UTF16.self)
-
-                    return unsafe Watch(directory: handle, path)
+                    return unsafe Watch(directory: handle, path.pathString)
                 }
             }
         }
@@ -261,7 +247,7 @@ private protocol _FileWatcher {
                         var dwBytesReturned: DWORD = 0
                         if unsafe !ReadDirectoryChangesW(
                             watch.hDirectory,
-                            &watch.buffer,
+                            watch.buffer.baseAddress,
                             DWORD(watch.buffer.count * MemoryLayout<DWORD>.stride),
                             true,
                             dwNotifyFilter,
@@ -279,10 +265,14 @@ private protocol _FileWatcher {
                         case DWORD(WAIT_TIMEOUT):  // Spurious Wakeup?
                             continue
                         case WAIT_FAILED, WAIT_OBJECT_0:  // Terminate Request
+                            unsafe CancelIoEx(watch.hDirectory, &watch.overlapped)
+                            unsafe GetOverlappedResult(watch.hDirectory, &watch.overlapped, &dwBytesReturned, true)
                             unsafe CloseHandle(watch.hDirectory)
                             unsafe watch.hDirectory = INVALID_HANDLE_VALUE
                             return
                         default:
+                            unsafe CancelIoEx(watch.hDirectory, &watch.overlapped)
+                            unsafe GetOverlappedResult(watch.hDirectory, &watch.overlapped, &dwBytesReturned, true)
                             unsafe CloseHandle(watch.hDirectory)
                             unsafe watch.hDirectory = INVALID_HANDLE_VALUE
                             return
@@ -298,23 +288,30 @@ private protocol _FileWatcher {
                         // There was a buffer underrun on the kernel side.  We may
                         // have lost events, please re-synchronize.
                         if dwBytesReturned == 0 {
-                            return
+                            queue.async { delegate?.pathsDidReceiveEvent([AbsolutePath(watch.path)]) }
+                            continue
                         }
 
                         var paths: [AbsolutePath] = []
-                        unsafe watch.buffer.withMemoryRebound(to: FILE_NOTIFY_INFORMATION.self) {
-                            let pNotify: UnsafeMutablePointer<FILE_NOTIFY_INFORMATION>? =
-                                $0.baseAddress
-                            while var pNotify = unsafe pNotify {
-                                // FIXME(compnerd) do we care what type of event was received?
-                                let file = unsafe String(utf16CodeUnits: &pNotify.pointee.FileName, count: Int(pNotify.pointee.FileNameLength) / MemoryLayout<WCHAR>.stride)
-                                if let path = try? AbsolutePath(validating: file) {
-                                    paths.append(path)
-                                }
-
-                                unsafe pNotify = (UnsafeMutableRawPointer(pNotify) + Int(pNotify.pointee.NextEntryOffset))
-                                    .assumingMemoryBound(to: FILE_NOTIFY_INFORMATION.self)
+                        let byteCount = min(Int(dwBytesReturned), watch.buffer.count * MemoryLayout<DWORD>.stride)
+                        guard let baseAddress = unsafe watch.buffer.baseAddress else { return }
+                        let bytes = unsafe UnsafeRawPointer(baseAddress)
+                        var offset = 0
+                        // FILE_NOTIFY_INFORMATION has three DWORDs followed by a variable UTF-16 name.
+                        // NextEntryOffset is a byte offset, and zero terminates the chain.
+                        while offset + 12 <= byteCount {
+                            let next = unsafe Int(bytes.load(fromByteOffset: offset, as: DWORD.self))
+                            let length = unsafe Int(bytes.load(fromByteOffset: offset + 8, as: DWORD.self))
+                            guard length % 2 == 0, length <= byteCount - offset - 12 else { break }
+                            let name = unsafe bytes.advanced(by: offset + 12).assumingMemoryBound(to: WCHAR.self)
+                            let file = unsafe String(utf16CodeUnits: name, count: length / 2)
+                            if let relative = try? RelativePath(validating: file) {
+                                paths.append(AbsolutePath(watch.path).appending(relative))
                             }
+                            guard next != 0 else { break }
+                            guard next % MemoryLayout<DWORD>.alignment == 0,
+                                  next >= 12 + length, next <= byteCount - offset else { break }
+                            offset += next
                         }
 
                         queue.async { [paths] in

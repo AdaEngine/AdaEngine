@@ -173,7 +173,7 @@ struct EditorGravityLanguageService: Sendable {
                 return (try? ProjectSystem.loadProject(at: directory).build.adaScriptTypeChecking) ?? .dynamic
             }
             let parent = directory.deletingLastPathComponent().standardizedFileURL
-            guard parent != directory else {
+            guard parent.pathComponents.count < directory.pathComponents.count else {
                 break
             }
             directory = parent

@@ -83,7 +83,9 @@ struct EditorModifierDialogTests {
         await refresh(container)
         try await open(container)
         let before = model.document
-        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifiers.Toggle"))
+        let background = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifiers.Toggle"))
+        let hit = container.uiHitTest(at: Point(background.absoluteFrame.midX, background.absoluteFrame.midY))
+        #expect(hit?.node.accessibilityIdentifier != background.accessibilityIdentifier)
         #expect(model.document == before)
         #expect(!container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.AddModifier.Dialog")).isEmpty)
     }
@@ -147,8 +149,8 @@ struct EditorModifierDialogTests {
     }
 
     private func refresh(_ container: UIView) async {
-        for _ in 0..<10 {
-            await Task.yield()
+        for _ in 0..<30 {
+            try? await Task.sleep(for: .milliseconds(10))
             container.update(1.0 / 60.0)
             container.layoutIfNeeded()
         }

@@ -24,7 +24,6 @@ struct EditorSceneHierarchySidebar: View {
 
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
-    @State private var hoveredEntityID: String?
     @State private var renamingEntityID: String?
     @State private var renameDraft = ""
     @State private var draggedEntityID: String?
@@ -204,7 +203,17 @@ struct EditorSceneHierarchySidebar: View {
         items: [EditorSceneHierarchyItem],
         sceneModel: EditorSceneModel
     ) -> some View {
-        let isHovered = hoveredEntityID == item.id
+        EditorHoverRow { isHovered in
+            hierarchyRowContent(item, items: items, sceneModel: sceneModel, isHovered: isHovered)
+        }
+    }
+
+    private func hierarchyRowContent(
+        _ item: EditorSceneHierarchyItem,
+        items: [EditorSceneHierarchyItem],
+        sceneModel: EditorSceneModel,
+        isHovered: Bool
+    ) -> some View {
         let isDropTarget = dropTargetEntityID == item.id
         return HStack(alignment: .center, spacing: 4) {
             Button(action: {
@@ -218,7 +227,6 @@ struct EditorSceneHierarchySidebar: View {
                     .frame(width: 16, height: 34)
             }
             .buttonStyle(DefaultButtonStyle())
-            .onHover { updateHover($0, entityID: item.id) }
 
             if renamingEntityID == item.id {
                 HStack(spacing: 8) {
@@ -240,7 +248,6 @@ struct EditorSceneHierarchySidebar: View {
                 }
                 .frame(height: 34)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .onHover { updateHover($0, entityID: item.id) }
             } else {
                 HStack(spacing: 0) {
                     if usesTouchSelection {
@@ -300,7 +307,6 @@ struct EditorSceneHierarchySidebar: View {
                 }
                 .frame(height: 34)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .onHover { updateHover($0, entityID: item.id) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -382,14 +388,6 @@ struct EditorSceneHierarchySidebar: View {
         onSelectEntity(item.id)
         renamingEntityID = item.id
         renameDraft = item.name
-    }
-
-    private func updateHover(_ isHovering: Bool, entityID: String) {
-        if isHovering {
-            hoveredEntityID = entityID
-        } else if hoveredEntityID == entityID {
-            hoveredEntityID = nil
-        }
     }
 
     private func commitRename() {

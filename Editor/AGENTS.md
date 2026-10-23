@@ -16,6 +16,10 @@ and assess gaps before proposing new features.
 - Shared editor UI uses AdaUI. Native app wrappers and mobile-specific screens
   have separate platform boundaries; do not assume desktop/mobile feature parity.
 - Windows Studio is built/launched with [../script/run_studio_windows.ps1](../script/run_studio_windows.ps1).
+  Windows distributions are always Standalone. The launcher builds Release and
+  stages the complete SDK, compilers, runtime DLLs and resources through the release
+  packager before opening it. Do not launch a bare SwiftPM executable or a partial
+  staging folder for user validation; Android and Web require the bundled SDK.
   It prepares pinned Tint and a task-local Gravity binding with C-owned UTF-8
   strings, selecting it through `ADAENGINE_GRAVITY_PACKAGE_PATH`. Manual Windows
   builds/tests must use that override too. Native project/asset file pickers,
@@ -188,6 +192,15 @@ and Move/Scale/Rotate tools. Scene edits have undo/redo.
 2D sprite picking shares the runtime hit test: CPU alpha masks, atlas regions,
 anchors, image modes and composed parent transforms before ECS propagation.
 Coverage: [EditorSpritePickingTests.swift](Tests/AdaEditorTests/EditorSpritePickingTests.swift).
+Selection reuses the parsed scene model and retains preview entities for editor-only
+state changes. Large terrain payloads use bulk YAML node construction; regression
+coverage: [EditorSceneSelectionRegressionTests.swift](Tests/AdaEditorTests/EditorSceneSelectionRegressionTests.swift).
+The hierarchy and project tree own hover state and drawing caches per mounted row.
+Pointer-motion and neighboring-row cache coverage:
+[EditorSidebarHoverTests.swift](Tests/AdaEditorTests/EditorSidebarHoverTests.swift).
+Window dispatch coalesces consecutive hover moves while preserving the raw scene
+event stream and gesture boundaries. Coverage:
+[EditorWindowHoverInputTests.swift](Tests/AdaEditorTests/EditorWindowHoverInputTests.swift).
 Viewport annotations are captured with each scheduled scene frame and published
 with its completed texture at the next UI tick. Their Canvas drawing revisions
 refresh synchronously without rebuilding the viewport; 3D rotation leaves hidden

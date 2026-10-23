@@ -1,5 +1,8 @@
 @_spi(Scripting) import AdaECS
 import AdaUtils
+#if canImport(Dispatch)
+import Dispatch
+#endif
 import Foundation
 import Gravity
 

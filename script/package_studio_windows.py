@@ -83,7 +83,7 @@ def smoke(directory):
                 raise RuntimeError(f"Packaged {command[0].name} failed ({result.returncode}): {result.stderr.decode(errors='replace')}")
 
 
-def package(binary_directory, compiler, tint, output, version, smoke_test=True):
+def package(binary_directory, compiler, tint, output, version, smoke_test=True, *, stage_only=False):
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,79}", version):
         raise ValueError("Version must be a filename-safe release tag (1–80 characters).")
     metadata = json.loads(run("swiftc", "-print-target-info"))
@@ -92,6 +92,9 @@ def package(binary_directory, compiler, tint, output, version, smoke_test=True):
     output.mkdir(parents=True, exist_ok=True)
     name = f"AdaStudio-{version}-windows-x86_64"
     archive = output / (name + ".zip")
+    installed = output / name
+    if stage_only and installed.exists():
+        raise FileExistsError(f"Standalone destination already exists: {installed}")
     with tempfile.TemporaryDirectory(prefix=".ada-release-", dir=output) as temporary:
         directory = Path(temporary) / name
         directory.mkdir()
@@ -153,7 +156,7 @@ def package(binary_directory, compiler, tint, output, version, smoke_test=True):
             (swift_notice / "LICENSE.txt").write_bytes(response.read())
         shutil.copy2(ROOT / "LICENSE", directory)
         shutil.copy2(ROOT / "Tools/Tint/toolchain.json", directory / "tint-toolchain.json")
-        (directory / "release.json").write_text(json.dumps({"version": version, "commit": run("git", "-C", ROOT, "rev-parse", "HEAD"),
+        (directory / "release.json").write_text(json.dumps({"version": version, "distribution": "standalone", "commit": run("git", "-C", ROOT, "rev-parse", "HEAD"),
                                                            "swift": metadata["compilerVersion"], "target": metadata["target"]["triple"]}, indent=2) + "\n")
         (directory / "README.txt").write_text(
             "Ada Studio for Windows x64\n\nExtract the entire ZIP, then open AdaEditor.exe.\n"
@@ -163,6 +166,12 @@ def package(binary_directory, compiler, tint, output, version, smoke_test=True):
             "Game export also needs Python/CMake; Web and Android use WSL and their SDKs.\n"
             "Node.js/uv and provider sign-in are required by agents using those distributions.\n"
             "Windows binaries are currently unsigned.\n", encoding="utf-8")
+        if stage_only:
+            if smoke_test:
+                smoke(directory)
+            shutil.move(str(directory), installed)
+            print(installed)
+            return installed
         staged_archive = Path(temporary) / archive.name
         with zipfile.ZipFile(staged_archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zipped:
             for file in sorted(directory.rglob("*")):
@@ -187,8 +196,9 @@ def main():
     parser.add_argument("--tint", required=True, type=Path)
     parser.add_argument("--output", type=Path, default=ROOT / "dist")
     parser.add_argument("--version", required=True)
+    parser.add_argument("--stage-only", action="store_true", help="Prepare and verify a complete standalone directory without creating a ZIP")
     args = parser.parse_args()
-    package(args.bin.resolve(), args.compiler_root.resolve(), args.tint.resolve(), args.output.resolve(), args.version)
+    package(args.bin.resolve(), args.compiler_root.resolve(), args.tint.resolve(), args.output.resolve(), args.version, stage_only=args.stage_only)
 
 
 if __name__ == "__main__":

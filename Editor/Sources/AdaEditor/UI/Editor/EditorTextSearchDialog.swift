@@ -269,7 +269,7 @@ struct EditorTextSearchPresentation: ViewModifier {
                 EditorTextSearchDialog(viewModel: viewModel)
             }
             .keyboardShortcuts([
-                KeyboardShortcutAction(.f, modifiers: [.command, .shift]) {
+                KeyboardShortcutAction(.f, modifiers: [.main, .shift]) {
                     viewModel.presentTextSearch()
                 }
             ])

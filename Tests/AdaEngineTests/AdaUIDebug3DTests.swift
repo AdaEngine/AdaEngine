@@ -3,6 +3,12 @@ import Testing
 
 @MainActor
 struct AdaUIDebug3DTests {
+    init() {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            RenderWorldPlugin().setup(in: AppWorlds(main: World()))
+        }
+    }
     @Test
     func projectionPreservesDepthAndScaledFrames() {
         let root = makeNode(

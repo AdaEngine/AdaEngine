@@ -147,7 +147,7 @@ struct EditorAgentExampleTests {
     private var skillsRoot: URL { Self.editorRoot.appendingPathComponent("Sources/AdaEditor/Assets/AgentSkills") }
 
     private func fencedBlocks(_ text: String) -> [String] {
-        text.components(separatedBy: "```").enumerated().filter { $0.offset % 2 == 1 }.map { block in
+        text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "```").enumerated().filter { $0.offset % 2 == 1 }.map { block in
             block.element.split(separator: "\n", omittingEmptySubsequences: false).dropFirst().joined(separator: "\n")
         }
     }

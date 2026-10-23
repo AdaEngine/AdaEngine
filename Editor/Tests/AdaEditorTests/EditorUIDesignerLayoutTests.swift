@@ -86,8 +86,8 @@ struct EditorUIDesignerLayoutTests {
         container.layoutIfNeeded()
         #expect(throws: (any Error).self) { try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifiers.Library")) }
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifiers.Toggle"))
-        for _ in 0..<10 {
-            await Task.yield()
+        for _ in 0..<30 {
+            try? await Task.sleep(for: .milliseconds(10))
             container.update(1.0 / 60.0)
             container.layoutIfNeeded()
         }
@@ -97,8 +97,8 @@ struct EditorUIDesignerLayoutTests {
         _ = try container.uiScrollToNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifier.Add.background"))
         container.layoutIfNeeded()
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifier.Add.background"))
-        for _ in 0..<10 {
-            await Task.yield()
+        for _ in 0..<30 {
+            try? await Task.sleep(for: .milliseconds(10))
             container.update(1.0 / 60.0)
             container.layoutIfNeeded()
         }

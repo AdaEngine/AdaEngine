@@ -99,6 +99,9 @@ final class EditorWindowsProcess: Sendable {
 
     /// CommandLineToArgvW/CRT quoting, including empty arguments and trailing slashes.
     private static func quote(_ argument: String) -> String {
+        // WSL parses its own command line and treats quoted options as Linux
+        // commands. Quote only arguments that need it, as the Windows CRT does.
+        if !argument.isEmpty, !argument.contains(where: { $0.isWhitespace || $0 == "\"" }) { return argument }
         var result = "\""
         var backslashes = 0
         for character in argument {
