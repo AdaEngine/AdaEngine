@@ -1,0 +1,285 @@
+{
+  "format": "ada.scene",
+  "schemaVersion": 1,
+  "engineVersion": "1.0.0",
+  "scene": {
+    "id": "pbr-smoke",
+    "name": "PBR Graph Smoke"
+  },
+  "entities": [
+    {
+      "id": "Quad",
+      "name": "Quad",
+      "enabled": true,
+      "components": {
+        "AdaTransform.Transform": {
+          "position": [-3.6, 0.8, 0],
+          "rotation": [0, 1, 0, 0],
+          "scale": [1, 1, 1]
+        },
+        "AdaScene.Mesh3DComponent": {
+          "mesh": "Quad",
+          "size": 1.3,
+          "color": {
+            "red": 1,
+            "green": 1,
+            "blue": 1,
+            "alpha": 1
+          },
+          "metallic": 0.2,
+          "roughness": 0.5,
+          "castShadows": true,
+          "receiveShadows": true,
+          "graphMaterial": {
+            "path": "@res://Effects/Surface.shadergraph",
+            "values": {
+              "tint": [1, 0.2, 0.2, 1]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Circle",
+      "name": "Circle",
+      "enabled": true,
+      "components": {
+        "AdaTransform.Transform": {
+          "position": [-1.8, 0.8, 0],
+          "rotation": [0, 1, 0, 0],
+          "scale": [1, 1, 1]
+        },
+        "AdaScene.Mesh3DComponent": {
+          "mesh": "Circle",
+          "size": 1.3,
+          "color": {
+            "red": 1,
+            "green": 1,
+            "blue": 1,
+            "alpha": 1
+          },
+          "metallic": 0.2,
+          "roughness": 0.5,
+          "castShadows": true,
+          "receiveShadows": true,
+          "graphMaterial": {
+            "path": "@res://Effects/Surface.shadergraph",
+            "values": {
+              "tint": [0.2, 1, 0.2, 1]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Cube",
+      "name": "Cube",
+      "enabled": true,
+      "components": {
+        "AdaTransform.Transform": {
+          "position": [0.0, 0.8, 0],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1, 1, 1]
+        },
+        "AdaScene.Mesh3DComponent": {
+          "mesh": "Cube",
+          "size": 1.3,
+          "color": {
+            "red": 1,
+            "green": 1,
+            "blue": 1,
+            "alpha": 1
+          },
+          "metallic": 0.2,
+          "roughness": 0.5,
+          "castShadows": true,
+          "receiveShadows": true,
+          "graphMaterial": {
+            "path": "@res://Effects/Surface.shadergraph",
+            "values": {
+              "tint": [0.2, 0.4, 1, 1]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Sphere",
+      "name": "Sphere",
+      "enabled": true,
+      "components": {
+        "AdaTransform.Transform": {
+          "position": [1.8, 0.8, 0],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1, 1, 1]
+        },
+        "AdaScene.Mesh3DComponent": {
+          "mesh": "Sphere",
+          "size": 1.3,
+          "color": {
+            "red": 1,
+            "green": 1,
+            "blue": 1,
+            "alpha": 1
+          },
+          "metallic": 0.2,
+          "roughness": 0.5,
+          "castShadows": true,
+          "receiveShadows": true,
+          "graphMaterial": {
+            "path": "@res://Effects/Surface.shadergraph",
+            "values": {
+              "tint": [1, 0.6, 0.1, 1]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Plane",
+      "name": "Plane",
+      "enabled": true,
+      "components": {
+        "AdaTransform.Transform": {
+          "position": [3.6, 0.8, 0],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1, 1, 1]
+        },
+        "AdaScene.Mesh3DComponent": {
+          "mesh": "Plane",
+          "size": 1.3,
+          "color": {
+            "red": 1,
+            "green": 1,
+            "blue": 1,
+            "alpha": 1
+          },
+          "metallic": 0.2,
+          "roughness": 0.5,
+          "castShadows": true,
+          "receiveShadows": true,
+          "graphMaterial": {
+            "path": "@res://Effects/Surface.shadergraph",
+            "values": {
+              "tint": [0.7, 0.2, 1, 1]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Ground",
+      "name": "Ground",
+      "enabled": true,
+      "components": {
+        "AdaTransform.Transform": {
+          "position": [0, -0.1, 0],
+          "rotation": [0, 0, 0, 1],
+          "scale": [14, 0.1, 14]
+        },
+        "AdaScene.Mesh3DComponent": {
+          "mesh": "Cube",
+          "size": 1,
+          "color": {
+            "red": 0.4,
+            "green": 0.4,
+            "blue": 0.4,
+            "alpha": 1
+          },
+          "metallic": 0,
+          "roughness": 0.8
+        }
+      }
+    },
+    {
+      "id": "Camera",
+      "name": "Camera",
+      "enabled": true,
+      "components": {
+        "AdaTransform.Transform": {
+          "position": [0, 3, -10],
+          "rotation": [0.11971220728891936, 0, 0, 0.9928086358538663],
+          "scale": [1, 1, 1]
+        },
+        "AdaRender.Camera": {
+          "projection": "perspective",
+          "isActive": true,
+          "renderOrder": 0,
+          "backgroundColor": {
+            "red": 0.05,
+            "green": 0.07,
+            "blue": 0.1,
+            "alpha": 1
+          }
+        },
+        "AdaCorePipelines.Environment3D": {}
+      }
+    },
+    {
+      "id": "Sun",
+      "name": "Sun",
+      "enabled": true,
+      "components": {
+        "AdaTransform.Transform": {
+          "position": [0, 4, -3],
+          "rotation": [0.2661003137748674, -0.4155384462484667, -0.1285411045311107, 0.8602299734049316],
+          "scale": [1, 1, 1]
+        },
+        "AdaScene.DirectionalLightComponent": {
+          "radiance": [1, 1, 1],
+          "intensity": 3,
+          "castShadows": true,
+          "shadowDistance": 30,
+          "shadowBias": 0.0008,
+          "shadowSlopeBias": 0.003
+        }
+      }
+    },
+    {
+      "id": "Imported 0",
+      "name": "Imported 0",
+      "enabled": true,
+      "components": {
+        "AdaTransform.Transform": {
+          "position": [-4, 0.7, 3],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1.5, 1.5, 1.5]
+        },
+        "AdaScene.Model3DSource": {
+          "source": "@res://Models/LayeredCrate.gltf",
+          "graphMaterials": {
+            "0": {
+              "path": "@res://Effects/Surface.shadergraph",
+              "values": {
+                "tint": [1, 0.3, 0.1, 1]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Imported 1",
+      "name": "Imported 1",
+      "enabled": true,
+      "components": {
+        "AdaTransform.Transform": {
+          "position": [4, 0.7, 3],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1.5, 1.5, 1.5]
+        },
+        "AdaScene.Model3DSource": {
+          "source": "@res://Models/LayeredCrate.gltf",
+          "graphMaterials": {
+            "0": {
+              "path": "@res://Effects/Surface.shadergraph",
+              "values": {
+                "tint": [0.1, 0.7, 1, 1]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
