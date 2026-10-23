@@ -23,11 +23,13 @@ for relative in [
     "Tests/AdaScriptingTests/ShaderGraphScriptTests.swift",
     "Tests/AdaEngineTests/PluginLoadingTests.swift",
     "Tests/AdaShaderGraphBakerTests/ShaderGraphBakerTests.swift",
+    "Tests/AdaShaderGraphBakerTests/WebExportSupportTests.swift",
 ]:
     source = root / relative
     shutil.copy2(source, tests / source.name)
 shutil.copytree(root / "Tests/AdaScriptAOTFixture", destination / "Tests/AdaScriptAOTFixture", dirs_exist_ok=True)
 shutil.copytree(root / "Plugins/AdaShaderGraphBaker", destination / "Sources/AdaShaderGraphBaker", dirs_exist_ok=True)
+shutil.copy2(root / "Plugins/AdaWebExportPlugin/WebExportSupport.swift", destination / "Sources/AdaShaderGraphBaker/WebExportSupport.swift")
 modules = ["AdaApp", "AdaCorePipelines", "AdaECS", "AdaRender", "AdaScene", "AdaScriptCompilerCore", "AdaScripting", "AdaSprite", "AdaUtils", "AdaTransform", "Math"]
 dependencies = ",\n".join('.product(name: ' + json.dumps(name) + ', package: "AdaEngine")' for name in modules)
 excluded = sorted(file.name for file in (root / "Tests/AdaScriptAOTFixture").glob("*.ada"))

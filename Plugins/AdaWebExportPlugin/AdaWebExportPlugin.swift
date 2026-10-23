@@ -305,7 +305,7 @@ struct AdaWebExportPlugin: CommandPlugin {
         var graphBaker: URL?
         for bundle in resourceBundles {
             let roots = try regularFiles(in: bundle.destination)
-                .filter { $0.pathExtension == "shadergraph" || $0.pathExtension == "ascn" }
+                .filter { try WebExportSupport.needsShaderGraphBaker($0) }
                 .compactMap { file -> URL? in
                     guard let range = file.path.range(of: "/GameAssets/") else { return nil }
                     return URL(fileURLWithPath: String(file.path[..<range.upperBound]))
@@ -314,7 +314,7 @@ struct AdaWebExportPlugin: CommandPlugin {
                 let tint = try tintExecutable(packageDirectory: packageDirectory)
                 let baker = try graphBaker ?? buildGraphBaker(packageDirectory: packageDirectory, scratch: options.scratchDirectory)
                 graphBaker = baker
-                _ = try captureStandardOutput(executable: baker.path, arguments: [root.path, tint.path], workingDirectory: packageDirectory)
+                _ = try WebExportSupport.captureStandardOutput(executable: baker.path, arguments: [root.path, tint.path], workingDirectory: packageDirectory)
                 let archive = root.appendingPathComponent("shaders.shadergraphlib")
                 if fileManager.fileExists(atPath: archive.path) {
                     let relative = archive.relativePath(from: bundle.destination)
@@ -540,7 +540,7 @@ struct AdaWebExportPlugin: CommandPlugin {
             arguments.append(contentsOf: moduleIncludeArguments)
 
             do {
-                let generatedOutput = try captureStandardOutput(
+                let generatedOutput = try WebExportSupport.captureStandardOutput(
                     executable: shaderTranspiler.path(),
                     arguments: arguments,
                     workingDirectory: packageDirectory
@@ -1097,37 +1097,6 @@ struct AdaWebExportPlugin: CommandPlugin {
         let output = String(decoding: data, as: UTF8.self)
         guard process.terminationStatus == 0 else {
             throw ExportError.commandFailed(arguments.joined(separator: " "), process.terminationStatus)
-        }
-        return output
-    }
-
-    private func captureStandardOutput(executable: String, arguments: [String], workingDirectory: URL?) throws -> String {
-        let process = Process()
-        let standardOutput = Pipe()
-        let standardError = Pipe()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-        process.currentDirectoryURL = workingDirectory
-        process.standardOutput = standardOutput
-        process.standardError = standardError
-        process.environment = ProcessInfo.processInfo.environment.merging([
-            "ADAENGINE_WEB_EXPORT": "1",
-            "BUILD_WASM": "1"
-        ]) { _, new in new }
-        try process.run()
-        process.waitUntilExit()
-
-        let data = standardOutput.fileHandleForReading.readDataToEndOfFile()
-        let output = String(decoding: data, as: UTF8.self)
-        guard process.terminationStatus == 0 else {
-            let errorData = standardError.fileHandleForReading.readDataToEndOfFile()
-            let errorOutput = String(decoding: errorData, as: UTF8.self)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let command = ([executable] + arguments).joined(separator: " ")
-            throw ExportError.commandFailed(
-                errorOutput.isEmpty ? command : "\(command)\n\(errorOutput)",
-                process.terminationStatus
-            )
         }
         return output
     }
