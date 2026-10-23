@@ -49,9 +49,8 @@
                 } else if let object = value.object,
                     let constructor = JSObject.global.Uint8Array.function {
                     let array = JSUint8Array(unsafelyWrapping: constructor.new(object))
-                    if let data = Data.construct(from: array) {
-                        Task { await self?.receiveData(data) }
-                    }
+                    let data = Data.construct(from: array)
+                    Task { await self?.receiveData(data) }
                 }
                 return .undefined
             }

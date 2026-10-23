@@ -32,6 +32,7 @@
 
     public final class WGPUContext: @unchecked Sendable {
         public let device: WebGPU.GPUDevice
+        let spatialScaler = WGPUFSRSpatialScaler()
         public let adapter: WebGPU.GPUAdapter
         let instance: WebGPU.GPUInstance
 

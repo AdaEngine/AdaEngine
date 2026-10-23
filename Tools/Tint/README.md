@@ -29,11 +29,20 @@ checks. Missing Tint or a backend fallback fails the check. It stages the curren
 focused test sources in a temporary package so unrelated facade/editor targets do
 not block rendering validation. It does not claim a full root test run.
 
-Use Swift 6.3.2 with compatible Swan/Dawn. Local Swan development may use
-`ADAENGINE_SWAN_PACKAGE_PATH` and `SWAN_LOCAL_DAWN`; use a Swan revision compatible
-with the engine's SwiftSyntax constraint. `ADAENGINE_WEBGPU_SCRATCH` selects the
-isolated build cache. The current GPU proof used Swan checkout metadata
-`1eb45a22c79439b50e9cde774454450e50147149` and Dawn 147.
+Use Swift 6.3.2. The package pins
+[`AdaEngine/swan`](https://github.com/AdaEngine/swan) at
+`790df787281e9cf1c2358a11bb42b2ec2df01029` (Dawn 148), JavaScriptKit `0.59.0`,
+and SwiftSyntax `603.0.2` for WebGPU builds. AdaEngine and its bundled Gravity
+manifest also accept SwiftSyntax 602 for consumers with older macro dependencies.
+Swan's checked-in BridgeJS was generated with JavaScriptKit 0.59; update the bridge and JavaScriptKit together, since its
+private ABI is not compatible with arbitrary later 0.x versions.
+
+The normal build and WASM export use the remote dependency; no local Swan checkout
+is needed. `ADAENGINE_SWAN_PACKAGE_PATH` and `SWAN_LOCAL_DAWN` remain optional
+native development overrides. `ADAENGINE_WEBGPU_SCRATCH` selects the isolated
+GPU validation build cache. For direct WASM builds set both
+`ADAENGINE_WEB_EXPORT=1` and `BUILD_WASM=1`; the `export-web` command plugin sets
+both for its nested build automatically.
 
 Browser/mobile runtime checks use the separate
 [SpriteInstancingValidation](../../Demos/SpriteInstancingValidation/README.md) app.
