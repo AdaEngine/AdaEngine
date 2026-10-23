@@ -129,7 +129,8 @@ struct EditorModelPreviewViewport: View {
     @Environment(\.theme) private var theme
 
     static func configure(_ app: AppWorlds, model: EditorModelAssetPreviewModel, camera: EditorModelPreviewCamera) {
-        app.addPlugin(TransformPlugin())
+        app.addPlugin(EventsPlugin())
+            .addPlugin(TransformPlugin())
             .addPlugin(InputPlugin(actions: []))
             .addPlugin(RenderWorldPlugin())
             .addPlugin(CameraPlugin())

@@ -41,4 +41,6 @@ jobs:
           run: |
             swift build -j 2 --product AdaEnginePackageTests
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            swift build -j 2 --product TextureAtlasBuilderTool
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             swift test --skip-build --parallel --num-workers 2

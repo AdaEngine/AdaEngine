@@ -41,7 +41,8 @@ let package = Package(name: "ShaderGraphScriptingValidation", platforms: [.macOS
     .package(name: "AdaEngine", path: ''' + json.dumps(str(root)) + '''),
     .package(name: "gravity-lang", path: ''' + json.dumps(str(root / "Sources/gravity-lang")) + ''')
 ], targets: [
-    .executableTarget(name: "FailingShaderCompiler", path: "Fixtures/FailingShaderCompiler"),
+    .executableTarget(name: "FailingShaderCompiler", path: "Fixtures/FailingShaderCompiler",
+        linkerSettings: [.linkedLibrary("swiftCore", .when(platforms: [.windows]))]),
     .executableTarget(name: "AdaShaderGraphBaker", dependencies: [
         .product(name: "AdaRender", package: "AdaEngine"), .product(name: "AdaCorePipelines", package: "AdaEngine"),
         .product(name: "AdaScene", package: "AdaEngine"), .product(name: "AdaSprite", package: "AdaEngine")]),

@@ -61,6 +61,19 @@ struct EditorShaderGraphExportTests {
                 #expect(models.count == 2)
                 #expect(models.allSatisfy { $0.source.hasPrefix("@res://") && $0.graphMaterials["0"]?.path == "@res://Effects/Surface.shadergraph" })
                 #expect(models.first?.graphMaterials["0"]?.values != models.last?.graphMaterials["0"]?.values)
+                for source in models {
+                    let model = try #require(try await AssetsManager.load(ModelAsset3D.self, at: source.source).asset)
+                    #expect(model.meshes.count == 3)
+                    let material = try #require(model.materials.first as? PBRMaterial)
+                    #expect(material.baseColorTexture != nil && material.normalTexture != nil)
+                    let world = World(name: "Portable imported graph material")
+                    let root = try source.instantiate(model, in: world, under: world.spawn("Imported model"))
+                    #expect(!root.children.isEmpty)
+                    let mesh = try #require(root.children.first?.components[Mesh3DComponent.self])
+                    let override = try #require(mesh.materials.first as? PBRMaterial)
+                    #expect(override.graphMaterial?.value(for: "tint") == source.graphMaterials["0"]?.values["tint"])
+                    #expect(override.baseColorTexture === material.baseColorTexture)
+                }
             }
         }
     }

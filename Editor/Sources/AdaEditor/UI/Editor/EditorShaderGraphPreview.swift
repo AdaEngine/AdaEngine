@@ -109,7 +109,7 @@ struct EditorShaderGraphViewport: View {
     }
 
     static func configure(_ app: AppWorlds, model: EditorShaderGraphPreview, camera: EditorModelPreviewCamera) {
-        app.addPlugin(TransformPlugin()).addPlugin(InputPlugin(actions: [])).addPlugin(RenderWorldPlugin()).addPlugin(CameraPlugin()).addPlugin(AssetsPlugin(filePath: #filePath)).addPlugin(
+        app.addPlugin(EventsPlugin()).addPlugin(TransformPlugin()).addPlugin(InputPlugin(actions: [])).addPlugin(RenderWorldPlugin()).addPlugin(CameraPlugin()).addPlugin(AssetsPlugin(filePath: #filePath)).addPlugin(
             VisibilityPlugin()
         ).addPlugin(UpscalePlugin())
         if model.material?.program.target == .sprite {

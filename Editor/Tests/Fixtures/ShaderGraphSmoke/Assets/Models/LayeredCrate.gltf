@@ -35,14 +35,14 @@
         "scale": 0.6000000238418579
       },
       "occlusionTexture": {
-        "index": 1
+        "index": 0
       },
       "pbrMetallicRoughness": {
         "baseColorTexture": {
-          "index": 2
+          "index": 0
         },
         "metallicRoughnessTexture": {
-          "index": 1
+          "index": 0
         }
       },
       "extensions": {
