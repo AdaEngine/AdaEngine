@@ -30,6 +30,8 @@ for relative in [
 shutil.copytree(root / "Tests/AdaScriptAOTFixture", destination / "Tests/AdaScriptAOTFixture", dirs_exist_ok=True)
 shutil.copytree(root / "Plugins/AdaShaderGraphBaker", destination / "Sources/AdaShaderGraphBaker", dirs_exist_ok=True)
 shutil.copy2(root / "Plugins/AdaWebExportPlugin/WebExportSupport.swift", destination / "Sources/AdaShaderGraphBaker/WebExportSupport.swift")
+shutil.copytree(root / "Tests/AdaShaderGraphBakerTests/Fixtures/FailingShaderCompiler",
+                destination / "Fixtures/FailingShaderCompiler", dirs_exist_ok=True)
 modules = ["AdaApp", "AdaCorePipelines", "AdaECS", "AdaRender", "AdaScene", "AdaScriptCompilerCore", "AdaScripting", "AdaSprite", "AdaUtils", "AdaTransform", "Math"]
 dependencies = ",\n".join('.product(name: ' + json.dumps(name) + ', package: "AdaEngine")' for name in modules)
 excluded = sorted(file.name for file in (root / "Tests/AdaScriptAOTFixture").glob("*.ada"))
@@ -39,6 +41,7 @@ let package = Package(name: "ShaderGraphScriptingValidation", platforms: [.macOS
     .package(name: "AdaEngine", path: ''' + json.dumps(str(root)) + '''),
     .package(name: "gravity-lang", path: ''' + json.dumps(str(root / "Sources/gravity-lang")) + ''')
 ], targets: [
+    .executableTarget(name: "FailingShaderCompiler", path: "Fixtures/FailingShaderCompiler"),
     .executableTarget(name: "AdaShaderGraphBaker", dependencies: [
         .product(name: "AdaRender", package: "AdaEngine"), .product(name: "AdaCorePipelines", package: "AdaEngine"),
         .product(name: "AdaScene", package: "AdaEngine"), .product(name: "AdaSprite", package: "AdaEngine")]),
