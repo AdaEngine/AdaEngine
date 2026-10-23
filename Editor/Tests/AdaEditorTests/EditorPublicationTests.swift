@@ -16,8 +16,13 @@ struct EditorPublicationTests {
         try archive.write(to: zip)
         let extracted = root.appendingPathComponent("extracted")
         let process = Process()
+        #if os(Windows)
+        process.executableURL = URL(fileURLWithPath: EditorHostTools.executable("python"))
+        process.arguments = ["-c", "import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); assert z.testzip() is None; z.extractall(sys.argv[2])", zip.path, extracted.path]
+        #else
         process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
         process.arguments = ["-q", zip.path, "-d", extracted.path]
+        #endif
         try process.run(); process.waitUntilExit()
         #expect(process.terminationStatus == 0)
         let project = try ProjectSystem.loadProject(at: extracted)

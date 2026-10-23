@@ -23,7 +23,11 @@ struct GitReviewTests {
         try repo.write("working\n", to: "file.swift")
         try FileManager.default.removeItem(at: repo.url.appendingPathComponent("deleted.txt"))
         try await repo.git(["mv", "old name.txt", "новое → имя.txt"])
+        #if os(Windows)
+        let unusual = "unicode файл with spaces.txt"
+        #else
         let unusual = "tab\tline\n\"юникод.txt"
+        #endif
         try repo.write("new\n", to: unusual)
         try Data([0, 255, 0, 12]).write(to: repo.url.appendingPathComponent("binary.bin"))
         try FileManager.default.createDirectory(at: repo.url.appendingPathComponent("nested"), withIntermediateDirectories: true)
@@ -31,7 +35,7 @@ struct GitReviewTests {
         let service = GitRepositoryService()
         let result = await service.snapshot(projectURL: repo.url.appendingPathComponent("nested"))
         #expect(result.succeeded)
-        #expect(result.snapshot.rootURL?.resolvingSymlinksInPath() == repo.url.resolvingSymlinksInPath())
+        #expect(result.snapshot.rootURL?.resolvingSymlinksInPath().path == repo.url.resolvingSymlinksInPath().path)
         #expect(result.snapshot.files.contains { $0.path == unusual })
         let staged = try #require(result.snapshot.diffFiles.first { $0.path == "file.swift" && $0.comparison == .staged })
         let working = try #require(result.snapshot.diffFiles.first { $0.path == "file.swift" && $0.comparison == .workingTree })
@@ -103,7 +107,7 @@ struct GitReviewTests {
         let result = await service.snapshot(projectURL: worktree)
         #expect(result.succeeded)
         #expect(result.snapshot.isDetached)
-        #expect(result.snapshot.rootURL?.resolvingSymlinksInPath() == worktree.resolvingSymlinksInPath())
+        #expect(result.snapshot.rootURL?.resolvingSymlinksInPath().path == worktree.resolvingSymlinksInPath().path)
     }
 
     @Test("Stage and unstage operate from repository root, including unborn HEAD")
@@ -301,13 +305,25 @@ private struct GitReviewFixture {
     func commit(_ message: String) async throws { try await git(["commit", "--allow-empty", "-m", message]) }
     @discardableResult
     func git(_ arguments: [String]) async throws -> String {
+        #if os(Windows)
+        let executable = EditorHostTools.executable("git")
+        let prefix: [String] = []
+        let nullPath = "NUL"
+        #else
+        let executable = "/usr/bin/env"
+        let prefix = ["git"]
+        let nullPath = "/dev/null"
+        #endif
         let result = await EditorProcessRunner()
             .run(
                 EditorProcessCommand(
-                    executablePath: "/usr/bin/env",
-                    arguments: ["git", "-c", "user.name=Git Test", "-c", "user.email=git-test@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"] + arguments,
+                    executablePath: executable,
+                    arguments: prefix + [
+                        "-c", "user.name=Git Test", "-c", "user.email=git-test@example.invalid",
+                        "-c", "commit.gpgsign=false", "-c", "core.hooksPath=\(nullPath)",
+                    ] + arguments,
                     workingDirectory: url,
-                    environment: ["GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null"]
+                    environment: ["GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": nullPath]
                 )
             )
         guard result.succeeded else {

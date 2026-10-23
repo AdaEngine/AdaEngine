@@ -82,7 +82,8 @@ extension CanvasMaterial {
         descriptor.debugName = "Canvas Mesh Material \(String(describing: self))"
         descriptor.fragment = fragment
         descriptor.vertexDescriptor = vertexDescriptor
-        descriptor.backfaceCulling = true
+        // Canvas geometry must remain visible when a 2D transform mirrors its winding.
+        descriptor.backfaceCulling = false
         descriptor.colorAttachments = [
             RenderPipelineColorAttachmentDescriptor(
                 format: .bgra8,

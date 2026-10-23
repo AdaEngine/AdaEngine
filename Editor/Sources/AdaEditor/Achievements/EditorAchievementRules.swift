@@ -52,7 +52,7 @@ enum EditorAchievementRules {
             where Set(clip.tracks.filter(hasMotion).map(\.property)).count >= 3 {
             result[.choreography] = 1
         }
-        let depth = nestedDepth(scene, source: source, root: resourceRoot, visited: [source.standardizedFileURL.path], remaining: 2)
+        let depth = nestedDepth(scene, source: source, root: resourceRoot, visited: [source.resolvingSymlinksInPath().standardizedFileURL.path], remaining: 2)
         if depth >= 1 {
             result[.sceneInstance] = 1
         }

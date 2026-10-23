@@ -10,6 +10,12 @@ import Testing
 
 @Suite("Editor inspector")
 struct EditorInspectorTests {
+    @MainActor init() {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            RenderWorldPlugin().setup(in: AppWorlds(main: World()))
+        }
+    }
     #if canImport(AppKit) && os(macOS)
         @Test("platform color picker presents a real NSColorPanel")
         @MainActor

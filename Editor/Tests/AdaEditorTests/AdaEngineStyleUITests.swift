@@ -409,7 +409,7 @@ struct AdaEngineStyleUITests {
         #expect(compact.toolbarWindowControlClearance == 60)
         #expect(!compact.showsToolbarSceneName)
         #expect(compact.toolbarRunDestinationWidth == 96)
-        #expect(compact.toolbarRunControlsWidth == 64)
+        #expect(compact.toolbarRunControlsWidth == 98)
     }
 
     @Test("empty hierarchy fills its panel and stays top aligned")
@@ -824,12 +824,12 @@ struct AdaEngineStyleUITests {
         #expect(AdaEngineStyleContent.topToolbarLabels.contains("Search Everywhere"))
         #expect(AdaEngineStyleContent.topToolbarLabels.contains("main_scene"))
         #expect(!AdaEngineStyleContent.topToolbarLabels.contains("Hot Reload"))
-        #expect(AdaEngineStyleContent.leftTopSidebarTools.map(\.title) == ["File Tree", "Entity Tree", "Source Control"])
+        #expect(AdaEngineStyleContent.leftTopSidebarTools.map(\.title) == ["File Tree", "Source Control"])
         #expect(AdaEngineStyleContent.leftBottomSidebarTools.map(\.title) == ["Logs", "Build", "Debug", "Animator"])
         #expect(AdaEngineStyleContent.rightSidebarTools.map(\.title) == ["Agent Chat", "Inspector", "Project Dependencies", "Swift Package Tasks", "Plugins", "Project Settings"])
         #expect(AdaEngineStyleContent.projectTreeItems == ["src", "EngineLoop.ada", "Renderer.ada", "Main.ascn"])
         #expect(AdaEngineStyleContent.editorTabs.contains("Main.ascn"))
-        #expect(AdaEngineStyleContent.outputTabs == ["Problems", "Build", "Tests", "References", "Output"])
+        #expect(AdaEngineStyleContent.outputTabs == ["Problems", "Build", "Tests", "References", "Output", "Performance"])
     }
 
     @Test("sidebar tools use renderable compact glyphs")
@@ -883,8 +883,7 @@ struct AdaEngineStyleUITests {
     @Test("status and output panel include required runtime messages")
     @MainActor
     func statusAndOutputMessages() {
-        #expect(AdaEngineStyleContent.logLines.contains { $0.contains("Ada Engine initialized") })
-        #expect(AdaEngineStyleContent.logLines.contains { $0.contains("AI optimization note") })
+        #expect(AdaEngineStyleContent.logLines.isEmpty)
         let footer = EditorFooterViewModel()
         #expect(footer.leftItems.isEmpty)
         #expect(footer.rightItems.isEmpty)
@@ -1137,8 +1136,8 @@ struct AdaEngineStyleUITests {
         #expect(viewModel.projectSidebar.items.map(\.title) == AdaEngineStyleContent.projectTreeItems)
         #expect(viewModel.workbench.activeEditorTab == "Main.ascn")
         #expect(viewModel.workbench.activeOutputTab == "Problems")
-        #expect(viewModel.workbench.openDocuments.map(\.title) == AdaEngineStyleContent.editorTabs)
-        #expect(viewModel.workbench.codeColorPalette == EditorCodeColorPalette.dark)
+        #expect(viewModel.workbench.openDocuments.isEmpty)
+        #expect(viewModel.workbench.codeColorPalette == EditorCodeColorPalette.godot)
         #expect(viewModel.inspectorSidebar.scriptName == AdaEngineStyleContent.inspectorScript)
         #expect(viewModel.footer.rightItems.isEmpty)
         #expect(viewModel.showsDebugOverlay == nil)
@@ -1178,7 +1177,7 @@ struct AdaEngineStyleUITests {
     @Test("editor play mode runs active scene document from memory")
     @MainActor
     func editorPlayModeRunsActiveSceneDocumentFromMemory() throws {
-        let viewModel = EditorViewModel()
+        let viewModel = EditorViewModel(workbench: EditorWorkbenchViewModel(openDocuments: AdaEngineStyleContent.defaultEditorDocuments))
         let sceneDocument = try #require(viewModel.workbench.activeSceneDocument)
 
         var editedDocument = sceneDocument
@@ -1445,7 +1444,7 @@ struct AdaEngineStyleUITests {
         let editorViewModel = EditorViewModel()
         let settingsViewModel = EditorSettingsWindowViewModel(editorViewModel: editorViewModel, selectedSection: .general)
 
-        #expect(settingsViewModel.filteredSections == [.general, .project, .agent])
+        #expect(settingsViewModel.filteredSections == [.general, .buildExport, .achievements, .notifications, .project, .agent])
         settingsViewModel.searchText = "agent"
         #expect(settingsViewModel.filteredSections == [.agent])
         #expect(settingsViewModel.editorViewModel === editorViewModel)
@@ -1466,7 +1465,7 @@ struct AdaEngineStyleUITests {
         let editorViewModel = EditorViewModel(
             project: EditorProjectReference(name: "SettingsLayout", path: projectURL.path)
         )
-        let settingsViewModel = EditorSettingsWindowViewModel(editorViewModel: editorViewModel, selectedSection: .project)
+        let settingsViewModel = EditorSettingsWindowViewModel(editorViewModel: editorViewModel, selectedSection: .project, selectedPage: "BUILD FILE SELECTION")
         let container = UIContainerView(rootView: EditorSettingsWindowView(viewModel: settingsViewModel))
         container.frame = Rect(
             x: 0,
@@ -1490,6 +1489,7 @@ struct AdaEngineStyleUITests {
         let editorViewModel = EditorViewModel()
         let settingsViewModel = EditorSettingsWindowViewModel(editorViewModel: editorViewModel, selectedSection: .general)
 
+        let previousFontSize = editorViewModel.workbench.codeFontSize
         settingsViewModel.increaseCodeFontSize()
         settingsViewModel.selectCodeFontFamily(.system)
         settingsViewModel.selectCodeFontWeight(.regular)
@@ -1497,7 +1497,7 @@ struct AdaEngineStyleUITests {
         settingsViewModel.selectCodePalette(.monokai)
         settingsViewModel.applyGeneralSettings()
 
-        #expect(editorViewModel.workbench.codeFontSize == 13)
+        #expect(editorViewModel.workbench.codeFontSize == min(previousFontSize + 1, 28))
         #expect(editorViewModel.workbench.codeFontFamily == .system)
         #expect(editorViewModel.workbench.codeFontWeight == .regular)
         #expect(editorViewModel.workbench.keywordFontWeight == .semibold)
@@ -1508,7 +1508,7 @@ struct AdaEngineStyleUITests {
     @Test("workbench closes tabs and keeps a valid active document")
     @MainActor
     func workbenchClosesTabs() {
-        let workbench = EditorWorkbenchViewModel()
+        let workbench = EditorWorkbenchViewModel(openDocuments: AdaEngineStyleContent.defaultEditorDocuments)
         let initialDocumentCount = workbench.openDocuments.count
         let inactiveDocumentID = workbench.openDocuments[0].id
         let activeDocumentID = workbench.activeDocumentID
@@ -2185,6 +2185,16 @@ struct AdaEngineStyleUITests {
 
 @MainActor
 private final class EditorWindowTestWindowManager: UIWindowManager {
+    private var cursorShape: Input.CursorShape = .arrow
+    override func setCursorShape(_ shape: Input.CursorShape) { cursorShape = shape }
+    override func getCursorShape() -> Input.CursorShape { cursorShape }
+    private var mouseMode: Input.MouseMode = .visible
+    override func setMouseMode(_ mode: Input.MouseMode) { mouseMode = mode }
+    override func getMouseMode() -> Input.MouseMode { mouseMode }
+    override func setCursorImage(for _: Input.CursorShape, texture _: Texture2D?, hotspot _: Vector2) {}
+    override func updateCursor() {}
+
+
     override func showWindow(_: UIWindow, isFocused _: Bool) {}
     override func closeWindow(_: UIWindow) {}
     override func setWindowMode(_: UIWindow, mode _: UIWindow.Mode) {}

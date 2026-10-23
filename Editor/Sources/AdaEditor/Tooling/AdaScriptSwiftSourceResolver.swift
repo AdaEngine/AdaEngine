@@ -9,6 +9,7 @@ enum AdaScriptSwiftSourceResolver {
         var line: Int
         var column: Int
         var name: String
+        var indentation: Int = 0
     }
 
     private struct Reference {
@@ -32,14 +33,14 @@ enum AdaScriptSwiftSourceResolver {
               let source = try? String(contentsOf: declaration.fileURL, encoding: .utf8) else {
             return nil
         }
-        let sourceLines = source.components(separatedBy: .newlines)
+        let sourceLines = normalizedLines(source)
         let selected: Declaration
         if reference.receiver != nil {
             var member = memberDeclaration(named: reference.name, in: sourceLines, after: declaration)
             if member == nil {
                 for bridge in bridges(wrapping: declaration.name) {
                     guard let bridgeSource = try? String(contentsOf: bridge.fileURL, encoding: .utf8) else { continue }
-                    member = memberDeclaration(named: reference.name, in: bridgeSource.components(separatedBy: .newlines), after: bridge)
+                    member = memberDeclaration(named: reference.name, in: normalizedLines(bridgeSource), after: bridge)
                     if member != nil { break }
                 }
             }
@@ -52,7 +53,7 @@ enum AdaScriptSwiftSourceResolver {
         }
         let selectedLines = selected.fileURL == declaration.fileURL
             ? sourceLines
-            : (try? String(contentsOf: selected.fileURL, encoding: .utf8))?.components(separatedBy: .newlines) ?? sourceLines
+            : (try? String(contentsOf: selected.fileURL, encoding: .utf8)).map(normalizedLines) ?? sourceLines
         let range = EditorSourceRange(
             start: EditorSourceLocation(line: selected.line, character: selected.column),
             end: EditorSourceLocation(line: selected.line, character: selected.column + selected.name.count)
@@ -72,7 +73,7 @@ enum AdaScriptSwiftSourceResolver {
               let source = try? String(contentsOfFile: target.filePath, encoding: .utf8) else {
             return nil
         }
-        let lines = source.components(separatedBy: .newlines)
+        let lines = normalizedLines(source)
         guard lines.indices.contains(target.selectionRange.start.line) else {
             return nil
         }
@@ -101,7 +102,7 @@ enum AdaScriptSwiftSourceResolver {
     }
 
     private static func reference(in text: String, at position: EditorSourceLocation) -> Reference? {
-        let lines = text.components(separatedBy: .newlines)
+        let lines = normalizedLines(text)
         guard lines.indices.contains(position.line) else { return nil }
         let characters = Array(lines[position.line])
         guard characters.indices.contains(position.character) else { return nil }
@@ -126,6 +127,10 @@ enum AdaScriptSwiftSourceResolver {
         return Reference(name: name, range: range, receiver: receiver)
     }
 
+    private static func normalizedLines(_ source: String) -> [String] {
+        source.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
+    }
+
     private static func isIdentifierCharacter(_ character: Character) -> Bool {
         character.isLetter || character.isNumber || character == "_"
     }
@@ -139,7 +144,7 @@ enum AdaScriptSwiftSourceResolver {
         var index = SourceIndex()
         for case let fileURL as URL in enumerator where fileURL.pathExtension == "swift" {
             guard let source = try? String(contentsOf: fileURL, encoding: .utf8) else { continue }
-            let lines = source.components(separatedBy: .newlines)
+            let lines = normalizedLines(source)
             for (lineNumber, line) in lines.enumerated() {
                 let code = line.components(separatedBy: "//").first ?? ""
                 let words = code.split(whereSeparator: { !$0.isLetter && !$0.isNumber && $0 != "_" }).map(String.init)
@@ -148,7 +153,7 @@ enum AdaScriptSwiftSourceResolver {
                 let name = words[keywordIndex + 1]
                 guard let nameRange = code.range(of: name, options: .backwards) else { continue }
                 let column = code.distance(from: code.startIndex, to: nameRange.lowerBound)
-                let declaration = Declaration(fileURL: fileURL, line: lineNumber, column: column, name: name)
+                let declaration = Declaration(fileURL: fileURL, line: lineNumber, column: column, name: name, indentation: code.prefix(while: \.isWhitespace).count)
                 index.types[name, default: []].append(declaration)
                 if let exportName = exportedName(before: lineNumber, in: lines) {
                     index.exportedTypes[exportName] = declaration
@@ -159,13 +164,16 @@ enum AdaScriptSwiftSourceResolver {
                 }
             }
         }
-        index.types = index.types.mapValues { $0.sorted { $0.fileURL.path < $1.fileURL.path } }
+        index.types = index.types.mapValues { $0.sorted {
+            if $0.indentation != $1.indentation { return $0.indentation < $1.indentation }
+            return $0.fileURL.path < $1.fileURL.path
+        } }
         return index
     }
 
     private static func exportedName(before line: Int, in lines: [String]) -> String? {
         guard line > 0 else { return nil }
-        let attribute = lines[line - 1].trimmingCharacters(in: .whitespaces)
+        guard let attribute = lines[..<line].last(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty })?.trimmingCharacters(in: .whitespaces) else { return nil }
         guard attribute.hasPrefix("@GSExportable(\"") else { return nil }
         let value = attribute.dropFirst("@GSExportable(\"".count)
         guard let end = value.firstIndex(of: "\"") else { return nil }
@@ -175,7 +183,7 @@ enum AdaScriptSwiftSourceResolver {
     private static func bridges(wrapping typeName: String) -> [Declaration] {
         sourceIndex.bridges.filter { bridge in
             guard let source = try? String(contentsOf: bridge.fileURL, encoding: .utf8) else { return false }
-            let lines = source.components(separatedBy: .newlines)
+            let lines = normalizedLines(source)
             guard lines.indices.contains(bridge.line) else { return false }
             let end = lines[(bridge.line + 1)...].firstIndex(of: "}") ?? lines.endIndex
             let body = lines[bridge.line..<end].joined(separator: "\n")
@@ -196,7 +204,7 @@ enum AdaScriptSwiftSourceResolver {
         for case let fileURL as URL in files where fileURL.pathExtension == "swift" && fileURL != type.fileURL {
             guard let text = try? String(contentsOf: fileURL, encoding: .utf8),
                   text.contains("extension \(type.name)") else { continue }
-            if let member = memberDeclaration(named: name, in: text.components(separatedBy: .newlines), fileURL: fileURL, after: -1) {
+            if let member = memberDeclaration(named: name, in: normalizedLines(text), fileURL: fileURL, after: -1) {
                 return member
             }
         }
@@ -222,6 +230,7 @@ enum AdaScriptSwiftSourceResolver {
         var line = declaration.line - 1
         while line >= 0 {
             let trimmed = lines[line].trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty { line -= 1; continue }
             guard trimmed.hasPrefix("///") else { break }
             comments.insert(String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces), at: 0)
             line -= 1

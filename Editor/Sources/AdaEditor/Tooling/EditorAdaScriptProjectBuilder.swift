@@ -202,6 +202,7 @@ struct EditorAdaScriptProjectBuilder {
     }
 
     private func loadSources(at sourceRoot: URL, toolsRoot: URL) throws -> [AdaScriptSource] {
+        let sourceRoot = sourceRoot.standardizedFileURL
         guard
             let enumerator = fileManager.enumerator(
                 at: sourceRoot,
@@ -214,9 +215,9 @@ struct EditorAdaScriptProjectBuilder {
 
         var sources: [AdaScriptSource] = []
         for case let fileURL as URL in enumerator where fileURL.pathExtension.lowercased() == "ada" {
-            let resolved = fileURL.resolvingSymlinksInPath().standardizedFileURL.path
-            let toolsPath = toolsRoot.resolvingSymlinksInPath().standardizedFileURL.path
-            guard !resolved.hasPrefix(toolsPath + "/") else { continue }
+            let resolved = fileURL.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+            let toolsPath = toolsRoot.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+            guard !resolved.starts(with: toolsPath) else { continue }
             let values = try fileURL.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
             guard values.isRegularFile == true, values.isSymbolicLink != true else {
                 continue
@@ -240,12 +241,12 @@ struct EditorAdaScriptProjectBuilder {
     }
 
     private func relativePath(from root: URL, to file: URL) -> String {
-        let rootPath = root.standardizedFileURL.path
-        let filePath = file.standardizedFileURL.path
-        guard filePath.hasPrefix(rootPath + "/") else {
+        let rootPath = root.standardizedFileURL.pathComponents
+        let filePath = file.standardizedFileURL.pathComponents
+        guard filePath.starts(with: rootPath) else {
             return file.lastPathComponent
         }
-        return String(filePath.dropFirst(rootPath.count + 1))
+        return filePath.dropFirst(rootPath.count).joined(separator: "/")
     }
 }
 

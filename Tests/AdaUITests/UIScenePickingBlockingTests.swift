@@ -73,6 +73,7 @@ struct UIScenePickingBlockingTests {
         world.insertResource(UIWindowPendingDrawViews())
         world.insertResource(UIContextPendingDraw())
         world.insertResource(UIRedrawRequest())
+        world.insertResource(WindowFrameRequests())
         world.addSystem(InputEventParseSystem.self, on: .preUpdate)
         world.addSystem(UpdateWindowManagerSystem.self, on: .preUpdate)
         return world

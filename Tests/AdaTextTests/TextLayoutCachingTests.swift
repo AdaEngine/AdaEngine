@@ -4,10 +4,18 @@
 //
 
 import Math
+@_spi(Internal) import AdaRender
 import Testing
 @testable import AdaText
 
+@MainActor
 struct TextLayoutCachingTests {
+    init() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            try RenderEngine.setupRenderEngine()
+        }
+    }
 
     @Test
     func firstInfiniteFitStillBuildsLayout() {

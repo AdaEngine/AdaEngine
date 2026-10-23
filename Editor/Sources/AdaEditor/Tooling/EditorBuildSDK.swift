@@ -14,7 +14,9 @@ struct EditorBuildSDK: Sendable {
             if url.pathExtension == "app" {
                 return url
             }
-            url.deleteLastPathComponent()
+            let parent = url.deletingLastPathComponent().standardizedFileURL
+            guard parent.pathComponents.count < url.pathComponents.count else { break }
+            url = parent
         }
         return nil
     }

@@ -81,8 +81,21 @@ final class EditorMobileA2UIStore {
     }
 
     private func recordsURL(sessionID: String, root: URL) throws -> URL {
+        let root = root.resolvingSymlinksInPath().standardizedFileURL
         let url = root.appendingPathComponent(".ada/chat-ui/\(EditorAgentSceneToolService.revision(for: sessionID)).json")
-        guard url.resolvingSymlinksInPath().path.hasPrefix(root.resolvingSymlinksInPath().path + "/") else {
+        let rootComponents = root.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        // Windows only expands short names/symlinks when the whole path exists.
+        // Resolve the nearest existing ancestor before appending unwritten components.
+        var ancestor = url
+        var missing: [String] = []
+        while !FileManager.default.fileExists(atPath: ancestor.path), ancestor.pathComponents.count > 2 {
+            missing.append(ancestor.lastPathComponent)
+            ancestor.deleteLastPathComponent()
+        }
+        var resolved = ancestor.resolvingSymlinksInPath().standardizedFileURL
+        for component in missing.reversed() { resolved.appendPathComponent(component) }
+        let components = resolved.pathComponents
+        guard components.count > rootComponents.count, components.starts(with: rootComponents) else {
             throw EditorAgentA2UIToolRequest.Failure("The chat interface store escapes the project.")
         }
         return url
