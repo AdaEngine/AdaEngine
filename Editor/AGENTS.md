@@ -49,7 +49,7 @@ and assess gaps before proposing new features.
 - Linux Standalone uses X11/XWayland and Vulkan. Follow
   [../Documentation/Linux.md](../Documentation/Linux.md) and launch through
   `../script/run_studio_linux.sh` to stage resources, runtime libraries and BuildSDK.
-  Set the staged UTF-8 Gravity binding and Linux Swan overrides for builds/tests;
+  Use the bundled Gravity compiler and staged Linux Swan overrides for builds/tests;
   native dialogs require Zenity. The initial Linux workbench/local Run port does
   not establish remote AdaPlayer, ACP, debugger, Cloud or cross-export parity.
 - Use an isolated scratch/module cache when necessary; never delete the shared
@@ -86,6 +86,57 @@ and assess gaps before proposing new features.
   check that longer Russian text fits the affected controls.
 
 ## Capability inventory
+
+### Browser Studio
+
+`WebUI/` is the default React/DOM browser shell, with inset floating panels over
+a full-width viewport: a full-height assistant on the left, scene panels on the
+right, a bottom log console and native text inputs. The scene viewport and Play use one isolated fixed AdaPlayer
+with authored cameras, materials and lighting. Opening a project loads the engine;
+document/mode changes replace its world without recreating WASM or the GPU device.
+There is no separate SVG scene renderer. Editor mode disables gameplay, physics
+and autoplay. Hierarchy/viewport bounds picking, move/rotate/scale gizmos, snapping,
+duplicate/delete and a transient free camera are available. Gizmo gestures commit
+one undo transaction; navigation never changes authored cameras. CodeMirror provides
+AdaScript highlighting, indentation and search. It implements the existing
+portable snapshot/scene/API contracts with transactions/undo, cloud recovery, ZIP
+interchange and an in-tab agent. The entry library uses
+Games/Create/My projects/Account navigation and the public catalog independently
+of Studio sign-in. Opening a workspace switches the rail
+to overview, scene, assets, code and assistant within that project. The Ada mark
+returns to Games through the same save/recovery path as All Projects. The overview
+button opens the project overview; All Projects waits for cloud save and retains the current document, undo, selection and Player for Continue.
+Save failure offers Stay, retry, ZIP or an explicit IndexedDB-backed local exit;
+failed local writes keep the project open. Closing a tab with unsaved changes or
+an active agent requests browser confirmation. `Web/` retains the prior AdaUI/WASM application
+(`AdaEditorWeb`) behind `--legacy-wasm-editor`, including its UGC publication UI;
+publication controls are not yet ported to DOM. Native Studio uses the shared
+`StudioCore/` value codec and supported runtime component contract. The browser does
+not use native ACP, processes, SourceKit, key storage or file dialogs. See
+[Documentation/StudioWeb.md](Documentation/StudioWeb.md) for export, service
+boundaries and the browser release gate; source presence is not acceptance of a
+hosted deployment or a live paid provider.
+
+The browser assistant exports native bundled skills, documentation, examples and
+the A2UI prompt at build time. Conversations, drafts, attachments, selected skills,
+progress and interactive forms persist with the project. Build/plan modes and
+optional per-tool approval use a fixed 38-tool registry. A2UI uses validated DOM
+controls and native action envelopes; local scene actions and their durable Undo
+are atomic and revision checked. The isolated Player runs native procedural asset
+generators and exports `.ui` through AdaA2UI. Browser chrome, inspector, source search and embedded Cloud panels use the shared
+en/ru catalogs and language preference enum. Language changes preserve mounted input;
+the frontend build rejects hardcoded Russian UI literals and missing translations. OS/process,
+external MCP, search, TestWorld and publication tools remain unavailable here.
+
+Web Annotate selects entities via hierarchy/native viewport, A2UI components, or
+canvas UI via a marked frame/point. Its popup adds context to the originating
+conversation's persistent composer; only Send invokes the agent. Selection
+stays active after Add for collecting multiple notes. Numbered chips and current
+viewport pins reopen the note for editing; numbers remain stable when other notes
+are removed, and one Send includes all pending notes in the same request. Pins
+are scoped to the current selection session so camera movement cannot leave stale
+screen markers. Selection suppresses form actions and gizmos. Notes survive Cloud reopen; manually edited
+composer text remains authoritative. Canvas UI has no semantic native hit tree.
 
 Snapshot: **2026-10-04**, checked against the current working-tree source and
 documentation. “Present” means an implementation exists, not that every
@@ -153,8 +204,12 @@ event stream and gesture boundaries. Coverage:
 Viewport annotations are captured with each scheduled scene frame and published
 with its completed texture at the next UI tick. Their Canvas drawing revisions
 refresh synchronously without rebuilding the viewport; 3D rotation leaves hidden
-rulers and unchanged status text alone. Coverage:
+rulers and unchanged status text alone. The compass observes its own presented
+camera orientation. Gizmo hover/drag use the displayed geometry, mapping pointer
+coordinates into the captured target while resizing. Coverage:
 [EditorViewportPresentationTests.swift](Tests/AdaEditorTests/EditorViewportPresentationTests.swift),
+[EditorViewportCompassPresentationTests.swift](Tests/AdaEditorTests/EditorViewportCompassPresentationTests.swift),
+[EditorViewportInteractionPresentationTests.swift](Tests/AdaEditorTests/EditorViewportInteractionPresentationTests.swift),
 [SceneViewTests.swift](../Tests/AdaEngineTests/SceneViewTests.swift).
 2D scene UI previews filter active authored UI components before sorting or
 decoding hierarchy transforms; scenes without UI skip preview preparation.
@@ -215,6 +270,17 @@ Coverage: [EditorUISceneTests.swift](Tests/AdaEditorTests/EditorUISceneTests.swi
 [EditorUIExportIntegrationTests.swift](Tests/AdaEditorTests/EditorUIExportIntegrationTests.swift).
 
 ### Assets and animation
+
+Spine 4.2 `.skel`/`.spine` assets have a native 2D preview with clip/skin
+selection, Play/Pause and bone overlays. Import/drop carries the atlas and pages;
+JSON exports are imported as `.spine`. Add to Scene and the Spine Character 2D
+template store a portable `SpineSource` component with playback/bone settings.
+Imported 3D skins also have a Show/Hide bones overlay in the asset viewer and
+3D scene viewport (edit and Play). `EditorSkeleton3DPlugin` installs the drawing
+system after scheduler setup; the overlay follows the current skeletal pose.
+See [Spine2D.md](Documentation/Spine2D.md). Skeleton/keyframe authoring and public
+player/export integration are separate. Coverage: `EditorSpineTests` and
+`SpineSceneTests`; native validation must exercise the Studio viewport.
 
 Image preview includes a shared texture Inspector with sampler filters/wrap/LOD,
 CPU-generated mip levels, Color/Normal/Data purpose, sRGB/Linear settings, and
@@ -286,6 +352,11 @@ Coverage: [EditorTextureAtlasTests.swift](Tests/AdaEditorTests/EditorTextureAtla
 ### Build, Play, preview and export
 
 Build/Run/Stop, SwiftPM test/package commands, build output and navigable Problems.
+AdaScript projects run their `@test` functions in process (ADR-0024) through
+`EditorAdaScriptTestRunner` and `EditorViewModel.runAdaScriptTests`: sources from the project's
+source root and `Tests/`, a 30 s per-test limit, streamed PASS/FAIL lines in Output, and counts
+in `editor.task.status` (`adaScriptTests`). Coverage:
+[EditorAdaScriptTestRunnerTests.swift](Tests/AdaEditorTests/EditorAdaScriptTestRunnerTests.swift).
 Scene Play and embedded AdaScript project runtime; AdaScript hot reload compiles
 dirty source buffers and keeps previous running code when reload fails.
 Swift view previews have a dedicated build/host path. AdaPlayer pairing and
@@ -367,6 +438,14 @@ Coverage: [EditorAgentWorkspaceTests.swift](Tests/AdaEditorTests/EditorAgentWork
 Desktop Git status, staging, commit, stash, pull/push, branch creation/checkout,
 history and diff review. Agent Chat includes transcript/session persistence,
 attachments, context selection, permissions, skills and agent settings.
+The shared sidebar/workspace composer offers a debounced, full-draft completion
+while typing and up to three next-message suggestions after a successful saved
+reply. Chips fill an editable draft without sending; Enter retains ordinary
+submission and slash/@ completion behavior. Suggestions can be dismissed and
+refresh with the app language. Generation uses the local Foundation Models model
+only on supported, available Apple systems, with contextual/history suggestions
+as a fallback; it does not make a separate ACP or hosted-model request.
+Coverage: [EditorAgentSuggestionUITests.swift](Tests/AdaEditorTests/EditorAgentSuggestionUITests.swift).
 macOS/Windows ACP and iPhone SloppyRuntime replies stream native A2UI cards. Ordinary
 submissions return to the owning session; reserved local actions apply scene tools
 without a new model turn. NPC subtree spawning, color-field editing, structured
@@ -396,13 +475,26 @@ context, scene edits, diagnostics, build, simulation, visible Play, frame captur
 web access and asset/image operations. Model texture assignment tools also exist;
 they do not constitute a visual 3D asset editor.
 
+Desktop game verification: `editor.play.capture` and `render.capture_screenshot`
+(through AdaMCP's `captureOverride`) return the completed frame of the running
+game's own camera (2D or 3D `SceneView` that opted in with `frameCaptureLabel`),
+never the editor window; without a running game `editor.play.capture` errors and
+`render.capture_screenshot` falls back to the editor window, labelled as such in
+its `world` field. `editor.play.run_scenario` replays timed key/mouse input in an
+isolated offscreen runtime (or the running Play game), saves frames under
+`.ada/workspace/agent-captures`, and returns entity/component snapshots, script
+logs and limits-bounded results; the offscreen runtime renders scene cameras, not
+the `@view` HUD. Guide: [MobileAgentTools.md](Documentation/MobileAgentTools.md#desktop-game-verification).
+Coverage: [EditorPlayScenarioTests.swift](Tests/AdaEditorTests/EditorPlayScenarioTests.swift),
+engine [SceneViewFrameCaptureTests.swift](../Tests/AdaEngineTests/SceneViewFrameCaptureTests.swift).
+
 Native AI model tools on desktop and mobile inspect/validate GLB/glTF through
 CPU native import, import project-local dependency bundles and patch PBR material
 factors. Offline docs/API/component/examples tools are shared; bundled workflow
 skills are readable on demand through `editor.skills.list/read`. `basic-3d-scene`
 is a complete camera/cube/light example. Import validation does not prove GPU
-rendering, clip playback or gameplay; Blender execution/generation and rig/clip
-authoring remain outside these tools. Desktop scene changes use document revisions
+rendering, clip playback or gameplay; Blender execution, rig/clip authoring and
+organic or skinned model generation remain outside these tools. Desktop scene changes use document revisions
 and undo, and asset writes reject matching dirty open documents.
 
 The bundled `ada-game-builder` workflow is advertised in desktop and mobile
@@ -410,6 +502,39 @@ session catalogs without per-project installation. Agents load it on demand for
 game creation and iteration. It covers playable loops, persistent authoring,
 controls/HUD, and build/simulation/visible Play verification using the host's
 available tools; catalog discovery does not enforce model selection.
+
+Scripted asset generation ([ADR-0026](../Documentation/ArchitectureDecisions/0026-scripted-asset-generation-and-autonomous-studio.md)):
+`editor.voxel.generate` (`.vox`), `editor.model.generate` (`.glb`), `editor.audio.generate` (`.wav`)
+and `editor.sprite.generate` (`.png`) run an agent-authored AdaScript `build` function in an isolated VM and
+write a new file under the assets root (never overwriting); `editor.audio.inspect` measures any WAV (peak,
+loudness, clipping, silence, pitch, envelope). Skills `ada-voxel-models`, `ada-procedural-models`,
+`ada-pixel-art` and `ada-sound-design` document the script APIs, and a test runs their examples.
+`ada-autonomous-studio` is the whole-game workflow (clarify, `DESIGN.md` with acceptance criteria,
+`PLAN.md` milestones, build-play-check loop, acceptance pass). The `AudioSource` component plays WAV/MP3/FLAC
+in scenes and from scripts and has an inspector descriptor. Music and voices need a provider (not implemented);
+agent sounds are measured, never heard; desktop has no stepped gameplay simulation yet.
+Autonomous-run harness rules (skill text, not enforced by code): `ada-autonomous-studio` opens with a start
+card (context once into `PROGRESS.md` "Facts", only the required skills, one research pass, notes before code),
+plans M1 playable core, M2 art and sound (3-6 generated sounds wired through `AudioSource`) right after it,
+then content and polish, forbids planning "primitives"/"silence" when generators exist, and limits stalling
+(about 10 reads in a row, 3 attempts per check, unavailable checks become `blocker:`/`manual:` and the run
+continues). `ada-coding` requires a file layout decided in `DESIGN.md` before code: one responsibility per
+file, `Components`/`Systems`/`Rules`/`Config`/`UI`/`Tests`/`Generators` folders, size limits, balance numbers in `Config`;
+Swift projects get the same rules in their own `AGENTS.md`.
+`editor.examples.list` takes an optional `query` over ids, descriptions and tags. `side-scroller-3d`
+([Assets/Examples/side-scroller-3d](Sources/AdaEditor/Assets/Examples/side-scroller-3d)) is a complete multi-file
+3D flappy/runner game (files on disk; the project JSON and scene are generated by
+[EditorAgentBundledExamples.swift](Sources/AdaEditor/Agent/EditorAgentBundledExamples.swift)) with `@query` systems,
+input actions, a reused obstacle pool, collisions, score, restart, `AudioSource` cues, a `.ui` HUD, `@test` tests and
+asset generator sources. Its production sources and tests are compiled and run, its scene is checked against the scripts,
+and the `// recipe` blocks of [AdaScriptGameplayRecipes.md](Documentation/AdaScriptGameplayRecipes.md) (also in the offline
+documentation) are executed. Regenerate the offline snapshot with `python3 scripts/update-offline-documentation.py`.
+Entry points: [EditorAgentGeneratorToolService.swift](Sources/AdaEditor/Agent/EditorAgentGeneratorToolService.swift),
+[EditorAudioSourceComponentDescriptor.swift](Sources/AdaEditor/EditorAudioSourceComponentDescriptor.swift).
+Coverage: [EditorAgentExampleTests.swift](Tests/AdaEditorTests/EditorAgentExampleTests.swift),
+[EditorAgentMediaGenerateTests.swift](Tests/AdaEditorTests/EditorAgentMediaGenerateTests.swift),
+[EditorAgentModelGenerateTests.swift](Tests/AdaEditorTests/EditorAgentModelGenerateTests.swift),
+[EditorAgentVoxelToolTests.swift](Tests/AdaEditorTests/EditorAgentVoxelToolTests.swift).
 
 Guide: [Agent3DWorkflow.md](Documentation/Agent3DWorkflow.md).
 Entry points: [EditorAgentModelToolService.swift](Sources/AdaEditor/Agent/EditorAgentModelToolService.swift),
@@ -467,7 +592,12 @@ displays with a side safe area, or bottom controls with 6-point padding on ordin
 displays. Native hinge updates expose angle, posture and opening percentage through
 the AdaUI environment and `WindowHingeChanged`. The old simulated Foldable Preview
 selector and saved preview setting have been removed; legacy projects still decode.
-The public catalog currently returns up to 100 entries. An Android Studio application shell is not provided by this change.
+The public catalog currently returns up to 100 entries. The Android mobile host
+reuses the mobile screens and adds NativeActivity services for keyboard input,
+Back, document selection, dictation, speech output and encrypted credentials.
+Build it with `Platforms/Android/studio.py`; see [AndroidMobile.md](Documentation/AndroidMobile.md).
+Android background agent execution, clipboard image paste and Google Play Billing
+remain unavailable. Compilation and packaging checks do not establish interaction parity.
 Entry points: [EditorCommunityView.swift](Sources/AdaEditor/UI/Community/EditorCommunityView.swift),
 [MobileEditorHomeTabs.swift](Sources/AdaEditor/UI/Community/MobileEditorHomeTabs.swift),
 [EditorCommunityClient.swift](Sources/AdaEditor/Cloud/EditorCommunityClient.swift).
@@ -478,14 +608,14 @@ achievements/Game Center, cloud account/settings and standalone update UI exist.
 Shared AdaUI settings switches place labels and controls at opposite row edges,
 with animated thumb movement and track tint; settings rows omit On/Off text.
 
+Cloud Pro includes 500 shared monthly AI credits. Browser Studio selects hosted Coder Next from the server registry and shows remaining/used/reserved credits and renewal; missing service is distinct from an empty balance. BYOK/local connections remain independent.
+
 Ada Cloud AI wallet integration uses the existing account session for catalog,
 balance, cursor-paginated usage, quotes, reservations, lookup and cancellation.
 Credit counters appear on the start screen, shared workspace toolbar and iPhone navigation;
 Cloud settings show available/used/reserved credits and cycle activity. AI credits
 are separate from Cloud publishing Pro. Missing/disabled service and signed-out
-states do not imply a zero balance. Provider execution, settlement and subscription
-SKU activation remain server responsibilities; this client integration does not
-turn external/BYOK agents into hosted AI.
+states do not imply a zero balance. Hosted Ada AI uses the shared Cloud account transport, Coder Next tool loop and server wallet. Desktop selects the built-in Ada AI entry; mobile selects Ada AI in Providers. Tool mutations require approval; Cloud conversations persist separately from external runtime sessions. Provider keys and settlement stay server-side, and external/BYOK agents remain independent.
 Entry points: [EditorCloudAIClient.swift](Sources/AdaEditor/Cloud/EditorCloudAIClient.swift),
 [EditorAICreditsModel.swift](Sources/AdaEditor/Cloud/EditorAICreditsModel.swift).
 Coverage: [EditorAICreditsTests.swift](Tests/AdaEditorTests/EditorAICreditsTests.swift),
@@ -511,7 +641,8 @@ Guides: [Notifications.md](Documentation/Notifications.md),
 - The embedded AdaScript Web Player's scene validation currently allows only
   Transform, Visibility and TileMapComponent. This restriction belongs to that
   path, not every AOT/Swift Web export path.
-- Audio/generic metadata previews do not provide audio playback. GLB/glTF
+- Audio/generic metadata previews do not provide audio playback in the asset browser; sounds play
+  through the `AudioSource` component in Play. GLB/glTF
   import, preview, placement and clip playback exist; visual imported-material
   editing, skeleton editing and skeletal-clip authoring remain incomplete.
   The shared-workbench model preview has not established iPhone UI parity.
@@ -527,3 +658,13 @@ Before calling a feature missing, trace its UI entry point, implementation and
 nearest tests. Distinguish engine support, editor authoring, platform availability
 and runtime validation. Record proposals as proposals; do not list plans or
 test filenames as proof of a working feature.
+
+### Unified Playground web entry
+
+`Editor/WebUI` owns Games/Create/My projects and the editor in one shell. Robot
+artwork stays in `assets/playground`. Canonical routes include `/games`, `/create`,
+`/projects/:id`, `/account` and `/publications/:id`; `/studio/` is a compatibility
+entry and `/studio/*` serves static assets. Shared account/auth/legal/publication
+panels are built from adawebsite (`npm run build:panels`) and embedded without an
+iframe. Every navigation uses the existing save/leave guard. Keep publication
+page IDs separate from private workspace IDs and retain native/Store auth callbacks.

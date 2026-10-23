@@ -1,0 +1,35 @@
+{
+  "name": "ada-studio-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/*.test.mjs",
+    "dev:setup": "python3 scripts/dev-setup.py",
+    "dev": ".local/venv/bin/python scripts/dev-cloud.py",
+    "test:dev": ".local/venv/bin/python -m unittest discover -s scripts -p \"test_dev_*.py\"",
+    "test:cloud": ".local/venv/bin/python scripts/smoke-dev-cloud.py",
+    "test:codex": ".local/venv/bin/python scripts/smoke-dev-codex.py",
+    "check:localization": "node scripts/check-localization.mjs"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.14",
+    "@lezer/highlight": "^1.2.5",
+    "fflate": "0.8.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "yaml": "2.8.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.5",
+    "happy-dom": "21.0.3",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3"
+  }
+}

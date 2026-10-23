@@ -3,7 +3,7 @@ import Foundation
 
 /// Visual identity is independent of the editor used to open a file.
 enum EditorProjectFileAppearance: Equatable {
-    case folder, scene, image, audio, tileSet, tileMap, atlas, particleEffect, font, material, mesh, shader, ui, code, configuration, document, generic
+    case folder, scene, image, audio, tileSet, tileMap, atlas, particleEffect, spriteAnimation, font, material, mesh, shader, ui, code, configuration, document, generic
 
     static func resolve(for item: EditorProjectSidebarViewModel.Item) -> Self {
         if item.isFolder {
@@ -16,6 +16,7 @@ enum EditorProjectFileAppearance: Equatable {
         case "tilemap": return .tileMap
         case "atlas": return .atlas
         case "particles": return .particleEffect
+        case "spriteanim": return .spriteAnimation
         case "ttf", "otf", "woff", "woff2": return .font
         case "mat": return .material
         case "mesh", "obj", "gltf", "glb", "fbx", "usdz", "vox": return .mesh
@@ -49,6 +50,7 @@ enum EditorProjectFileAppearance: Equatable {
         case .tileMap: EditorProjectTreeIcon.tileMap
         case .atlas: EditorProjectTreeIcon.atlas
         case .particleEffect: "\u{E3E7}"
+        case .spriteAnimation: "\u{E02C}"
         case .font: EditorProjectTreeIcon.font
         case .material: EditorProjectTreeIcon.material
         case .mesh: EditorProjectTreeIcon.mesh
@@ -71,6 +73,7 @@ enum EditorProjectFileAppearance: Equatable {
         case .tileMap: Color.fromHex(0x83C174)
         case .atlas: Color.fromHex(0xE6BB65)
         case .particleEffect: Color.fromHex(0xE99A69)
+        case .spriteAnimation: Color.fromHex(0xD98BB5)
         case .font: Color.fromHex(0xDA8EC4)
         case .material: Color.fromHex(0x6CC5D9)
         case .mesh: Color.fromHex(0xA99AE8)

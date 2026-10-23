@@ -42,6 +42,8 @@ public struct Main3DRenderNode: RenderNode {
 
     @ResMut<LocalLighting3DGPUScratch> private var localUniforms
 
+    @ResMut<LightTiles3DScratch> private var lightTiles
+
     @ResMut<Lighting3DGPUScratch>
     private var lightingScratch
 
@@ -71,6 +73,7 @@ public struct Main3DRenderNode: RenderNode {
         _lightingScratch.update(from: world)
         _viewUniforms.update(from: world)
         _localUniforms.update(from: world)
+        _lightTiles.update(from: world)
         _environments.update(from: world)
         _ibl.update(from: world)
         _renderDevice.update(from: world)
@@ -79,6 +82,7 @@ public struct Main3DRenderNode: RenderNode {
         lightingScratch.cache.retainViews(activeViews)
         viewUniforms.cache.retainViews(activeViews)
         ibl.cache.retainViews(activeViews)
+        lightTiles.retainViews(activeViews)
         lists.retainViews(activeViews)
         gpuVisibility.retainViews(activeViews)
     }
@@ -167,7 +171,12 @@ public struct Main3DRenderNode: RenderNode {
                     shadowViewProjection1: shadow.viewProjection1,
                     shadowViewProjection2: shadow.viewProjection2,
                     cascadeSplits: shadow.cascadeSplits,
-                    shadowAtlas: Vector4(1 / Float(shadow.colorTexture?.size.width ?? 1024), 1 / Float(shadow.colorTexture?.size.height ?? 1024), shadow.blendFraction, 0)
+                    shadowAtlas: Vector4(
+                        1 / Float(shadow.colorTexture?.size.width ?? 1024),
+                        1 / Float(shadow.colorTexture?.size.height ?? 1024),
+                        shadow.blendFraction,
+                        environments.environments[source.entityId]?.debugView.mainPassMode ?? 0
+                    )
                 ),
                 view: source.entityId,
                 device: renderDevice.renderDevice
@@ -181,6 +190,29 @@ public struct Main3DRenderNode: RenderNode {
                 packLocalShadowMatrices(localShadows, into: &$0)
             }
             let localTexture = localShadows?.color ?? Texture2D.whiteTexture
+
+            // Tiles let the main pass skip local lights that cannot reach a pixel. Foveated rendering maps pixels
+            // through a rate map the CPU bounds do not model, so it keeps the flat loop.
+            let localLights = localShadows?.lights ?? []
+            let tileLayout = LightTiles3DMath.layout(width: sceneColor.size.width, height: sceneColor.size.height)
+            let tilesActive = (environments.environments[source.entityId]?.tiledLocalLights ?? true) && camera.rasterizationRateMap == nil
+            let tileMasks = tilesActive
+                ? LightTiles3DMath.masks(
+                    spheres: localLights.map { ((uniform.viewMatrix * Vector4($0.position, 1)).xyz, $0.range) },
+                    projection: drawUniform.projectionMatrix,
+                    viewport: camera.viewport.rect,
+                    layout: tileLayout
+                )
+                : []
+            let tileConstants = localUniforms.write(view: source.entityId, pass: 2, count: 6, device: renderDevice.renderDevice) {
+                $0[0] = drawUniform.projectionMatrix.x
+                $0[1] = drawUniform.projectionMatrix.y
+                $0[2] = drawUniform.projectionMatrix.z
+                $0[3] = drawUniform.projectionMatrix.w
+                $0[4] = [camera.viewport.rect.origin.x, camera.viewport.rect.origin.y, camera.viewport.rect.size.width, camera.viewport.rect.size.height]
+                $0[5] = [Float(tileLayout.tileSize), Float(tileLayout.columns), Float(tileLayout.rows), tilesActive ? 1 : 0]
+            }
+            let tileMaskBuffer = lightTiles.write(view: source.entityId, masks: tileMasks, device: renderDevice.renderDevice)
 
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
             commandBuffer.label = "Main 3d Render Pass"
@@ -228,6 +260,8 @@ public struct Main3DRenderNode: RenderNode {
             renderPass.setFragmentBuffer(lightConstants, offset: 0, slot: 1)
             renderPass.setFragmentBuffer(localConstants, offset: 0, slot: 25)
             renderPass.setFragmentBuffer(localMatrices, offset: 0, slot: 28)
+            renderPass.setFragmentBuffer(tileConstants, offset: 0, slot: 27)
+            renderPass.setFragmentBuffer(tileMaskBuffer, offset: 0, slot: 29)
             renderPass.setResourceSet(
                 RenderResourceSet(bindings: [
                     .init(binding: 26, shaderStages: .fragment, resource: .texture(localTexture))
@@ -268,6 +302,9 @@ public struct Main3DRenderNode: RenderNode {
             )
             renderPass.setFragmentBuffer(iblConstants, offset: 0, slot: 22)
             renderPass.setViewport(camera.viewport.rect)
+            if environments.environments[source.entityId]?.debugView == .wireframe {
+                renderPass.setTriangleFillMode(.lines)
+            }
 
             if !visibleItems.isEmpty {
                 // Resolve blend state and view depth once per item instead of inside the comparator.

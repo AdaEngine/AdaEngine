@@ -72,4 +72,42 @@ struct AdaScriptTestProjectTests {
         #expect(json.contains("\"passed\" : false"))
         #expect(json.contains("\"name\" : \"fails on purpose\""))
     }
+
+    @Test("A test that loops forever times out, and the next test still runs")
+    func timeout() throws {
+        let sources = [
+            AdaScriptSource(
+                path: "Main.ada",
+                source: """
+                @test("spins")
+                func spins() {
+                    var i = 0;
+                    while (true) { i += 1; }
+                }
+
+                @test("quick")
+                func quick() {
+                    expect(1 + 1 == 2);
+                }
+                """
+            )
+        ]
+        var streamed: [String] = []
+        let results = try AdaScriptTestProject.run(
+            sources: sources,
+            name: "Timeout",
+            testTimeout: .milliseconds(200),
+            onResult: { streamed.append($0.test.displayName) }
+        )
+        #expect(results.map(\.outcome) == [.failed, .passed])
+        #expect(results[0].diagnostics.contains { $0.contains("timed out") })
+        #expect(streamed == ["spins", "quick"])
+    }
+
+    @Test("A timeout limit does not fail tests that finish in time")
+    func timeoutAllowsFastTests() throws {
+        let results = try AdaScriptTestProject.run(directory: Self.fixtures.appendingPathComponent("AdaScriptProjects/Falling"), testTimeout: .seconds(30))
+        #expect(!results.isEmpty)
+        #expect(results.allSatisfy { $0.outcome == .passed })
+    }
 }

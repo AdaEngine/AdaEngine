@@ -1,5 +1,6 @@
 import AdaEngine
 import AdaMultiplayer
+import AdaStudioCore
 import AdaScriptCompilerCore
 import Foundation
 import Yams
@@ -25,20 +26,21 @@ struct PlayerSceneDocument: Decodable, Sendable {
                 let tileDisplaySize: [Float]
             }
 
-            let transform: TransformValue?
-            let visibility: VisibilityValue?
-            let tileMap: TileMapValue?
-
-            enum CodingKeys: String, CodingKey {
-                case transform = "AdaTransform.Transform"
-                case visibility = "AdaRender.Visibility"
-                case tileMap = "AdaTilemap.TileMapComponent"
+            let raw: [String: StudioValue]
+            init(from decoder: any Decoder) throws { raw = try [String: StudioValue](from: decoder) }
+            private func decode<T: Decodable>(_ type: T.Type, _ key: String) -> T? {
+                guard let value = raw[key], let data = try? value.encoded() else { return nil }
+                return try? JSONDecoder().decode(type, from: data)
             }
+            var transform: TransformValue? { decode(TransformValue.self, "AdaTransform.Transform") }
+            var visibility: VisibilityValue? { decode(VisibilityValue.self, "AdaRender.Visibility") }
+            var tileMap: TileMapValue? { decode(TileMapValue.self, "AdaTilemap.TileMapComponent") }
         }
 
         let id: String
         let name: String
         let enabled: Bool
+        let parent: String?
         let components: Components
     }
 
@@ -96,43 +98,46 @@ private struct PlayerTileSet: Decodable {
     let sources: [Source]
 }
 
-struct PlayerAdaProjectSettings: Decodable, Sendable {
-    struct MultiplayerSettings: Decodable, Sendable {
-        let buildIdentifier: String
-        let gameIdentifier: String
-    }
-    struct PluginSettings: Decodable, Sendable { let multiplayer: MultiplayerSettings }
-    struct Runtime: Decodable, Sendable { let plugins: Plugins }
-    struct Plugins: Decodable, Sendable {
-        let enable: [String]?
-        let disable: [String]?
+struct PlayerAdaProjectSettings: Sendable {
+    struct MultiplayerSettings: Sendable { let buildIdentifier: String; let gameIdentifier: String }
+    struct PluginSettings: Sendable { let multiplayer: MultiplayerSettings }
+    struct Runtime: Sendable { let plugins: Plugins }
+    struct Plugins: Sendable {
+        let enable: [String]
+        let disable: [String]
         let settings: PluginSettings
-
-        var multiplayerEnabled: Bool {
-            enable?.contains("multiplayer") == true && disable?.contains("multiplayer") != true
-        }
+        var multiplayerEnabled: Bool { enable.contains("multiplayer") && !disable.contains("multiplayer") }
     }
-
     let inputActions: [InputAction]
     let runtime: Runtime
-
     static func load(from directory: URL) throws -> Self {
         let staged = directory.appendingPathComponent("runtime-settings.json")
-        let source = FileManager.default.fileExists(atPath: staged.path)
-            ? staged : directory.appendingPathComponent(".ada/project.json")
-        return try JSONDecoder().decode(Self.self, from: Data(contentsOf: source))
+        let source = FileManager.default.fileExists(atPath: staged.path) ? staged : directory.appendingPathComponent(".ada/project.json")
+        let value = try StudioValue.decode(Data(contentsOf: source))
+        let actions = value["inputActions"] == .null ? [] : try JSONDecoder().decode([InputAction].self, from: value["inputActions"].encoded())
+        let plugins = value["runtime"]["plugins"]
+        let settings = plugins["settings"]["multiplayer"]
+        return Self(inputActions: actions, runtime: Runtime(plugins: Plugins(
+            enable: plugins["enable"].array.compactMap(\.string), disable: plugins["disable"].array.compactMap(\.string),
+            settings: PluginSettings(multiplayer: MultiplayerSettings(buildIdentifier: settings["buildIdentifier"].string ?? "studio-v1", gameIdentifier: settings["gameIdentifier"].string ?? "StudioGame")))))
     }
 }
 
 struct PlayerSceneEntryPlugin: Plugin {
     let scene: PlayerSceneDocument
     let tileMaps: [String: PlayerTileMapResource]
+    let components: [String: [any Component]]
+    let editor: PlayerEditorBridge
 
     @MainActor
     func setup(in app: borrowing AppWorlds) {
+        var authored: [String: Entity] = [:]
         for item in scene.entities {
             let entity = app.main.spawn(item.name)
+            authored[item.id] = entity
             entity.isActive = item.enabled
+            for component in components[item.id] ?? [] { entity.components += component }
+            SceneRuntimeBootstrap.prepareCamera(on: entity, in: app.main)
             if let value = item.components.transform,
                 value.position.count == 3,
                 value.rotation.count == 4,
@@ -184,6 +189,10 @@ struct PlayerSceneEntryPlugin: Plugin {
                 }
             }
         }
+        for item in scene.entities {
+            if let parent = item.parent, let owner = authored[parent], let child = authored[item.id] { owner.addChild(child) }
+        }
+        editor.install(entities: authored, in: app.main)
     }
 }
 
@@ -275,8 +284,10 @@ extension PlayerSceneDocument {
 @MainActor
 struct PlayerScene {
     let view: AnyView
+    let script: AdaScriptPlugin
+    let gameInput = PlayerGameInput()
 
-    init(project: AdaWebPlayerProject, sources: [AdaScriptSource], directory: URL) throws {
+    init(project: AdaWebPlayerProject, sources: [AdaScriptSource], directory: URL, onFrameRendered: (@MainActor (Texture2D) -> Void)? = nil) throws {
         let scene = try PlayerSceneDocument.load(project: project, directory: directory)
         let tileMaps = try scene.loadTileMaps(project: project, directory: directory)
         let settings = try PlayerAdaProjectSettings.load(from: directory)
@@ -299,6 +310,9 @@ struct PlayerScene {
             name: project.moduleName ?? project.title,
             startupSystemIdentifier: project.startupSystem
         )
+        self.script = script
+        let components = try PlayerSceneComponents.prepare(scene: scene, script: script, project: project, directory: directory)
+        let editor = PlayerEditorBridge()
         let configuration: MultiplayerConfiguration?
         let transport: (any MultiplayerTransport)?
         if settings.runtime.plugins.multiplayerEnabled {
@@ -334,8 +348,11 @@ struct PlayerScene {
             configuration = nil
             transport = nil
         }
+        let gameInput = self.gameInput
         self.view = AnyView(
             SceneView(
+                isInteractive: !PlayerBrowserSession.editMode,
+                useSceneCameras: true,
                 make: { app in
                     app.addPlugin(TransformPlugin())
                     app.addPlugin(InputPlugin(actions: settings.inputActions))
@@ -346,6 +363,10 @@ struct PlayerScene {
                     app.addPlugin(VisibilityPlugin())
                     app.addPlugin(ScenePlugin())
                     app.addPlugin(Core2DPlugin())
+                    app.addPlugin(Core3DPlugin())
+                    app.addPlugin(Model3DPlugin())
+                    if !PlayerBrowserSession.editMode { app.addPlugin(Physics2DPlugin()) }
+                    app.addPlugin(AudioPlugin())
                     app.addPlugin(Mesh2DPlugin())
                     app.addPlugin(SpritePlugin())
                     app.addPlugin(TileMapPlugin())
@@ -353,10 +374,13 @@ struct PlayerScene {
                         app.addPlugin(MultiplayerPlugin(configuration: configuration, transport: transport))
                         app.addPlugin(AdaScriptMultiplayerBridgePlugin(configuration: configuration))
                     }
-                    app.addPlugin(script)
-                    app.addPlugin(PlayerSceneEntryPlugin(scene: scene, tileMaps: tileMaps))
+                    if PlayerBrowserSession.editMode { script.registerSceneComponents(in: app.main) }
+                    else { app.addPlugin(script) }
+                    app.addPlugin(PlayerSceneEntryPlugin(scene: scene, tileMaps: tileMaps, components: components, editor: editor))
+                    gameInput.world = app.main
                 },
-                updateContent: { _, _ in }
+                updateContent: { _, _ in },
+                onFrameRendered: onFrameRendered
             )
         )
     }

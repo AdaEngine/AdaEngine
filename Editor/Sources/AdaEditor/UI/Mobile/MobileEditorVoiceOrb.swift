@@ -1,10 +1,15 @@
+#if os(Android)
+import Android
+#endif
 @_spi(AdaEngine) import AdaEngine
 import AdaUI
 import Foundation
 import Math
 
-#if os(iOS) || os(visionOS)
+#if os(iOS) || os(visionOS) || os(Android)
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// The Companion Bubble drawn in AdaUI, so it participates in clipping and covers.
 struct MobileEditorVoiceOrb: UIViewRepresentable {
@@ -38,7 +43,12 @@ final class MobileEditorVoiceOrbView: AdaUI.UIView {
         guard !isHidden, renderWindow?.canDraw != false, renderWindow?.isActive != false else {
             return
         }
-        if animation.advance(deltaTime, reduceMotion: UIAccessibility.isReduceMotionEnabled) { setNeedsDisplay() }
+        #if canImport(UIKit)
+        let reduceMotion = UIAccessibility.isReduceMotionEnabled
+        #else
+        let reduceMotion = false
+        #endif
+        if animation.advance(deltaTime, reduceMotion: reduceMotion) { setNeedsDisplay() }
     }
 
     override func draw(in rect: Rect, with context: UIGraphicsContext) {
@@ -82,7 +92,7 @@ struct MobileVoiceOrbAnimation {
         let target: Float
         switch activity {
         case .listening: target = audioLevel.isFinite ? min(max(audioLevel, 0), 1) : 0
-        case .speaking: target = 0.2 + 0.12 * Foundation.sin(time * 4)
+        case .speaking: target = 0.2 + 0.12 * Float(Foundation.sin(Double(time * 4)))
         case .idle, .working: target = 0
         }
         level += (target - level) * (1 - exp(-delta * (target > level ? 14 : 5)))

@@ -1,4 +1,5 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
+import AdaEngine
 import Foundation
 import SloppyRuntime
 
@@ -35,7 +36,11 @@ enum MobileAdaScriptProjectService {
         if !FileManager.default.fileExists(atPath: metadataURL.path) {
             var metadata = ProjectSystem.defaultProject(projectName: project.title, buildSystem: .adaScript)
             metadata.project.id = project.id.uuidString
+            #if os(Android)
+            metadata.run.destination = .android
+            #else
             metadata.run.destination = .iPadOS
+            #endif
             metadata.runtime.moduleName = "MobileGame_\(project.id.uuidString.replacingOccurrences(of: "-", with: ""))"
             metadata.runtime.entry = .init(scene: SceneDocumentFormat.defaultScenePath)
             try ProjectSystem.saveProject(metadata, at: directory)
@@ -64,12 +69,16 @@ enum MobileAdaScriptProjectService {
     }
 
     private static func projectsDirectory() throws -> URL {
+        #if os(Android)
+        let documents = AndroidResourceBundle.filesDirectory
+        #else
         let documents = try FileManager.default.url(
             for: .documentDirectory,
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
         )
+        #endif
         let directory = documents.appendingPathComponent("Projects", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory

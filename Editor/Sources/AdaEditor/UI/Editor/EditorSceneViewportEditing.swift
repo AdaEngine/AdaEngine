@@ -116,7 +116,7 @@ extension EditorSceneViewportView {
 
     func redrawViewport() {
         // Annotations are captured for the next scene frame. Only changed ruler
-        // or status values notify UI; rotating in 3D requires no view rebuild.
+        // or status values notify their layers; 3D rotation leaves the host intact.
         viewportPresentation.refresh(viewportModel: viewportModel)
         viewProxy.setNeedsDisplay()
     }

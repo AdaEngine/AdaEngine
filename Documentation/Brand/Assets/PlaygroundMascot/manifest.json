@@ -1,0 +1,136 @@
+{
+  "design": "Ada Playground guide robot",
+  "designVersion": 1,
+  "date": "2026-10-19",
+  "selectedCharacter": "Tall standing robot pointing forward from the original header",
+  "tool": "built-in image_gen.imagegen",
+  "canonicalReference": "turnaround-v1.png",
+  "documentation": "../../PlaygroundMascot.md",
+  "files": [
+    {
+      "file": "turnaround-v1.png",
+      "role": "authoritative-model-sheet",
+      "width": 2172,
+      "height": 724,
+      "mode": "RGB",
+      "alphaRange": null,
+      "background": "opaque neutral studio background",
+      "sha256": "c711a400924120f8c097bc3b8fc5c8727bc4a6fedfd219b24aba8dd7217b2832",
+      "prompt": "turnaround.prompt.txt",
+      "references": [
+        "source-header-v1.png"
+      ],
+      "pixelsEdited": false
+    },
+    {
+      "file": "front-v1.png",
+      "role": "front-reference",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "background": "soft translucent studio halo",
+      "sha256": "aec2db95ad28a0e9a6209f55f97206f0dabe5a91621991840da543fb5db98fac",
+      "prompt": "front.prompt.txt",
+      "references": [
+        "turnaround-v1.png"
+      ],
+      "pixelsEdited": false
+    },
+    {
+      "file": "profile-left-v1.png",
+      "role": "left-facing-profile-reference",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "background": "soft translucent studio halo",
+      "sha256": "eee55f4aa2d7451b9c2c41ee3d2595c075553b4471f81532d3d2f27f6c6218dc",
+      "prompt": "profile-left.prompt.txt",
+      "references": [
+        "turnaround-v1.png"
+      ],
+      "pixelsEdited": false
+    },
+    {
+      "file": "back-v1.png",
+      "role": "back-reference",
+      "width": 1287,
+      "height": 1222,
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        255
+      ],
+      "background": "isolated alpha cutout",
+      "sha256": "e2123d713989cd9c363f3553bae912b9f8c69b0cc239ed858a2167dc8dbc551f",
+      "prompt": "back.prompt.txt",
+      "references": [
+        "turnaround-v1.png"
+      ],
+      "pixelsEdited": false
+    },
+    {
+      "file": "profile-right-v1.png",
+      "role": "right-facing-profile-reference",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "background": "soft translucent studio halo",
+      "sha256": "634335cc9ec6390a788ab0b5f3f1762f63e5a28c5e0170ceb24b0f629e679979",
+      "prompt": "profile-right.prompt.txt",
+      "references": [
+        "turnaround-v1.png"
+      ],
+      "pixelsEdited": false
+    },
+    {
+      "file": "three-quarter-pointing-v1.png",
+      "role": "three-quarter-gesture",
+      "width": 1145,
+      "height": 1374,
+      "mode": "RGBA",
+      "alphaRange": [
+        0,
+        255
+      ],
+      "background": "isolated alpha cutout",
+      "sha256": "99303bfd1633bf2ae2b89d3811d34620404dbeb417ca79a6249ed042fcfb3c45",
+      "prompt": "three-quarter-pointing.prompt.txt",
+      "references": [
+        "turnaround-v1.png"
+      ],
+      "pixelsEdited": false
+    },
+    {
+      "file": "source-header-v1.png",
+      "role": "original-design-reference",
+      "width": 2172,
+      "height": 724,
+      "mode": "RGB",
+      "alphaRange": null,
+      "background": "opaque environment",
+      "sha256": "598246848cee2e5425042f278a14485047b21a19ea47a1c86d59b36ae224e158",
+      "prompt": null,
+      "references": [],
+      "pixelsEdited": false
+    }
+  ],
+  "notes": [
+    "No ready-to-use 3D mesh or runtime animation is included.",
+    "Feet, backpack construction and rear panels were resolved from the partially occluded source illustration.",
+    "Individual generated views may differ in minor seams; the canonical turnaround sheet takes precedence.",
+    "Front and side portraits retain translucent studio halos and are references, not clean UI sprites."
+  ],
+  "promptTemplate": "master.prompt.txt"
+}

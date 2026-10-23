@@ -3,14 +3,25 @@
 set(BOX2D_TEST_FILES
     main.c
     test_bitset.c
+    test_chain.c
     test_collision.c
+    test_container.c
     test_determinism.c
     test_distance.c
+    test_dynamic_tree.c
     test_id.c
+    test_invalid_input.c
+    test_large_world.c
     test_macros.h
     test_math.c
+    test_mover.c
+    test_recording.c
+    test_restitution.c
     test_shape.c
+    test_snapshot.c
+    test_sort.c
     test_table.c
+    test_thread.c
     test_world.c
 )
 
@@ -22,9 +33,16 @@ set_target_properties(test PROPERTIES
     C_EXTENSIONS NO
 )
 
-# Special access to Box2D internals for testing
-target_include_directories(test PRIVATE ${CMAKE_SOURCE_DIR}/src)
+if(BOX2D_COMPILE_WARNING_AS_ERROR)
+    set_target_properties(test PROPERTIES COMPILE_WARNING_AS_ERROR ON)
+endif()
 
-target_link_libraries(test PRIVATE box2d enkiTS)
+# Special access to Box2D internals for testing. The internal headers select the SIMD path
+# from the build configuration, so the tests must see the same selection as the library.
+target_include_directories(test PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_compile_definitions(test PRIVATE ${BOX2D_SIMD_DEFINITIONS})
+target_compile_options(test PRIVATE ${BOX2D_SIMD_OPTIONS})
+
+target_link_libraries(test PRIVATE box2d shared)
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "" FILES ${BOX2D_TEST_FILES})

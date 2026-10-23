@@ -59,7 +59,7 @@ public struct RenderGraphExecutor: Sendable {
                 "ada.render.is_subgraph": .bool(isSubgraph),
             ]
         ) {
-            let graphStartedAt = Date()
+            let graphStartedAt = diagnostics.map { _ in Date() }
             var executionOrder: [String] = []
             var nodeRecords: [RenderGraphNodeRecord] = []
             var pendingSubgraphLabels: [String] = []
@@ -133,8 +133,10 @@ public struct RenderGraphExecutor: Sendable {
                         tracer: tracer,
                         viewEntity: viewEntity
                     )
-                    let nodeStartedAt = Date()
-                    executionOrder.append(currentNode.name.rawValue)
+                    let nodeStartedAt = diagnostics.map { _ in Date() }
+                    if diagnostics != nil {
+                        executionOrder.append(currentNode.name.rawValue)
+                    }
                     let nodeSpan = AdaTrace.startSpan(
                         lazyName: "RenderGraph.node.\(currentNode.name.rawValue)",
                         attributes: [
@@ -149,20 +151,21 @@ public struct RenderGraphExecutor: Sendable {
                             nodeSpan.end()
                         }
                         let outputs = try await currentNode.node.execute(context: &context, renderContext: renderContext)
-                        let subgraphLabels = context.pendingSubgraphs.map { $0.graph.label?.rawValue ?? "RenderGraph" }
-                        pendingSubgraphLabels.append(contentsOf: subgraphLabels)
-
-                        nodeRecords.append(
-                            RenderGraphNodeRecord(
-                                label: currentNode.name.rawValue,
-                                typeName: String(reflecting: Swift.type(of: currentNode.node)),
-                                inputResources: inputs.map { RenderResourceSummary(slotValue: $0) },
-                                outputResources: outputs.map { RenderResourceSummary(slotValue: $0) },
-                                pendingSubgraphs: subgraphLabels,
-                                durationMilliseconds: Date().timeIntervalSince(nodeStartedAt) * 1000,
-                                error: nil
+                        if let nodeStartedAt {
+                            let subgraphLabels = context.pendingSubgraphs.map { $0.graph.label?.rawValue ?? "RenderGraph" }
+                            pendingSubgraphLabels.append(contentsOf: subgraphLabels)
+                            nodeRecords.append(
+                                RenderGraphNodeRecord(
+                                    label: currentNode.name.rawValue,
+                                    typeName: String(reflecting: Swift.type(of: currentNode.node)),
+                                    inputResources: inputs.map { RenderResourceSummary(slotValue: $0) },
+                                    outputResources: outputs.map { RenderResourceSummary(slotValue: $0) },
+                                    pendingSubgraphs: subgraphLabels,
+                                    durationMilliseconds: Date().timeIntervalSince(nodeStartedAt) * 1000,
+                                    error: nil
+                                )
                             )
-                        )
+                        }
 
                         for subGraph in context.pendingSubgraphs {
                             try await self.executeGraph(
@@ -184,17 +187,19 @@ public struct RenderGraphExecutor: Sendable {
                             nodes.prepend(outputNode)
                         }
                     } catch {
-                        nodeRecords.append(
-                            RenderGraphNodeRecord(
-                                label: currentNode.name.rawValue,
-                                typeName: String(reflecting: Swift.type(of: currentNode.node)),
-                                inputResources: inputs.map { RenderResourceSummary(slotValue: $0) },
-                                outputResources: [],
-                                pendingSubgraphs: [],
-                                durationMilliseconds: Date().timeIntervalSince(nodeStartedAt) * 1000,
-                                error: error.localizedDescription
+                        if let nodeStartedAt {
+                            nodeRecords.append(
+                                RenderGraphNodeRecord(
+                                    label: currentNode.name.rawValue,
+                                    typeName: String(reflecting: Swift.type(of: currentNode.node)),
+                                    inputResources: inputs.map { RenderResourceSummary(slotValue: $0) },
+                                    outputResources: [],
+                                    pendingSubgraphs: [],
+                                    durationMilliseconds: Date().timeIntervalSince(nodeStartedAt) * 1000,
+                                    error: error.localizedDescription
+                                )
                             )
-                        )
+                        }
                         appendDiagnosticsRecord(
                             diagnostics: diagnostics,
                             frameIndex: frameIndex,
@@ -238,10 +243,10 @@ public struct RenderGraphExecutor: Sendable {
         executionOrder: [String],
         nodeRecords: [RenderGraphNodeRecord],
         pendingSubgraphLabels: [String],
-        startedAt: Date,
+        startedAt: Date?,
         error: String?
     ) {
-        guard let diagnostics, let frameIndex else {
+        guard let diagnostics, let frameIndex, let startedAt else {
             return
         }
         diagnostics.append(

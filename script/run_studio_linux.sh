@@ -9,7 +9,7 @@ version="${ADA_STUDIO_VERSION:-development-$(date +%Y%m%d-%H%M%S)}"
 : "${ADAENGINE_SWAN_PACKAGE_PATH:?Prepare Linux Swan first; see Documentation/Linux.md}"
 : "${SWAN_LOCAL_DAWN:?Set SWAN_LOCAL_DAWN to the Linux Dawn artifact relative to Swan}"
 : "${TINT_EXECUTABLE:?Set TINT_EXECUTABLE to the pinned Linux Tint executable}"
-: "${ADAENGINE_GRAVITY_PACKAGE_PATH:?Prepare the UTF-8 Gravity binding first; see Documentation/Linux.md}"
+export ADAENGINE_GRAVITY_PACKAGE_PATH="${ADAENGINE_GRAVITY_PACKAGE_PATH:-$root/Sources/gravity-lang}"
 export ADAENGINE_PACKAGE_PATH="$root"
 export ADAENGINE_SKIP_SWIFTLINT=1
 if [[ -z "${ADA_MCP_LOCAL_PATH:-}" ]]; then
@@ -18,7 +18,7 @@ if [[ -z "${ADA_MCP_LOCAL_PATH:-}" ]]; then
 fi
 swift build --package-path "$root/Editor" --scratch-path "$scratch" -c "$configuration" --jobs "${ADAENGINE_SWIFT_JOBS:-4}"
 binary="$(swift build --package-path "$root/Editor" --scratch-path "$scratch" -c "$configuration" --show-bin-path)"
-compiler="${ADAENGINE_GRAVITY_PACKAGE_PATH:-$scratch/checkouts/gravity-lang}"
+compiler="$ADAENGINE_GRAVITY_PACKAGE_PATH"
 distribution="$(python3 "$root/script/package_studio_linux.py" \
     --binary-directory "$binary" --compiler "$compiler" --tint "$TINT_EXECUTABLE" \
     --swan "$ADAENGINE_SWAN_PACKAGE_PATH" --dawn "$SWAN_LOCAL_DAWN" \

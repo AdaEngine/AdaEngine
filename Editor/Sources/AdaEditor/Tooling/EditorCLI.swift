@@ -85,6 +85,13 @@ enum EditorCLI {
                 report.details["help"] = EditorCLIInvocation.help
             case .version:
                 report.details["version"] = report.cliVersion
+            case .agentResources:
+                guard let path = invocation.options["output"] else { throw EditorCLIError.argument("Missing output file.") }
+                let output = URL(fileURLWithPath: path, relativeTo: invocation.projectURL).standardizedFileURL
+                let data = try await MainActor.run { try EditorAgentWebContract.encoded() }
+                try data.write(to: output, options: .atomic)
+                report.artifacts = [output.path]
+                report.details["contractVersion"] = "1"
             case .doctor:
                 let sdk = try EditorBuildSDK.locate(override: invocation.options["sdk"])
                 let swift = await swiftExecutable(for: invocation)

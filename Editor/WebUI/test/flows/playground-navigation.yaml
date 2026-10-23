@@ -1,0 +1,24 @@
+url: http://localhost:8080/games
+---
+- openLink: http://localhost:8080/games
+- assertVisible:
+    text: "What will you play today.*"
+- takeScreenshot: games
+- tapOn:
+    text: "My projects"
+    index: 0
+- assertVisible:
+    text: "A home for your worlds"
+- takeScreenshot: projects
+- tapOn:
+    text: "Create"
+- assertVisible:
+    text: "What will you create today.*"
+- tapOn:
+    text: "Account"
+- assertVisible:
+    text: "Sign in to Ada"
+- takeScreenshot: account
+- openLink: http://localhost:8080/studio/
+- assertVisible:
+    text: "What will you play today.*"

@@ -56,6 +56,8 @@ struct EditorAICreditsDetails: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.text("Cloud Pro includes 500 AI credits per month, shared across your devices."))
+                .font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
             Text(L10n.text("AI credits"))
                 .font(.system(size: 15, weight: .bold))
                 .foregroundColor(theme.editorColors.text)
@@ -74,7 +76,7 @@ struct EditorAICreditsDetails: View {
                         .foregroundColor(theme.editorColors.muted)
                 }
             }
-            Text(model.summary)
+            Text(L10n.tr(model.summary))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(3)
@@ -116,7 +118,7 @@ struct EditorAICreditsDetails: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("AdaEditor.Cloud.AICredits.Details")
-        .onAppear { loadHistory() }
+        .onAppear { refresh() }
     }
 
     private func activityTitle(_ kind: String) -> String {

@@ -132,7 +132,9 @@ extension EditorViewModel {
             try fileManager.createDirectory(at: assetsURL, withIntermediateDirectories: true)
             for sourceURL in sourceURLs {
                 let destinationURL: URL
-                if EditorModelResource.extensions.contains(sourceURL.pathExtension.lowercased()) {
+                if EditorSpineAssetImporter.accepts(sourceURL) {
+                    destinationURL = try EditorSpineAssetImporter.copy(sourceURL, to: assetsURL, fileManager: fileManager)
+                } else if EditorModelResource.extensions.contains(sourceURL.pathExtension.lowercased()) {
                     destinationURL = try EditorModelAssetImporter.copy(sourceURL, to: assetsURL, fileManager: fileManager)
                 } else {
                     destinationURL = uniqueAssetDestinationURL(for: sourceURL, in: assetsURL)

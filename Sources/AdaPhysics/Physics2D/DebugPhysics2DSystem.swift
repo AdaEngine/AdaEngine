@@ -24,6 +24,8 @@ public struct PhysicsDebugOptions: OptionSet, Resource {
     public static let showPhysicsShapes = Self(rawValue: 1 << 0)
 
     public static let showBoundingBoxes = Self(rawValue: 1 << 1)
+    /// Draw native 2D joint frames, limits and support connections.
+    public static let showJoints = Self(rawValue: 1 << 2)
 }
 
 // MARK: - Extracted Debug Shapes
@@ -85,6 +87,10 @@ public struct PhysicsDebugBatches: Resource {
 
 /// Context for collecting debug draw calls from Box2D.
 private final class WorldDebugDrawContext {
+    let origin: PhysicsPosition2D
+    init(origin: PhysicsPosition2D) { self.origin = origin }
+    func local(_ point: b2Pos) -> Vector2 { PhysicsPosition2D(point).displacement(from: origin) }
+
     var lines: [ExtractedPhysicsDebugShapes.DebugLine] = []
     var circles: [ExtractedPhysicsDebugShapes.DebugCircle] = []
 
@@ -105,7 +111,8 @@ private final class WorldDebugDrawContext {
 // MARK: - Box2D Debug Draw Callbacks
 
 private func DebugPhysicsExctract2DSystem_DrawSolidCircle(
-    _ transform: b2Transform,
+    _ transform: b2WorldTransform,
+    _ localCenter: b2Vec2,
     _ radius: Float,
     _ color: b2HexColor,
     _ context: UnsafeMutableRawPointer?
@@ -119,7 +126,7 @@ private func DebugPhysicsExctract2DSystem_DrawSolidCircle(
 
     let color = Color.fromHex(Int(color.rawValue))
 
-    let center = Vector2(transform.p.x, transform.p.y)
+    let center = debugContext.local(b2TransformWorldPoint(transform, localCenter))
 
     debugContext.addCircle(center: center, radius: radius, color: color)
 
@@ -136,45 +143,116 @@ private func DebugPhysicsExctract2DSystem_DrawSolidCircle(
 }
 
 private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
-    _ transform: b2Transform,
-    _ verticies: UnsafePointer<b2Vec2>?,
+    _ transform: b2WorldTransform,
+    _ vertices: UnsafePointer<b2Vec2>?,
     _ vertexCount: Int32,
-    _: Float,
+    _ radius: Float,
     _ color: b2HexColor,
     _ context: UnsafeMutableRawPointer?
 ) {
-    guard let verticies = unsafe verticies else {
+    guard let vertices = unsafe vertices, let context = unsafe context, vertexCount >= 3 else {
         return
     }
-    guard let context else {
-        return
-    }
-
-    let debugContext = unsafe Unmanaged<WorldDebugDrawContext>
-        .fromOpaque(context)
-        .takeUnretainedValue()
+    let output = unsafe Unmanaged<WorldDebugDrawContext>.fromOpaque(context).takeUnretainedValue()
     let color = Color.fromHex(Int(color.rawValue))
-
-    let vertices = (0..<vertexCount)
-        .map { index in
-            unsafe verticies[Int(index)].asVector2
+    let count = Int(vertexCount)
+    for index in 0..<count {
+        let point = unsafe vertices[index].asVector2
+        let next = unsafe vertices[(index + 1) % count].asVector2
+        var normal = Vector2.zero
+        if radius > 0 {
+            let edge = next - point
+            normal = Vector2(edge.y, -edge.x) / edge.squaredLength.squareRoot()
         }
-
-    for i in 0..<vertexCount {
-        let start = vertices[Int(i)]
-        let end = vertices[Int((Int(i) + 1) % Int(vertexCount))]
-
-        let startTransformed = Vector2(
-            transform.q.c * start.x - transform.q.s * start.y + transform.p.x,
-            transform.q.s * start.x + transform.q.c * start.y + transform.p.y
+        output.addLine(
+            start: output.local(b2TransformWorldPoint(transform, (point + normal * radius).b2Vec)),
+            end: output.local(b2TransformWorldPoint(transform, (next + normal * radius).b2Vec)),
+            color: color
         )
+        if radius > 0 {
+            let previous = unsafe vertices[(index + count - 1) % count].asVector2
+            let edge = point - previous
+            let initial = Math.atan2(-edge.x, edge.y)
+            var angle = Math.atan2(normal.y, normal.x) - initial
+            if angle < 0 { angle += 2 * .pi }
+            for step in 0..<8 {
+                let a = initial + angle * Float(step) / 8
+                let b = initial + angle * Float(step + 1) / 8
+                let start = point + Vector2(Math.cos(a), Math.sin(a)) * radius
+                let end = point + Vector2(Math.cos(b), Math.sin(b)) * radius
+                output.addLine(
+                    start: output.local(b2TransformWorldPoint(transform, start.b2Vec)),
+                    end: output.local(b2TransformWorldPoint(transform, end.b2Vec)),
+                    color: color
+                )
+            }
+        }
+    }
+}
 
-        let endTransformed = Vector2(
-            transform.q.c * end.x - transform.q.s * end.y + transform.p.x,
-            transform.q.s * end.x + transform.q.c * end.y + transform.p.y
-        )
+private func DebugPhysics2D_Polygon(_ transform: b2WorldTransform, _ vertices: UnsafePointer<b2Vec2>?, _ count: Int32, _ color: b2HexColor, _ context: UnsafeMutableRawPointer?) {
+    unsafe DebugPhysicsExctract2DSystem_DrawSolidPolygon(transform, vertices, count, 0, color, context)
+}
 
-        debugContext.addLine(start: startTransformed, end: endTransformed, color: color)
+private func DebugPhysics2D_Line(_ start: b2Pos, _ end: b2Pos, _ color: b2HexColor, _ context: UnsafeMutableRawPointer?) {
+    guard let context = unsafe context else {
+        return
+    }
+    let output = unsafe Unmanaged<WorldDebugDrawContext>.fromOpaque(context).takeUnretainedValue()
+    output.addLine(start: output.local(start), end: output.local(end), color: Color.fromHex(Int(color.rawValue)))
+}
+
+private func DebugPhysics2D_Circle(_ center: b2Pos, _ radius: Float, _ color: b2HexColor, _ context: UnsafeMutableRawPointer?) {
+    guard let context = unsafe context else {
+        return
+    }
+    let output = unsafe Unmanaged<WorldDebugDrawContext>.fromOpaque(context).takeUnretainedValue()
+    output.addCircle(center: output.local(center), radius: radius, color: Color.fromHex(Int(color.rawValue)))
+}
+
+private func DebugPhysics2D_Point(_ center: b2Pos, _ size: Float, _ color: b2HexColor, _ context: UnsafeMutableRawPointer?) {
+    let radius = max(0.025, min(0.12, size * 0.005))
+    unsafe DebugPhysics2D_Line(b2OffsetPos(center, b2Vec2(x: -radius, y: 0)), b2OffsetPos(center, b2Vec2(x: radius, y: 0)), color, context)
+    unsafe DebugPhysics2D_Line(b2OffsetPos(center, b2Vec2(x: 0, y: -radius)), b2OffsetPos(center, b2Vec2(x: 0, y: radius)), color, context)
+}
+
+private func DebugPhysics2D_Capsule(_ start: b2Pos, _ end: b2Pos, _ radius: Float, _ color: b2HexColor, _ context: UnsafeMutableRawPointer?) {
+    guard let context = unsafe context else {
+        return
+    }
+    let output = unsafe Unmanaged<WorldDebugDrawContext>.fromOpaque(context).takeUnretainedValue()
+    var shapes = ExtractedPhysicsDebugShapes()
+    swap(&shapes.lines, &output.lines)
+    swap(&shapes.circles, &output.circles)
+    shapes.addCapsule(from: output.local(start), to: output.local(end), radius: radius, color: Color.fromHex(Int(color.rawValue)))
+    swap(&shapes.lines, &output.lines)
+    swap(&shapes.circles, &output.circles)
+}
+
+@MainActor
+extension PhysicsWorld2D {
+    func collectDebugShapes(options: PhysicsDebugOptions) -> ExtractedPhysicsDebugShapes {
+        guard options.contains(.showPhysicsShapes) || options.contains(.showJoints) else {
+            return ExtractedPhysicsDebugShapes()
+        }
+        let context = WorldDebugDrawContext(origin: coordinateOrigin)
+        var draw = unsafe b2DefaultDebugDraw()
+        unsafe draw.DrawSolidPolygonFcn = DebugPhysicsExctract2DSystem_DrawSolidPolygon
+        unsafe draw.DrawPolygonFcn = DebugPhysics2D_Polygon
+        unsafe draw.DrawSolidCircleFcn = DebugPhysicsExctract2DSystem_DrawSolidCircle
+        unsafe draw.DrawCircleFcn = DebugPhysics2D_Circle
+        unsafe draw.DrawSolidCapsuleFcn = DebugPhysics2D_Capsule
+        unsafe draw.DrawLineFcn = DebugPhysics2D_Line
+        unsafe draw.DrawPointFcn = DebugPhysics2D_Point
+        unsafe draw.context = Unmanaged.passUnretained(context).toOpaque()
+        unsafe draw.drawShapes = options.contains(.showPhysicsShapes)
+        unsafe draw.drawJoints = options.contains(.showJoints)
+        unsafe draw.drawJointExtras = options.contains(.showJoints)
+        unsafe debugDraw(with: draw)
+        var shapes = ExtractedPhysicsDebugShapes()
+        shapes.lines = context.lines
+        shapes.circles = context.circles
+        return shapes
     }
 }
 
@@ -182,6 +260,7 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
 
 /// System for extracting physics bodies for debug rendering.
 @System
+@MainActor
 public func ExtractPhysicsDebug(
     _ extractedShapes: ResMut<ExtractedPhysicsDebugShapes>,
     _ debugOptions: Extract<Res<PhysicsDebugOptions>>,
@@ -189,26 +268,7 @@ public func ExtractPhysicsDebug(
         Res<Physics2DWorldHolder>
     >
 ) {
-    extractedShapes.lines.removeAll(keepingCapacity: true)
-    extractedShapes.circles.removeAll(keepingCapacity: true)
-
-    guard debugOptions().wrappedValue.contains(.showPhysicsShapes) else {
-        return
-    }
-
-    let drawContext = WorldDebugDrawContext()
-
-    var debugDraw = unsafe b2DefaultDebugDraw()
-    unsafe debugDraw.DrawSolidPolygon = DebugPhysicsExctract2DSystem_DrawSolidPolygon
-    unsafe debugDraw.DrawSolidCircle = DebugPhysicsExctract2DSystem_DrawSolidCircle
-    unsafe debugDraw.context = Unmanaged.passUnretained(drawContext).toOpaque()
-    unsafe debugDraw.drawShapes = true
-    unsafe debugDraw.drawAABBs = false
-
-    unsafe physicsWorld().world.debugDraw(with: debugDraw)
-
-    extractedShapes.lines = drawContext.lines
-    extractedShapes.circles = drawContext.circles
+    extractedShapes.wrappedValue = physicsWorld().world.collectDebugShapes(options: debugOptions().wrappedValue)
 }
 
 // MARK: - Prepare System

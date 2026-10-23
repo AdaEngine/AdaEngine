@@ -13,11 +13,11 @@ import Logging
     import UIKit
 #endif
 
-#if canImport(AdaMCPPlugin)
+#if !os(Android) && canImport(AdaMCPPlugin)
     import AdaMCPPlugin
 #endif
 
-#if !os(visionOS)
+#if !os(visionOS) && !os(Android)
 @main
 #endif
 enum AdaApplicationEntry {
@@ -146,7 +146,7 @@ struct AdaEditorApp: App {
                 ))
             }
         #endif
-        #if canImport(AdaMCPPlugin)
+        #if !os(Android) && canImport(AdaMCPPlugin)
             .addPlugins(
                 MCPPlugin(
                     configuration: .init(
@@ -162,6 +162,7 @@ struct AdaEditorApp: App {
                             to orient first. Use editor.scene.get before editor.scene.apply and pass the returned revision. Structured scene edits
                             update the open document, enter Ada Editor undo history, and are saved through the editor's normal save/autosave path.
                             Use editor.build.start/editor.test.start/editor.play.start for project tasks, editor.task.status to poll, and editor.output.read for logs.
+                            To see or play the game use editor.play.capture or render.capture_screenshot (both return the running game's camera frame, never the editor) and editor.play.run_scenario (timed input, frames, state, logs).
                             Use editor.gravity.* tools for project-aware Gravity LSP operations on .ada and .gravity files. Runtime ECS changes made with automation.run are not saved to scene files.
                             Use editor.web.search/fetch for external references and editor.web.download to save internet assets under Assets or Downloads.
                             Use editor.store.search with popular sorting to recommend community assets, and editor.store.asset to inspect licenses before suggesting downloads.
@@ -185,6 +186,9 @@ struct AdaEditorApp: App {
                             if let result = EditorAgentWorkspaceMCPTools.shared.handle(name: name, arguments: arguments) {
                                 return result
                             }
+                            if let result = await EditorAgentWorkspaceMCPTools.shared.handleAsync(name: name, arguments: arguments) {
+                                return result
+                            }
                             if let result = await EditorAgentStoreTools.handle(name: name, arguments: arguments) {
                                 return result
                             }
@@ -196,6 +200,7 @@ struct AdaEditorApp: App {
                             }
                             return await EditorAgentGravityMCPTools.shared.handle(name: name, arguments: arguments)
                         },
+                        captureOverride: EditorGameFrameCapture.mcpCaptureOverride,
                         enableDiscovery: EditorMCPServerAddress.enableDiscovery
                     )
                 )
@@ -206,7 +211,9 @@ struct AdaEditorApp: App {
 
 extension Foundation.Bundle {
     public static var editor: Foundation.Bundle {
-        #if SWIFT_PACKAGE
+        #if os(Android)
+            return AndroidResourceBundle.bundle(named: "AdaEditor_AdaEditor")
+        #elseif SWIFT_PACKAGE
             return Self.module
         #else
             return Foundation.Bundle(for: BundleToken.self)

@@ -1,14 +1,18 @@
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
 
+#if defined( _MSC_VER )
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#endif
 #define _CRTDBG_MAP_ALLOC
+#endif
+
 #define IMGUI_DISABLE_OBSOLETE_FUNCTIONS 1
 
-#include "TaskScheduler.h"
 #include "draw.h"
 #include "sample.h"
-#include "settings.h"
+#include "utils.h"
 
 #include "box2d/base.h"
 #include "box2d/box2d.h"
@@ -22,20 +26,20 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-
+#include "implot.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifdef BOX2D_PROFILE
+#ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>
 #else
 #define FrameMark
 #endif
 
-#if defined( _WIN32 ) && 0
+#if defined( _MSC_VER )
 #include <crtdbg.h>
-
+#if 0
 static int MyAllocHook( int allocType, void* userData, size_t size, int blockType, long requestNumber,
 						const unsigned char* filename, int lineNumber )
 {
@@ -48,22 +52,19 @@ static int MyAllocHook( int allocType, void* userData, size_t size, int blockTyp
 	return 1;
 }
 #endif
+#endif
 
-GLFWwindow* g_mainWindow = nullptr;
-static int32_t s_selection = 0;
-static Sample* s_sample = nullptr;
-static Settings s_settings;
+static SampleContext s_context;
 static bool s_rightMouseDown = false;
-static b2Vec2 s_clickPointWS = b2Vec2_zero;
-static float s_windowScale = 1.0f;
+static b2Pos s_clickPointWS = b2Pos_zero;
 static float s_framebufferScale = 1.0f;
 
-inline bool IsPowerOfTwo( int32_t x )
+inline bool IsPowerOfTwo( int x )
 {
 	return ( x != 0 ) && ( ( x & ( x - 1 ) ) == 0 );
 }
 
-void* AllocFcn( uint32_t size, int32_t alignment )
+void* AllocFcn( size_t size, int alignment )
 {
 	// Allocation must be a multiple of alignment or risk a seg fault
 	// https://en.cppreference.com/w/c/memory/aligned_alloc
@@ -71,7 +72,7 @@ void* AllocFcn( uint32_t size, int32_t alignment )
 	size_t sizeAligned = ( ( size - 1 ) | ( alignment - 1 ) ) + 1;
 	assert( ( sizeAligned & ( alignment - 1 ) ) == 0 );
 
-#if defined( _WIN64 ) || defined( _WIN32 )
+#if defined( _MSC_VER ) || defined( __MINGW32__ ) || defined( __MINGW64__ )
 	void* ptr = _aligned_malloc( sizeAligned, alignment );
 #else
 	void* ptr = aligned_alloc( alignment, sizeAligned );
@@ -80,9 +81,11 @@ void* AllocFcn( uint32_t size, int32_t alignment )
 	return ptr;
 }
 
-void FreeFcn( void* mem )
+void FreeFcn( void* mem, size_t size )
 {
-#if defined( _WIN64 ) || defined( _WIN32 )
+	(void)size;
+
+#if defined( _MSC_VER ) || defined( __MINGW32__ ) || defined( __MINGW64__ )
 	_aligned_free( mem );
 #else
 	free( mem );
@@ -116,22 +119,113 @@ static int CompareSamples( const void* a, const void* b )
 
 static void SortSamples()
 {
+	SampleCreateFcn* replayFcn = ( g_replayIndex >= 0 ) ? g_sampleEntries[g_replayIndex].createFcn : nullptr;
 	qsort( g_sampleEntries, g_sampleCount, sizeof( SampleEntry ), CompareSamples );
+	if ( replayFcn != nullptr )
+	{
+		g_replayIndex = -1;
+		for ( int i = 0; i < g_sampleCount; ++i )
+		{
+			if ( g_sampleEntries[i].createFcn == replayFcn )
+			{
+				g_replayIndex = i;
+				break;
+			}
+		}
+	}
 }
 
-static void RestartSample()
+static void ApplyUIStyle( void )
 {
-	delete s_sample;
-	s_sample = nullptr;
-	s_settings.restart = true;
-	s_sample = g_sampleEntries[s_settings.sampleIndex].createFcn( s_settings );
-	s_settings.restart = false;
+	ImGuiStyle& style = ImGui::GetStyle();
+
+	// Metrics: containers round at 4px, controls at 3px - one deliberate
+	// system instead of the stock mix. Padding gives rows room to breathe.
+	style.WindowPadding = ImVec2( 10.0f, 10.0f );
+	style.FramePadding = ImVec2( 8.0f, 4.0f );
+	style.CellPadding = ImVec2( 6.0f, 4.0f );
+	style.ItemSpacing = ImVec2( 8.0f, 7.0f );
+	style.ItemInnerSpacing = ImVec2( 7.0f, 4.0f );
+	style.IndentSpacing = 18.0f;
+	style.ScrollbarSize = 12.0f;
+	style.GrabMinSize = 10.0f;
+
+	style.WindowBorderSize = 1.0f;
+	style.FrameBorderSize = 0.0f;
+	style.PopupBorderSize = 1.0f;
+	style.TabBorderSize = 0.0f;
+	style.SeparatorTextBorderSize = 1.0f;
+
+	style.WindowRounding = 4.0f;
+	style.ChildRounding = 4.0f;
+	style.PopupRounding = 4.0f;
+	style.FrameRounding = 3.0f;
+	style.GrabRounding = 3.0f;
+	style.ScrollbarRounding = 3.0f;
+	style.TabRounding = 3.0f;
+
+	style.WindowTitleAlign = ImVec2( 0.0f, 0.5f );
+
+	// Palette: neutral charcoal surfaces, one steel-blue accent at three
+	// brightnesses. Replaces stock ImGui's saturated cornflower blue.
+	const ImVec4 accent = ImVec4( 0.28f, 0.48f, 0.66f, 1.00f );
+	const ImVec4 accentHi = ImVec4( 0.38f, 0.60f, 0.80f, 1.00f );
+	const ImVec4 accentLo = ImVec4( 0.22f, 0.36f, 0.50f, 1.00f );
+
+	ImVec4* c = style.Colors;
+	c[ImGuiCol_Text] = ImVec4( 0.90f, 0.91f, 0.93f, 1.00f );
+	c[ImGuiCol_TextDisabled] = ImVec4( 0.49f, 0.51f, 0.55f, 1.00f );
+	c[ImGuiCol_WindowBg] = ImVec4( 0.110f, 0.115f, 0.125f, 0.97f );
+	c[ImGuiCol_ChildBg] = ImVec4( 0.00f, 0.00f, 0.00f, 0.00f );
+	c[ImGuiCol_PopupBg] = ImVec4( 0.100f, 0.105f, 0.115f, 0.98f );
+	c[ImGuiCol_Border] = ImVec4( 0.00f, 0.00f, 0.00f, 0.45f );
+	c[ImGuiCol_BorderShadow] = ImVec4( 0.00f, 0.00f, 0.00f, 0.00f );
+	c[ImGuiCol_FrameBg] = ImVec4( 0.18f, 0.19f, 0.21f, 1.00f );
+	c[ImGuiCol_FrameBgHovered] = ImVec4( 0.24f, 0.26f, 0.29f, 1.00f );
+	c[ImGuiCol_FrameBgActive] = ImVec4( 0.29f, 0.32f, 0.36f, 1.00f );
+	c[ImGuiCol_TitleBg] = ImVec4( 0.090f, 0.095f, 0.105f, 1.00f );
+	c[ImGuiCol_TitleBgActive] = ImVec4( 0.14f, 0.16f, 0.19f, 1.00f );
+	c[ImGuiCol_TitleBgCollapsed] = ImVec4( 0.090f, 0.095f, 0.105f, 0.75f );
+	c[ImGuiCol_MenuBarBg] = ImVec4( 0.13f, 0.14f, 0.16f, 1.00f );
+	c[ImGuiCol_ScrollbarBg] = ImVec4( 0.06f, 0.06f, 0.07f, 0.55f );
+	c[ImGuiCol_ScrollbarGrab] = ImVec4( 0.28f, 0.30f, 0.33f, 1.00f );
+	c[ImGuiCol_ScrollbarGrabHovered] = ImVec4( 0.36f, 0.39f, 0.43f, 1.00f );
+	c[ImGuiCol_ScrollbarGrabActive] = accent;
+	c[ImGuiCol_CheckMark] = accentHi;
+	c[ImGuiCol_SliderGrab] = accent;
+	c[ImGuiCol_SliderGrabActive] = accentHi;
+	c[ImGuiCol_Button] = ImVec4( 0.22f, 0.24f, 0.27f, 1.00f );
+	c[ImGuiCol_ButtonHovered] = accentLo;
+	c[ImGuiCol_ButtonActive] = accent;
+	c[ImGuiCol_Header] = ImVec4( 0.19f, 0.21f, 0.24f, 1.00f );
+	c[ImGuiCol_HeaderHovered] = accentLo;
+	c[ImGuiCol_HeaderActive] = accent;
+	c[ImGuiCol_Separator] = ImVec4( 1.00f, 1.00f, 1.00f, 0.09f );
+	c[ImGuiCol_SeparatorHovered] = accentLo;
+	c[ImGuiCol_SeparatorActive] = accent;
+	c[ImGuiCol_ResizeGrip] = ImVec4( 1.00f, 1.00f, 1.00f, 0.06f );
+	c[ImGuiCol_ResizeGripHovered] = accentLo;
+	c[ImGuiCol_ResizeGripActive] = accent;
+	c[ImGuiCol_Tab] = ImVec4( 0.15f, 0.16f, 0.18f, 1.00f );
+	c[ImGuiCol_TabHovered] = accentLo;
+	c[ImGuiCol_TabSelected] = accent;
+	c[ImGuiCol_TabSelectedOverline] = accentHi;
+	c[ImGuiCol_TabDimmed] = ImVec4( 0.12f, 0.13f, 0.14f, 1.00f );
+	c[ImGuiCol_TabDimmedSelected] = accentLo;
+	c[ImGuiCol_TextSelectedBg] = ImVec4( accent.x, accent.y, accent.z, 0.40f );
+	c[ImGuiCol_DragDropTarget] = accentHi;
+	c[ImGuiCol_NavCursor] = accentHi;
+	c[ImGuiCol_PlotLines] = ImVec4( 0.70f, 0.72f, 0.75f, 1.00f );
+	c[ImGuiCol_PlotLinesHovered] = accentHi;
+	c[ImGuiCol_PlotHistogram] = accent;
+	c[ImGuiCol_PlotHistogramHovered] = accentHi;
 }
 
 static void CreateUI( GLFWwindow* window, const char* glslVersion )
 {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	ImPlot::CreateContext();
 
 	bool success = ImGui_ImplGlfw_InitForOpenGL( window, false );
 	if ( success == false )
@@ -147,22 +241,20 @@ static void CreateUI( GLFWwindow* window, const char* glslVersion )
 		assert( false );
 	}
 
-	const char* fontPath = "samples/data/droid_sans.ttf";
-	FILE* file = fopen( fontPath, "rb" );
+	ImGuiIO& io = ImGui::GetIO();
+	ApplyUIStyle();
 
-	if ( file != nullptr )
+	ImGuiStyle& style = ImGui::GetStyle();
+	style.ScaleAllSizes( s_context.uiScale );
+	style.FontSizeBase = floorf( 13.0f * s_context.uiScale );
+
+	if ( s_context.uiScale == 1.0f && s_framebufferScale == 1.0f )
 	{
-		ImFontConfig fontConfig;
-		fontConfig.RasterizerMultiply = s_windowScale * s_framebufferScale;
-		g_draw.m_smallFont = ImGui::GetIO().Fonts->AddFontFromFileTTF( fontPath, 14.0f, &fontConfig );
-		g_draw.m_regularFont = ImGui::GetIO().Fonts->AddFontFromFileTTF( fontPath, 18.0f, &fontConfig );
-		g_draw.m_mediumFont = ImGui::GetIO().Fonts->AddFontFromFileTTF( fontPath, 40.0f, &fontConfig );
-		g_draw.m_largeFont = ImGui::GetIO().Fonts->AddFontFromFileTTF( fontPath, 64.0f, &fontConfig );
+		io.Fonts->AddFontDefaultBitmap();
 	}
 	else
 	{
-		printf( "\n\nERROR: the Box2D samples working directory must be the top level Box2D directory (same as README.md)\n\n" );
-		exit( EXIT_FAILURE );
+		io.Fonts->AddFontDefaultVector();
 	}
 }
 
@@ -170,15 +262,14 @@ static void DestroyUI()
 {
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
+	ImPlot::DestroyContext();
 	ImGui::DestroyContext();
 }
 
 static void ResizeWindowCallback( GLFWwindow*, int width, int height )
 {
-	g_camera.m_width = int( width / s_windowScale );
-	g_camera.m_height = int( height / s_windowScale );
-	s_settings.windowWidth = int( width / s_windowScale );
-	s_settings.windowHeight = int( height / s_windowScale );
+	s_context.camera.width = float( width );
+	s_context.camera.height = float( height );
 }
 
 static void KeyCallback( GLFWwindow* window, int key, int scancode, int action, int mods )
@@ -194,116 +285,186 @@ static void KeyCallback( GLFWwindow* window, int key, int scancode, int action, 
 		switch ( key )
 		{
 			case GLFW_KEY_ESCAPE:
-				// Quit
-				glfwSetWindowShouldClose( g_mainWindow, GL_TRUE );
+				// Layered cancel. An open picker is an ImGui popup that already swallowed this. So peel
+				// the controls window, then let the sample drop its selection. Quit lives on Ctrl+Q so a
+				// stray Esc can't close the app.
+				if ( s_context.showControls )
+				{
+					s_context.showControls = false;
+				}
+				else if ( s_context.sample != nullptr )
+				{
+					s_context.sample->Keyboard( key, action, mods );
+				}
+				break;
+
+			case GLFW_KEY_Q:
+				if ( mods == GLFW_MOD_CONTROL )
+				{
+					glfwSetWindowShouldClose( s_context.window, GL_TRUE );
+				}
+				else if ( s_context.sample != nullptr )
+				{
+					s_context.sample->Keyboard( key, action, mods );
+				}
 				break;
 
 			case GLFW_KEY_LEFT:
-				// Pan left
-				if ( mods == GLFW_MOD_CONTROL )
-				{
-					b2Vec2 newOrigin = { 2.0f, 0.0f };
-					s_sample->ShiftOrigin( newOrigin );
-				}
-				else
-				{
-					g_camera.m_center.x -= 0.5f;
-				}
-				break;
-
 			case GLFW_KEY_RIGHT:
-				// Pan right
-				if ( mods == GLFW_MOD_CONTROL )
-				{
-					b2Vec2 newOrigin = { -2.0f, 0.0f };
-					s_sample->ShiftOrigin( newOrigin );
-				}
-				else
-				{
-					g_camera.m_center.x += 0.5f;
-				}
-				break;
-
 			case GLFW_KEY_DOWN:
-				// Pan down
-				if ( mods == GLFW_MOD_CONTROL )
-				{
-					b2Vec2 newOrigin = { 0.0f, 2.0f };
-					s_sample->ShiftOrigin( newOrigin );
-				}
-				else
-				{
-					g_camera.m_center.y -= 0.5f;
-				}
-				break;
-
 			case GLFW_KEY_UP:
-				// Pan up
-				if ( mods == GLFW_MOD_CONTROL )
-				{
-					b2Vec2 newOrigin = { 0.0f, -2.0f };
-					s_sample->ShiftOrigin( newOrigin );
-				}
-				else
-				{
-					g_camera.m_center.y += 0.5f;
-				}
+			case GLFW_KEY_Z:
+			case GLFW_KEY_X:
+				// Held camera keys, polled each frame
 				break;
 
 			case GLFW_KEY_HOME:
-				g_camera.ResetView();
+				if ( s_context.sample != nullptr )
+				{
+					s_context.sample->FocusHome();
+				}
 				break;
 
 			case GLFW_KEY_R:
-				RestartSample();
+				SelectSample( &s_context, s_context.sampleIndex, true );
 				break;
 
 			case GLFW_KEY_O:
-				s_settings.singleStep = true;
+				if ( mods == GLFW_MOD_CONTROL )
+				{
+					s_context.showUI = true;
+					s_context.openSamplePicker = true;
+				}
+				else if ( s_context.sample != nullptr )
+				{
+					s_context.sample->Keyboard( key, action, mods );
+				}
+				break;
+
+			// Step forward. Backward is , and only a sample that can rewind handles it.
+			case GLFW_KEY_PERIOD:
+				s_context.singleStep += ( mods & GLFW_MOD_SHIFT ) ? 5 : 1;
 				break;
 
 			case GLFW_KEY_P:
-				s_settings.pause = !s_settings.pause;
+			case GLFW_KEY_PAUSE:
+				s_context.pause = !s_context.pause;
 				break;
 
 			case GLFW_KEY_LEFT_BRACKET:
 				// Switch to previous test
-				--s_selection;
-				if ( s_selection < 0 )
 				{
-					s_selection = g_sampleCount - 1;
+					int selection = s_context.sampleIndex - 1;
+					if ( selection < 0 )
+					{
+						selection = g_sampleCount - 1;
+					}
+					SelectSample( &s_context, selection, false );
 				}
 				break;
 
 			case GLFW_KEY_RIGHT_BRACKET:
 				// Switch to next test
-				++s_selection;
-				if ( s_selection == g_sampleCount )
 				{
-					s_selection = 0;
+					int selection = s_context.sampleIndex + 1;
+					if ( selection == g_sampleCount )
+					{
+						selection = 0;
+					}
+					SelectSample( &s_context, selection, false );
 				}
 				break;
 
 			case GLFW_KEY_TAB:
-				g_draw.m_showUI = !g_draw.m_showUI;
+				s_context.showUI = !s_context.showUI;
+				break;
+
+			case GLFW_KEY_M:
+				s_context.showMetrics = !s_context.showMetrics;
+				break;
+
+			case GLFW_KEY_I:
+				s_context.showProfile = !s_context.showProfile;
+				break;
 
 			default:
-				if ( s_sample )
+				if ( s_context.sample != nullptr )
 				{
-					s_sample->Keyboard( key );
+					s_context.sample->Keyboard( key, action, mods );
 				}
 		}
 	}
 }
 
+// Held keys move the camera. Rates are per second so a slow frame doesn't slow the camera, and
+// the pan scales with zoom so it covers the same share of the view at any zoom.
+static void UpdateCameraKeys( float frameTime )
+{
+	// ImGui has priority, so typing in a text field or arrowing through the sample picker leaves
+	// the camera alone
+	if ( ImGui::GetIO().WantCaptureKeyboard )
+	{
+		return;
+	}
+
+	GLFWwindow* window = s_context.window;
+	Camera* camera = &s_context.camera;
+
+	// A stall such as a sample switch would otherwise jump the camera.
+	float dt = b2MinFloat( frameTime, 0.1f );
+
+	// About 35% per second.
+	float zoomRate = 0.3f;
+	if ( glfwGetKey( window, GLFW_KEY_Z ) == GLFW_PRESS )
+	{
+		// Samples may start beyond the limit, and zooming out must never pull the view in
+		camera->zoom = b2MinFloat( expf( zoomRate * dt ) * camera->zoom, b2MaxFloat( camera->zoom, 100.0f ) );
+	}
+	else if ( glfwGetKey( window, GLFW_KEY_X ) == GLFW_PRESS )
+	{
+		camera->zoom = b2MaxFloat( expf( -zoomRate * dt ) * camera->zoom, 0.5f );
+	}
+
+	// One view half height per second
+	float panStep = camera->zoom * dt;
+	b2Vec2 pan = b2Vec2_zero;
+	if ( glfwGetKey( window, GLFW_KEY_LEFT ) == GLFW_PRESS )
+	{
+		pan.x -= panStep;
+	}
+	if ( glfwGetKey( window, GLFW_KEY_RIGHT ) == GLFW_PRESS )
+	{
+		pan.x += panStep;
+	}
+	if ( glfwGetKey( window, GLFW_KEY_DOWN ) == GLFW_PRESS )
+	{
+		pan.y -= panStep;
+	}
+	if ( glfwGetKey( window, GLFW_KEY_UP ) == GLFW_PRESS )
+	{
+		pan.y += panStep;
+	}
+	camera->center = b2OffsetPos( camera->center, pan );
+}
+
 static void CharCallback( GLFWwindow* window, unsigned int c )
 {
 	ImGui_ImplGlfw_CharCallback( window, c );
+	if ( ImGui::GetIO().WantCaptureKeyboard )
+	{
+		return;
+	}
+
+	// Read the typed character so ? works on any keyboard layout
+	if ( c == '?' )
+	{
+		s_context.showControls = !s_context.showControls;
+	}
 }
 
-static void MouseButtonCallback( GLFWwindow* window, int32_t button, int32_t action, int32_t mods )
+static void MouseButtonCallback( GLFWwindow* window, int button, int action, int modifiers )
 {
-	ImGui_ImplGlfw_MouseButtonCallback( window, button, action, mods );
+	ImGui_ImplGlfw_MouseButtonCallback( window, button, action, modifiers );
 
 	if ( ImGui::GetIO().WantCaptureMouse )
 	{
@@ -311,28 +472,28 @@ static void MouseButtonCallback( GLFWwindow* window, int32_t button, int32_t act
 	}
 
 	double xd, yd;
-	glfwGetCursorPos( g_mainWindow, &xd, &yd );
-	b2Vec2 ps = { float( xd ) / s_windowScale, float( yd ) / s_windowScale };
+	glfwGetCursorPos( window, &xd, &yd );
+	b2Vec2 ps = { float( xd ), float( yd ) };
 
 	// Use the mouse to move things around.
 	if ( button == GLFW_MOUSE_BUTTON_1 )
 	{
-		b2Vec2 pw = g_camera.ConvertScreenToWorld( ps );
+		b2Pos pw = ConvertScreenToWorld( &s_context.camera, ps );
 		if ( action == GLFW_PRESS )
 		{
-			s_sample->MouseDown( pw, button, mods );
+			s_context.sample->MouseDown( pw, button, modifiers );
 		}
 
 		if ( action == GLFW_RELEASE )
 		{
-			s_sample->MouseUp( pw, button );
+			s_context.sample->MouseUp( pw, button );
 		}
 	}
 	else if ( button == GLFW_MOUSE_BUTTON_2 )
 	{
 		if ( action == GLFW_PRESS )
 		{
-			s_clickPointWS = g_camera.ConvertScreenToWorld( ps );
+			s_clickPointWS = ConvertScreenToWorld( &s_context.camera, ps );
 			s_rightMouseDown = true;
 		}
 
@@ -345,19 +506,19 @@ static void MouseButtonCallback( GLFWwindow* window, int32_t button, int32_t act
 
 static void MouseMotionCallback( GLFWwindow* window, double xd, double yd )
 {
-	b2Vec2 ps = { float( xd ) / s_windowScale, float( yd ) / s_windowScale };
+	b2Vec2 ps = { float( xd ), float( yd ) };
 
 	ImGui_ImplGlfw_CursorPosCallback( window, ps.x, ps.y );
 
-	b2Vec2 pw = g_camera.ConvertScreenToWorld( ps );
-	s_sample->MouseMove( pw );
+	b2Pos pw = ConvertScreenToWorld( &s_context.camera, ps );
+	s_context.sample->MouseMove( pw );
 
 	if ( s_rightMouseDown )
 	{
-		b2Vec2 diff = b2Sub( pw, s_clickPointWS );
-		g_camera.m_center.x -= diff.x;
-		g_camera.m_center.y -= diff.y;
-		s_clickPointWS = g_camera.ConvertScreenToWorld( ps );
+		b2Vec2 diff = pw - s_clickPointWS;
+		s_context.camera.center.x -= diff.x;
+		s_context.camera.center.y -= diff.y;
+		s_clickPointWS = ConvertScreenToWorld( &s_context.camera, ps );
 	}
 }
 
@@ -369,188 +530,67 @@ static void ScrollCallback( GLFWwindow* window, double dx, double dy )
 		return;
 	}
 
+	double xd, yd;
+	glfwGetCursorPos( window, &xd, &yd );
+	b2Vec2 ps = { (float)xd, (float)yd };
+	b2Pos pw1 = ConvertScreenToWorld( &s_context.camera, ps );
+
 	if ( dy > 0 )
 	{
-		g_camera.m_zoom /= 1.1f;
+		s_context.camera.zoom /= 1.1f;
 	}
 	else
 	{
-		g_camera.m_zoom *= 1.1f;
+		s_context.camera.zoom *= 1.1f;
 	}
+
+	b2Pos pw2 = ConvertScreenToWorld( &s_context.camera, ps );
+
+	// Keep the world point under the cursor fixed across the zoom.
+	b2Vec2 pan = pw2 - pw1;
+	s_context.camera.center.x -= pan.x;
+	s_context.camera.center.y -= pan.y;
 }
 
-static void UpdateUI()
+int main( int argc, char** argv )
 {
-	int maxWorkers = enki::GetNumHardwareThreads();
-
-	float menuWidth = 180.0f;
-	if ( g_draw.m_showUI )
-	{
-		ImGui::SetNextWindowPos( { g_camera.m_width - menuWidth - 10.0f, 10.0f } );
-		ImGui::SetNextWindowSize( { menuWidth, g_camera.m_height - 20.0f } );
-
-		ImGui::Begin( "Tools", &g_draw.m_showUI,
-					  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse );
-
-		if ( ImGui::BeginTabBar( "ControlTabs", ImGuiTabBarFlags_None ) )
-		{
-			if ( ImGui::BeginTabItem( "Controls" ) )
-			{
-				ImGui::PushItemWidth( 100.0f );
-				ImGui::SliderInt( "Sub-steps", &s_settings.subStepCount, 1, 50 );
-				ImGui::SliderFloat( "Hertz", &s_settings.hertz, 5.0f, 120.0f, "%.0f hz" );
-
-				if ( ImGui::SliderInt( "Workers", &s_settings.workerCount, 1, maxWorkers ) )
-				{
-					s_settings.workerCount = b2ClampInt( s_settings.workerCount, 1, maxWorkers );
-					RestartSample();
-				}
-				ImGui::PopItemWidth();
-
-				ImGui::Separator();
-
-				ImGui::Checkbox( "Sleep", &s_settings.enableSleep );
-				ImGui::Checkbox( "Warm Starting", &s_settings.enableWarmStarting );
-				ImGui::Checkbox( "Continuous", &s_settings.enableContinuous );
-
-				ImGui::Separator();
-
-				ImGui::Checkbox( "Shapes", &s_settings.drawShapes );
-				ImGui::Checkbox( "Joints", &s_settings.drawJoints );
-				ImGui::Checkbox( "Joint Extras", &s_settings.drawJointExtras );
-				ImGui::Checkbox( "AABBs", &s_settings.drawAABBs );
-				ImGui::Checkbox( "Contact Points", &s_settings.drawContactPoints );
-				ImGui::Checkbox( "Contact Normals", &s_settings.drawContactNormals );
-				ImGui::Checkbox( "Contact Impulses", &s_settings.drawContactImpulses );
-				ImGui::Checkbox( "Friction Impulses", &s_settings.drawFrictionImpulses );
-				ImGui::Checkbox( "Center of Masses", &s_settings.drawMass );
-				ImGui::Checkbox( "Body Names", &s_settings.drawBodyNames );
-				ImGui::Checkbox( "Graph Colors", &s_settings.drawGraphColors );
-				ImGui::Checkbox( "Counters", &s_settings.drawCounters );
-				ImGui::Checkbox( "Profile", &s_settings.drawProfile );
-
-				ImVec2 button_sz = ImVec2( -1, 0 );
-				if ( ImGui::Button( "Pause (P)", button_sz ) )
-				{
-					s_settings.pause = !s_settings.pause;
-				}
-
-				if ( ImGui::Button( "Single Step (O)", button_sz ) )
-				{
-					s_settings.singleStep = !s_settings.singleStep;
-				}
-
-				if ( ImGui::Button( "Dump Mem Stats", button_sz ) )
-				{
-					b2World_DumpMemoryStats( s_sample->m_worldId );
-				}
-
-				if ( ImGui::Button( "Reset Profile", button_sz ) )
-				{
-					s_sample->ResetProfile();
-				}
-
-				if ( ImGui::Button( "Restart (R)", button_sz ) )
-				{
-					RestartSample();
-				}
-
-				if ( ImGui::Button( "Quit", button_sz ) )
-				{
-					glfwSetWindowShouldClose( g_mainWindow, GL_TRUE );
-				}
-
-				ImGui::EndTabItem();
-			}
-
-			ImGuiTreeNodeFlags leafNodeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
-			leafNodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-
-			ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
-
-			if ( ImGui::BeginTabItem( "Samples" ) )
-			{
-				int categoryIndex = 0;
-				const char* category = g_sampleEntries[categoryIndex].category;
-				int i = 0;
-				while ( i < g_sampleCount )
-				{
-					bool categorySelected = strcmp( category, g_sampleEntries[s_settings.sampleIndex].category ) == 0;
-					ImGuiTreeNodeFlags nodeSelectionFlags = categorySelected ? ImGuiTreeNodeFlags_Selected : 0;
-					bool nodeOpen = ImGui::TreeNodeEx( category, nodeFlags | nodeSelectionFlags );
-
-					if ( nodeOpen )
-					{
-						while ( i < g_sampleCount && strcmp( category, g_sampleEntries[i].category ) == 0 )
-						{
-							ImGuiTreeNodeFlags selectionFlags = 0;
-							if ( s_settings.sampleIndex == i )
-							{
-								selectionFlags = ImGuiTreeNodeFlags_Selected;
-							}
-							ImGui::TreeNodeEx( (void*)(intptr_t)i, leafNodeFlags | selectionFlags, "%s",
-											   g_sampleEntries[i].name );
-							if ( ImGui::IsItemClicked() )
-							{
-								s_selection = i;
-							}
-							++i;
-						}
-						ImGui::TreePop();
-					}
-					else
-					{
-						while ( i < g_sampleCount && strcmp( category, g_sampleEntries[i].category ) == 0 )
-						{
-							++i;
-						}
-					}
-
-					if ( i < g_sampleCount )
-					{
-						category = g_sampleEntries[i].category;
-						categoryIndex = i;
-					}
-				}
-				ImGui::EndTabItem();
-			}
-			ImGui::EndTabBar();
-		}
-
-		ImGui::End();
-
-		s_sample->UpdateUI();
-	}
-}
-
-int main( int, char** )
-{
-#if defined( _WIN32 )
+#if defined( _MSC_VER )
 	// Enable memory-leak reports
+	//_CrtSetBreakAlloc( 1418 );
 	_CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE );
 	_CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDOUT );
 	//_CrtSetAllocHook(MyAllocHook);
+#endif
 
-	// How to break at the leaking allocation, in the watch window enter this variable
-	// and set it to the allocation number in {}. Do this at the first line in main.
-	// {,,ucrtbased.dll}_crtBreakAlloc = <allocation number>
+#ifdef TRACY_ENABLE
+	tracy::StartupProfiler();
 #endif
 
 	// Install memory hooks
 	b2SetAllocator( AllocFcn, FreeFcn );
-	b2SetAssertFcn( AssertFcn );
+	b2SetAssertCallback( AssertFcn );
 
 	char buffer[128];
 
-	s_settings.Load();
-	s_settings.workerCount = b2MinInt( 8, (int)enki::GetNumHardwareThreads() / 2 );
-
+	// Sort first so every sample index read below, including the replay index, is a sorted index
 	SortSamples();
 
-	glfwSetErrorCallback( glfwErrorCallback );
+	s_context.Load();
 
-	g_camera.m_width = s_settings.windowWidth;
-	g_camera.m_height = s_settings.windowHeight;
+	// First run with no settings opens with the controls window up
+	s_context.showControls = s_context.newUser;
+
+	s_context.workerCount = b2MinInt( 8, GetNumberOfCores() / 2 );
+
+	// A recording path on the command line opens straight into the replay viewer.
+	// Dragging a file onto the exe arrives here as argv[1] too.
+	if ( argc > 1 && g_replayIndex >= 0 )
+	{
+		snprintf( s_context.replayFile, sizeof( s_context.replayFile ), "%s", argv[1] );
+		s_context.sampleIndex = g_replayIndex;
+	}
+
+	glfwSetErrorCallback( glfwErrorCallback );
 
 	if ( glfwInit() == 0 )
 	{
@@ -573,43 +613,42 @@ int main( int, char** )
 	glfwWindowHint( GLFW_SAMPLES, 4 );
 
 	b2Version version = b2GetVersion();
-	snprintf( buffer, 128, "Box2D Version %d.%d.%d", version.major, version.minor, version.revision );
+	const char* precision = b2IsDoublePrecision() ? "double" : "single";
+	snprintf( buffer, 128, "Box2D Version %d.%d.%d - %s precision", version.major, version.minor, version.revision, precision );
 
 	if ( GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor() )
 	{
+		float contentScale = 1.0f;
+		glfwGetMonitorContentScale( primaryMonitor, &contentScale, &contentScale );
+
 #ifdef __APPLE__
-		glfwGetMonitorContentScale( primaryMonitor, &s_framebufferScale, &s_framebufferScale );
+		s_context.uiScale = 1.0f;
+		s_framebufferScale = contentScale;
 #else
-		glfwGetMonitorContentScale( primaryMonitor, &s_windowScale, &s_windowScale );
+		s_context.uiScale = contentScale;
+		s_framebufferScale = 1.0f;
 #endif
 	}
 
 	bool fullscreen = false;
 	if ( fullscreen )
 	{
-		g_mainWindow = glfwCreateWindow( int( 1920 * s_windowScale ), int( 1080 * s_windowScale ), buffer,
-										 glfwGetPrimaryMonitor(), nullptr );
+		s_context.window = glfwCreateWindow( 1920, 1080, buffer, glfwGetPrimaryMonitor(), nullptr );
 	}
 	else
 	{
-		g_mainWindow = glfwCreateWindow( int( g_camera.m_width * s_windowScale ), int( g_camera.m_height * s_windowScale ),
-										 buffer, nullptr, nullptr );
+		s_context.window =
+			glfwCreateWindow( int( s_context.camera.width ), int( s_context.camera.height ), buffer, nullptr, nullptr );
 	}
 
-	if ( g_mainWindow == nullptr )
+	if ( s_context.window == nullptr )
 	{
-		fprintf( stderr, "Failed to open GLFW g_mainWindow.\n" );
+		fprintf( stderr, "Failed to open GLFW window.\n" );
 		glfwTerminate();
 		return -1;
 	}
 
-#ifdef __APPLE__
-	glfwGetWindowContentScale( g_mainWindow, &s_framebufferScale, &s_framebufferScale );
-#else
-	glfwGetWindowContentScale( g_mainWindow, &s_windowScale, &s_windowScale );
-#endif
-
-	glfwMakeContextCurrent( g_mainWindow );
+	glfwMakeContextCurrent( s_context.window );
 
 	// Load OpenGL functions using glad
 	if ( !gladLoadGL() )
@@ -619,134 +658,97 @@ int main( int, char** )
 		return -1;
 	}
 
-	printf( "GL %d.%d\n", GLVersion.major, GLVersion.minor );
-	printf( "OpenGL %s, GLSL %s\n", glGetString( GL_VERSION ), glGetString( GL_SHADING_LANGUAGE_VERSION ) );
+	{
+		const char* glVersionString = (const char*)glGetString( GL_VERSION );
+		const char* glslVersionString = (const char*)glGetString( GL_SHADING_LANGUAGE_VERSION );
+		printf( "OpenGL %s, GLSL %s\n", glVersionString, glslVersionString );
+	}
 
-	glfwSetWindowSizeCallback( g_mainWindow, ResizeWindowCallback );
-	glfwSetKeyCallback( g_mainWindow, KeyCallback );
-	glfwSetCharCallback( g_mainWindow, CharCallback );
-	glfwSetMouseButtonCallback( g_mainWindow, MouseButtonCallback );
-	glfwSetCursorPosCallback( g_mainWindow, MouseMotionCallback );
-	glfwSetScrollCallback( g_mainWindow, ScrollCallback );
+	glfwSetWindowSizeCallback( s_context.window, ResizeWindowCallback );
+	glfwSetKeyCallback( s_context.window, KeyCallback );
+	glfwSetCharCallback( s_context.window, CharCallback );
+	glfwSetMouseButtonCallback( s_context.window, MouseButtonCallback );
+	glfwSetCursorPosCallback( s_context.window, MouseMotionCallback );
+	glfwSetScrollCallback( s_context.window, ScrollCallback );
 
-	// todo put this in s_settings
-	CreateUI( g_mainWindow, glslVersion );
-	g_draw.Create();
+	CreateUI( s_context.window, glslVersion );
+	s_context.draw = CreateDraw();
 
-	s_settings.sampleIndex = b2ClampInt( s_settings.sampleIndex, 0, g_sampleCount - 1 );
-	s_selection = s_settings.sampleIndex;
+	s_context.sampleIndex = b2ClampInt( s_context.sampleIndex, 0, g_sampleCount - 1 );
+	SelectSample( &s_context, s_context.sampleIndex, false );
 
 	glClearColor( 0.2f, 0.2f, 0.2f, 1.0f );
 
 	float frameTime = 0.0;
 
-	while ( !glfwWindowShouldClose( g_mainWindow ) )
+	while ( !glfwWindowShouldClose( s_context.window ) )
 	{
 		double time1 = glfwGetTime();
 
-		if ( glfwGetKey( g_mainWindow, GLFW_KEY_Z ) == GLFW_PRESS )
-		{
-			// Zoom out
-			g_camera.m_zoom = b2MinFloat( 1.005f * g_camera.m_zoom, 100.0f );
-		}
-		else if ( glfwGetKey( g_mainWindow, GLFW_KEY_X ) == GLFW_PRESS )
-		{
-			// Zoom in
-			g_camera.m_zoom = b2MaxFloat( 0.995f * g_camera.m_zoom, 0.5f );
-		}
+		UpdateCameraKeys( frameTime );
 
-		glfwGetWindowSize( g_mainWindow, &g_camera.m_width, &g_camera.m_height );
-		g_camera.m_width = int( g_camera.m_width / s_windowScale );
-		g_camera.m_height = int( g_camera.m_height / s_windowScale );
+		int width, height;
+		glfwGetWindowSize( s_context.window, &width, &height );
+		s_context.camera.width = width;
+		s_context.camera.height = height;
 
 		int bufferWidth, bufferHeight;
-		glfwGetFramebufferSize( g_mainWindow, &bufferWidth, &bufferHeight );
+		glfwGetFramebufferSize( s_context.window, &bufferWidth, &bufferHeight );
 		glViewport( 0, 0, bufferWidth, bufferHeight );
 
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-		//g_draw.DrawBackground();
+		// DrawBackground( s_context.draw, &s_context.camera );
 
-		double cursorPosX = 0, cursorPosY = 0;
-		glfwGetCursorPos( g_mainWindow, &cursorPosX, &cursorPosY );
-		ImGui_ImplGlfw_CursorPosCallback( g_mainWindow, cursorPosX / s_windowScale, cursorPosY / s_windowScale );
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
-		ImGui_ImplGlfw_CursorPosCallback( g_mainWindow, cursorPosX / s_windowScale, cursorPosY / s_windowScale );
 
 		ImGuiIO& io = ImGui::GetIO();
-		io.DisplaySize.x = float( g_camera.m_width );
-		io.DisplaySize.y = float( g_camera.m_height );
-		io.DisplayFramebufferScale.x = bufferWidth / float( g_camera.m_width );
-		io.DisplayFramebufferScale.y = bufferHeight / float( g_camera.m_height );
+		io.DisplaySize.x = s_context.camera.width;
+		io.DisplaySize.y = s_context.camera.height;
+
+		// These can be zero if the window is minimized
+		if ( s_context.camera.width > 0.0f && s_context.camera.height > 0.0f )
+		{
+			// Framebuffer/window ratio: 1 on Windows/Linux, 2 on a Retina display. Drives
+			// both UI magnification and font rasterizer density.
+			io.DisplayFramebufferScale.x = bufferWidth / s_context.camera.width;
+			io.DisplayFramebufferScale.y = bufferHeight / s_context.camera.height;
+		}
 
 		ImGui::NewFrame();
 
-		ImGui::SetNextWindowPos( ImVec2( 0.0f, 0.0f ) );
-		ImGui::SetNextWindowSize( ImVec2( float( g_camera.m_width ), float( g_camera.m_height ) ) );
-		ImGui::SetNextWindowBgAlpha( 0.0f );
-		ImGui::Begin( "Overlay", nullptr,
-					  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize |
-						  ImGuiWindowFlags_NoScrollbar );
-		ImGui::End();
+		s_context.sample->ResetText();
 
-		if ( s_sample == nullptr )
+		if ( s_context.showUI == false )
 		{
-			// delayed creation because imgui doesn't create fonts until NewFrame() is called
-			s_sample = g_sampleEntries[s_settings.sampleIndex].createFcn( s_settings );
+			// Minimal hud
+			s_context.sample->DrawHud( frameTime );
 		}
 
-		if ( g_draw.m_showUI )
+		// Draw relative to the camera so world draws get float coordinates near the origin, and stay exact
+		// far from it in large world mode. This must hold even for samples that drive their own Step without
+		// calling Sample::Step, otherwise their world draws ignore camera panning.
+		SetDrawOrigin( s_context.draw, s_context.camera.center );
+
+		s_context.sample->Step();
+
+		FlushDraw( s_context.draw, &s_context.camera );
+
+		if ( s_context.showUI == true )
 		{
-			const SampleEntry& entry = g_sampleEntries[s_settings.sampleIndex];
-			snprintf( buffer, 128, "%s : %s", entry.category, entry.name );
-			s_sample->DrawTitle( buffer );
+			DrawUI( &s_context, frameTime );
 		}
-
-		s_sample->Step( s_settings );
-
-		g_draw.Flush();
-
-		UpdateUI();
 
 		// ImGui::ShowDemoWindow();
-
-		if ( g_draw.m_showUI )
-		{
-			snprintf( buffer, 128, "%.1f ms - step %d - camera (%g, %g, %g)", 1000.0f * frameTime, s_sample->m_stepCount,
-					  g_camera.m_center.x, g_camera.m_center.y, g_camera.m_zoom );
-			// snprintf( buffer, 128, "%.1f ms", 1000.0f * frameTime );
-
-			ImGui::Begin( "Overlay", nullptr,
-						  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize |
-							  ImGuiWindowFlags_NoScrollbar );
-			ImGui::SetCursorPos( ImVec2( 5.0f, g_camera.m_height - 20.0f ) );
-			ImGui::TextColored( ImColor( 153, 230, 153, 255 ), "%s", buffer );
-			ImGui::End();
-		}
 
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData( ImGui::GetDrawData() );
 
-		glfwSwapBuffers( g_mainWindow );
+		glfwSwapBuffers( s_context.window );
 
 		// For the Tracy profiler
 		FrameMark;
-
-		if ( s_selection != s_settings.sampleIndex )
-		{
-			g_camera.ResetView();
-			s_settings.sampleIndex = s_selection;
-
-			// #todo restore all drawing settings that may have been overridden by a sample
-			s_settings.subStepCount = 4;
-			s_settings.drawJoints = true;
-			s_settings.useCameraBounds = false;
-
-			delete s_sample;
-			s_sample = nullptr;
-			s_sample = g_sampleEntries[s_settings.sampleIndex].createFcn( s_settings );
-		}
 
 		glfwPollEvents();
 
@@ -762,17 +764,20 @@ int main( int, char** )
 		frameTime = float( time2 - time1 );
 	}
 
-	delete s_sample;
-	s_sample = nullptr;
+	delete s_context.sample;
 
-	g_draw.Destroy();
+	DestroyDraw( s_context.draw );
 
 	DestroyUI();
 	glfwTerminate();
 
-	s_settings.Save();
+	s_context.Save();
 
-#if defined( _WIN32 )
+#ifdef TRACY_ENABLE
+	tracy::ShutdownProfiler();
+#endif
+
+#if defined( _MSC_VER )
 	_CrtDumpMemoryLeaks();
 #endif
 

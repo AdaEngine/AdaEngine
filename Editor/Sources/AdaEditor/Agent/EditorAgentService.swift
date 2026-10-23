@@ -1148,9 +1148,10 @@ enum EditorAgentPromptContext {
 enum EditorAgentDefaultService {
     static func make() -> any EditorAgentServicing {
         #if os(visionOS) && canImport(SloppyRuntime)
-            EditorVRRuntimeAgentService()
+            let external: any EditorAgentServicing = EditorVRRuntimeAgentService()
         #else
-            EditorACPAgentService()
+            let external: any EditorAgentServicing = EditorACPAgentService()
         #endif
+        return EditorCloudAgentRouter(fallback: external)
     }
 }

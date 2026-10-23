@@ -77,7 +77,7 @@ final class TextEditorViewNode: ViewNode {
         showsIndentationGuides || showsTabMarkers || showsSpaceMarkers
     }
     var highlightsSelectedIdentifier: Bool
-    var text: String
+    var text: String { didSet { if oldValue != text { invalidateInputComposition() } } }
 
     var isFocused = false
     var isCursorActive = false
@@ -99,8 +99,13 @@ final class TextEditorViewNode: ViewNode {
     var preferredColumn: Int?
     var caretVisible = true
     var caretBlinkElapsed: AdaUtils.TimeInterval = 0
-    var selectionAnchor = 0
-    var selectionHead = 0
+    var selectionAnchor = 0 { didSet { if oldValue != selectionAnchor { invalidateInputComposition() } } }
+    var selectionHead = 0 { didSet { if oldValue != selectionHead { invalidateInputComposition() } } }
+
+    var inputComposition = TextInputComposition()
+    var nativeInputSession: TextInputEvent.Session?
+    var hasNativeInputSession = false
+    var isApplyingInputComposition = false
 
     var undoStack: [Snapshot] = []
     var redoStack: [Snapshot] = []
@@ -235,6 +240,7 @@ final class TextEditorViewNode: ViewNode {
     override func onFocusChanged(isFocused: Bool) { self.updateTextEditorFocus(isFocused) }
 
     override func onMouseEvent(_ event: MouseEvent) {
+        if event.phase == .began { restartInputComposition() }
         self.showsTouchSelectionHandles = false
         if self.handleSourceInteractionMouseEvent(event) {
             return
@@ -300,15 +306,15 @@ final class TextEditorViewNode: ViewNode {
     override func onMouseLeave() { self.handleTextEditorMouseLeave() }
 
     override func onTextInputEvent(_ event: TextInputEvent) {
-        guard self.isFocused else {
-            return
-        }
+        guard self.isFocused, event.session?.isActive != false else { return }
 
         switch event.action {
         case .insert:
             self.insertText(event.text)
         case .deleteBackward:
             self.deleteBackward()
+        default:
+            self.applyInputComposition(event)
         }
 
         self.preferredColumn = nil

@@ -28,13 +28,28 @@ public enum AdaScriptTestProject {
     }
 
     /// Loads the project with its `Tests/` root and runs every test, or those matching `filter`.
-    public static func run(directory: URL, matching filter: String? = nil) throws -> [AdaScriptTestResult] {
-        let plugin = try AdaScriptPlugin(
-            sources: try sources(in: directory),
-            name: directory.lastPathComponent,
-            includeTests: true
-        )
-        return plugin.runTests(matching: filter)
+    public static func run(
+        directory: URL,
+        matching filter: String? = nil,
+        testTimeout: Duration? = nil,
+        onResult: ((AdaScriptTestResult) -> Void)? = nil
+    ) throws -> [AdaScriptTestResult] {
+        try run(sources: try sources(in: directory), name: directory.lastPathComponent, matching: filter, testTimeout: testTimeout, onResult: onResult)
+    }
+
+    /// Loads `sources` with tests included and runs every test, or those matching `filter`.
+    ///
+    /// A test that is still running after `testTimeout` fails with a timeout diagnostic. The limit is cooperative: it
+    /// is checked at function entries and loop iterations, so one long native call is not interrupted.
+    public static func run(
+        sources: [AdaScriptSource],
+        name: String,
+        matching filter: String? = nil,
+        testTimeout: Duration? = nil,
+        onResult: ((AdaScriptTestResult) -> Void)? = nil
+    ) throws -> [AdaScriptTestResult] {
+        let plugin = try AdaScriptPlugin(sources: sources, name: name, includeTests: true, testTimeout: testTimeout)
+        return plugin.runTests(matching: filter, onResult: onResult)
     }
 }
 

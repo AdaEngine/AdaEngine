@@ -167,6 +167,16 @@
                 }
             )
             closures.append(
+                addEventListener("paste", to: browserWindow) { [weak self, weak window] event in
+                    guard let self, let window, let inputRef = self.inputRef,
+                          let clipboard = event.clipboardData.object,
+                          let text = clipboard.getData?("text/plain").string,
+                          text.utf8.count <= 512 * 1024 else { return }
+                    _ = event.preventDefault?()
+                    inputRef.wrappedValue.receiveEvent(TextInputEvent(window: window.id, text: text, action: .insert, time: Float(Time.absolute)))
+                }
+            )
+            closures.append(
                 addEventListener("resize", to: browserWindow) { [weak self, weak window, weak surface] _ in
                     self?.resizeToViewport(window: window, surface: surface)
                 }
@@ -316,9 +326,12 @@
                 return
             }
 
-            _ = event.preventDefault?()
             let keyCode = KeyCode(browserEvent: event)
             let modifiers = KeyModifier(browserEvent: event)
+            // Let the browser dispatch its paste event. AdaUI's synchronous clipboard
+            // fallback cannot read the operating-system clipboard in a browser.
+            if (modifiers.contains(.main) || modifiers.contains(.control)), event.key.string?.lowercased() == "v" { return }
+            _ = event.preventDefault?()
             let time = Float(Time.absolute)
 
             inputRef.wrappedValue.receiveEvent(

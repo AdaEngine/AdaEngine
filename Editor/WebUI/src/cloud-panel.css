@@ -1,0 +1,11 @@
+.playground-cloud-panel { flex: 1; overflow: auto; padding: 32px clamp(20px, 5vw, 72px); }
+.cloud-embedded { --bg: #101112; --fg: #e9e9ed; --surface: #171819; --surface-hover: #242527; --code-bg: #202123; --border-subtle: #ffffff0e; --font-body: Inter, "Segoe UI", Arial, sans-serif; --font-mono: monospace; min-height: 0; }
+.cloud-embedded .cloud-main { max-width: 1200px; margin: auto; }
+.cloud-embedded .cloud-panel { border-radius: 14px; }
+.cloud-embedded .cloud-panel :is(input, textarea, select) { border-radius: 8px; }
+.cloud-embedded :is(.header-buttons, .header-buttons-github) { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; min-height: 44px; padding: 10px 18px; border-radius: 10px; font: inherit; color: var(--fg); background: #242527; border: 1px solid var(--border); }
+.cloud-embedded .header-buttons { background: var(--accent); color: #101112; }
+.cloud-embedded .cloud-notice:empty { display: none; }
+.cloud-embedded a { color: #8ba7ff; }
+.cloud-embedded .cloud-auth-fields { align-items: stretch; }
+.cloud-embedded .cloud-test-inbox { min-height: 44px; }

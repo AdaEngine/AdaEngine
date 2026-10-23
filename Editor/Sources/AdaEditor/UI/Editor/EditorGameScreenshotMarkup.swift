@@ -63,7 +63,38 @@ struct EditorGameScreenshotMarkup: Sendable {
         guard CGImageDestinationFinalize(destination) else { throw Failure.encodingFailed }
         return output as Data
         #else
-        throw Failure.encodingFailed
+        guard image.width > 0, image.height > 0 else { throw Failure.encodingFailed }
+        // Normalize BGRA, RGB and grayscale frames to the mutable RGBA format.
+        var output = try Image.decode(from: image.pngData())
+        let radius = max(1, Float(image.width) * 0.0045)
+        func draw(_ point: Point, into output: inout Image) {
+            let x = point.x * Float(image.width - 1), y = point.y * Float(image.height - 1)
+            let left = max(0, Int(x - radius)), right = min(image.width - 1, Int(x + radius + 1))
+            let top = max(0, Int(y - radius)), bottom = min(image.height - 1, Int(y + radius + 1))
+            guard left <= right, top <= bottom else { return }
+            for row in top...bottom {
+                for column in left...right {
+                    let dx = Float(column) - x, dy = Float(row) - y
+                    if dx * dx + dy * dy <= radius * radius {
+                        output.setPixel(in: Point(Float(column), Float(row)), color: Color(1, 0.22, 0.25, 1))
+                    }
+                }
+            }
+        }
+        for stroke in strokes {
+            try Task.checkCancellation()
+            guard let first = stroke.first else { continue }
+            draw(first, into: &output)
+            for (start, end) in zip(stroke, stroke.dropFirst()) {
+                let dx = (end.x - start.x) * Float(image.width), dy = (end.y - start.y) * Float(image.height)
+                let steps = max(1, Int(max(abs(dx), abs(dy))))
+                for step in 1...steps {
+                    let progress = Float(step) / Float(steps)
+                    draw(Point(start.x + (end.x - start.x) * progress, start.y + (end.y - start.y) * progress), into: &output)
+                }
+            }
+        }
+        return try output.pngData()
         #endif
     }
 

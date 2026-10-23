@@ -13,7 +13,7 @@ struct EditorViewportPresentationTests {
         let presentation = EditorViewportPresentation()
         let viewport = EditorSceneViewportModel()
         let model = EditorSceneModel.default(projectName: "Frame synchronization")
-        viewport.configure(sceneContent: try model.encodedYAML(), model: model,
+        viewport.configure(sceneContent: try model.encodedYAML(),
                            onSelectionChanged: { _ in }, onDocumentContentChanged: { _ in })
         viewport.setViewportSize(Size(width: 640, height: 400))
         let container = UIContainerView(rootView: EditorViewportDrawingLayer(

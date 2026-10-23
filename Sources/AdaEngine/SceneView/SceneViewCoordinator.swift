@@ -9,7 +9,7 @@
 @_spi(Internal) import AdaAssets
 import AdaAudio
 import AdaCorePipelines
-import AdaECS
+@_spi(Internal) import AdaECS
 @_spi(Internal) import AdaInput
 @_spi(Internal) import AdaRender
 import AdaTransform
@@ -29,6 +29,9 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private var nextRenderTextureIndex = 0
     private var frontRenderTexture: RenderTexture?
     private(set) var renderTexture: Texture2D?
+    /// Frames that finished rendering and were made visible.
+    private(set) var completedFrameCount = 0
+    private(set) var frameSource: SceneViewFrameSource?
     var renderTextureDidChange: (@MainActor @Sendable () -> Void)?
     var renderFrameDidChange: (@MainActor @Sendable () -> Void)?
 
@@ -40,7 +43,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private weak var hostWorlds: AppWorlds?
     private var isRenderingEnabled = true
     /// Fallback when no host session exists (e.g. unusual test harnesses).
-    private var standaloneTickInFlight = false
+    private(set) var standaloneTickInFlight = false
 
     private let hostSubworldName: AppWorldName
     private var currentSize: SizeInt = .zero
@@ -48,11 +51,16 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private var pendingSize: SizeInt?
     private var pendingScaleFactor: Float = 1
     private var pendingSizeElapsed: AdaUtils.TimeInterval = 0
+    private var contentDeltaTime: AdaUtils.TimeInterval = 0
 
     private let makeClosure: @MainActor (inout AppWorlds) -> Void
     private let updateContentClosure: @MainActor (World, AdaUtils.TimeInterval) -> Void
     private let onFrameRendered: (@MainActor (Texture2D) -> Void)?
     private let prepareFramePresentation: (@MainActor () -> (@MainActor () -> Void))?
+    private let frameCaptureLabel: String?
+    /// `false` keeps the scene on its own update loop even when a host session exists, so it
+    /// advances without the host's display link (for automation that must not depend on a visible window).
+    private let joinsHostSession: Bool
     private let resizeApplyDelay: AdaUtils.TimeInterval = 0.08
     /// Common guaranteed 2D texture limit across the supported Metal and WebGPU device families.
     private let maximumRenderTextureDimension = 8_192
@@ -60,6 +68,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private struct PendingDisplayTarget {
         var texture: RenderTexture
         var present: (@MainActor () -> Void)?
+        var isPresentationPrepared = false
         var isCompleted = false
     }
 
@@ -73,14 +82,23 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         make: @escaping @MainActor (inout AppWorlds) -> Void,
         updateContent: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void,
         onFrameRendered: (@MainActor (Texture2D) -> Void)? = nil,
-        prepareFramePresentation: (@MainActor () -> (@MainActor () -> Void))? = nil
+        prepareFramePresentation: (@MainActor () -> (@MainActor () -> Void))? = nil,
+        frameCaptureLabel: String? = nil,
+        joinsHostSession: Bool = true
     ) {
+        self.joinsHostSession = joinsHostSession
+        self.frameCaptureLabel = frameCaptureLabel
         self.useSceneCameras = useSceneCameras
         self.makeClosure = make
         self.updateContentClosure = updateContent
         self.onFrameRendered = onFrameRendered
         self.prepareFramePresentation = prepareFramePresentation
         self.hostSubworldName = AppWorldName(rawValue: "SceneView.\(UUID().uuidString)")
+        if let frameCaptureLabel {
+            let source = SceneViewFrameSource(label: frameCaptureLabel, coordinator: self)
+            frameSource = source
+            SceneViewFrameRegistry.register(source)
+        }
     }
 
     deinit {
@@ -88,6 +106,18 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         Task { @MainActor in
             AppWorldsSession.current?.removeSubworld(by: name)
         }
+    }
+
+    /// The last frame that finished rendering. It is no longer a render target, so it is safe to read back.
+    var completedFrameTexture: RenderTexture? { frontRenderTexture }
+
+    /// Names of cameras that contribute to the frame. A display camera mirroring an authored one is included.
+    var activeCameraNames: [String] {
+        guard let appWorlds else { return [] }
+        return appWorlds.main.getEntities()
+            .filter { $0.components[Camera.self]?.isActive == true }
+            .map(\.name)
+            .sorted()
     }
 
     // MARK: - OffscreenViewportDelegate
@@ -107,13 +137,14 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
                 self.isBootstrapping = false
                 return
             }
-            if let host = AppWorldsSession.current {
+            if self.joinsHostSession, let host = AppWorldsSession.current {
                 self.hostWorlds = host
                 self.isHostedSubworld = true
             } else {
                 self.isHostedSubworld = false
             }
             try? await app.build()
+            self.configureContentScheduling(in: app)
             guard !self.isShutdown else {
                 AppWorldsSession.current?.removeSubworld(by: self.hostSubworldName)
                 self.isBootstrapping = false
@@ -129,6 +160,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
     func shutdown() {
         isShutdown = true
+        frameSource.map { SceneViewFrameRegistry.unregister($0) }
         stopAudioPlaybacks()
         AppWorldsSession.current?.removeSubworld(by: hostSubworldName)
         if let executionID = appWorlds?.executionID {
@@ -195,15 +227,15 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         // swap the displayed texture and its companion UI at the next UI tick.
         publishRenderTextureIfReady()
 
-        guard let appWorlds, hasCalledSetup else {
+        guard appWorlds != nil, hasCalledSetup else {
             return
         }
-        appWorlds.withExecutionContext {
-            updateContentClosure(appWorlds.main, deltaTime)
-        }
+        // A standalone update may suspend during startup, asset loading or rendering.
+        // Retargeting before it finishes reserves textures for frames that were never submitted.
+        guard isHostedSubworld || !standaloneTickInFlight else { return }
+        contentDeltaTime = deltaTime
         ageRetiredDisplayTargets()
         prepareNextRenderTarget()
-
         if isHostedSubworld {
             return
         }
@@ -224,8 +256,9 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             return
         }
         let input = app.main.getRefResource(Input.self)
+        // Parse on the next preUpdate. Flushing during an in-flight async frame
+        // lets its postUpdate cleanup discard the event before input systems see it.
         input.wrappedValue.receiveEvent(event)
-        input.wrappedValue.flushPendingEvents()
     }
 
     func updateMousePosition(_ position: Point) {
@@ -240,6 +273,23 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     }
 
     // MARK: - Private
+
+    private func updateSceneContent(in world: World) {
+        guard isRenderingEnabled, hasCalledSetup, !isShutdown else {
+            return
+        }
+        // Run after input parsing and before camera preparation in preUpdate.
+        updateContentClosure(world, contentDeltaTime)
+        // Target eligibility is decided before simulation. Capture companion UI only
+        // after this frame's input has updated the scene and its camera.
+        guard let targetRenderTexture,
+            let index = pendingDisplayTargets.firstIndex(where: { $0.texture === targetRenderTexture }),
+            !pendingDisplayTargets[index].isPresentationPrepared else {
+            return
+        }
+        pendingDisplayTargets[index].isPresentationPrepared = true
+        pendingDisplayTargets[index].present = prepareFramePresentation?()
+    }
 
     private func standaloneTick(_ deltaTime: AdaUtils.TimeInterval) {
         guard !standaloneTickInFlight else {
@@ -403,8 +453,13 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         retiredDisplayTargets.removeAll()
         nextRenderTextureIndex = 0
         frontRenderTexture = nil
-        renderTexture = nil
-        renderTextureDidChange?()
+        // Keep presenting the last completed frame (stretched) until the first frame at the new
+        // size completes. Dropping it uncovers whatever is behind the viewport, which shows up
+        // as a flash on every resize (window layout, panel toggles, Play start).
+        if !(renderTexture is Texture2DProxy) {
+            renderTexture = nil
+            renderTextureDidChange?()
+        }
 
         if let texture = nextAvailableRenderTexture() {
             setTargetRenderTexture(texture)
@@ -443,6 +498,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             }
         }
         if didPublish {
+            completedFrameCount += 1
             present?()
             if let renderTexture = renderTexture as? Texture2DProxy,
                 let frontRenderTexture {
@@ -506,11 +562,17 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     }
 
     private func scheduleForDisplay(_ texture: RenderTexture) {
+        // Authored cameras may appear during the first startup scheduler. Do not leave
+        // an unrendered target at the head of the presentation queue before they exist.
+        if useSceneCameras,
+            appWorlds?.main.getEntities().contains(where: { $0.components[Camera.self]?.isActive == true }) != true {
+            return
+        }
         guard !pendingDisplayTargets.contains(where: { $0.texture === texture }) else {
             return
         }
 
-        pendingDisplayTargets.append(PendingDisplayTarget(texture: texture, present: prepareFramePresentation?()))
+        pendingDisplayTargets.append(PendingDisplayTarget(texture: texture, present: nil))
     }
 
     private func nextAvailableRenderTexture() -> RenderTexture? {
@@ -568,5 +630,47 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         app.insertResource(PrimaryWindowId(windowId: RID()))
 
         return app
+    }
+
+    private func configureContentScheduling(in app: AppWorlds) {
+        app.insertResource(ContentUpdateTarget(coordinator: self))
+        app.addSystem(ContentUpdateSystem.self, on: .preUpdate)
+    }
+
+    @MainActor
+    private final class ContentUpdateTarget: Resource {
+        weak var coordinator: SceneViewCoordinator?
+
+        init(coordinator: SceneViewCoordinator) {
+            self.coordinator = coordinator
+        }
+    }
+
+    private struct ContentUpdateSystem: System {
+        private let target: ContentUpdateTarget?
+        let systemDependencies: [SystemDependency]
+
+        // The client callback can mutate arbitrary components in this world.
+        var queries: SystemQueries {
+            SystemQueries(queries: [ExclusiveWorldAccess()])
+        }
+
+        init(world: World) {
+            target = world.getResource(ContentUpdateTarget.self)
+            let graph = world.schedulers.getScheduler(.preUpdate)?.systemGraph
+            var dependencies: [SystemDependency] = []
+            if graph?.containsSystem(InputEventParseSystem.self) == true {
+                dependencies.append(.after(InputEventParseSystem.self))
+            }
+            if graph?.containsSystem(CameraSystem.self) == true {
+                dependencies.append(.before(CameraSystem.self))
+            }
+            systemDependencies = dependencies
+        }
+
+        @MainActor
+        func update(context: UpdateContext) async {
+            target?.coordinator?.updateSceneContent(in: context.world)
+        }
     }
 }

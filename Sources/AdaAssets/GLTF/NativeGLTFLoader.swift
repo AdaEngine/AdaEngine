@@ -17,6 +17,34 @@ public struct NativeGLTFLoader: GLTFLoader {
     }
 
     /// Loads a glTF or GLB document from memory.
+    /// The glTF extensions this loader implements. A file that *requires* any other extension fails to load; an
+    /// extension it merely *uses* is ignored and reported in ``GLTFImportResult/warnings``.
+    public static let supportedExtensions: Set<String> = [
+        "KHR_mesh_quantization",
+        "KHR_materials_emissive_strength",
+        "KHR_texture_transform",
+        "KHR_materials_ior",
+        "KHR_materials_specular",
+        "KHR_materials_clearcoat",
+        "KHR_materials_sheen",
+        "KHR_materials_anisotropy",
+    ]
+
+    /// Optional content the importer cannot honor: extensions the file lists as used that are not implemented.
+    private func warnings(for gltf: GLTF) -> [String] {
+        var result: [String] = []
+        for name in (gltf.extensionsUsed ?? []).sorted() where !Self.supportedExtensions.contains(name) {
+            result.append("The extension \(name) is not supported and was ignored.")
+        }
+        for (index, mesh) in (gltf.meshes ?? []).enumerated() {
+            let ignored = Set(mesh.primitives.flatMap { $0.targets ?? [] }.flatMap(\.keys)).subtracting(["POSITION", "NORMAL", "TANGENT"])
+            if !ignored.isEmpty {
+                result.append("Mesh \(index) morphs \(ignored.sorted().joined(separator: ", ")); only POSITION, NORMAL and TANGENT deltas were applied.")
+            }
+        }
+        return result
+    }
+
     public func load(data: Data, baseURL: URL? = nil) throws -> GLTFImportResult {
         let resourceBaseURL = baseURL ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 
@@ -32,8 +60,7 @@ public struct NativeGLTFLoader: GLTFLoader {
             binaryBuffer = nil
         }
 
-        let supportedExtensions: Set<String> = ["KHR_mesh_quantization", "KHR_materials_emissive_strength"]
-        if let unsupportedExtension = gltf.extensionsRequired?.first(where: { !supportedExtensions.contains($0) }) {
+        if let unsupportedExtension = gltf.extensionsRequired?.first(where: { !Self.supportedExtensions.contains($0) }) {
             throw GLTFError.unsupportedRequiredExtension(unsupportedExtension)
         }
 
@@ -142,8 +169,8 @@ public struct NativeGLTFLoader: GLTFLoader {
         }
         let materials = try importMaterials(gltf)
 
-        let meshes = try (gltf.meshes ?? [])
-            .map { mesh -> GLTFImportResult.Mesh in
+        let meshes = try (gltf.meshes ?? []).enumerated()
+            .map { meshIndex, mesh -> GLTFImportResult.Mesh in
                 let primitives = try mesh.primitives.map { primitive -> GLTFImportResult.Primitive in
                     var attributes = [GLTFImportResult.Attribute: GLTFImportResult.Accessor]()
 
@@ -177,11 +204,13 @@ public struct NativeGLTFLoader: GLTFLoader {
                         indices: indices,
                         materialIndex: primitive.material,
                         mode: GLTFImportResult.PrimitiveMode(rawValue: primitive.mode ?? 4) ?? .triangles,
-                        skinning: importSkinning(primitive, attributes: attributes, gltf: gltf)
+                        skinning: importSkinning(primitive, attributes: attributes, gltf: gltf),
+                        morphTargets: importMorphTargets(primitive, attributes: attributes, gltf: gltf, buffers: buffers, meshIndex: meshIndex)
                     )
                 }
 
-                return GLTFImportResult.Mesh(name: mesh.name, primitives: primitives)
+                let morph = try importMorphMetadata(mesh, primitives: primitives, meshIndex: meshIndex)
+                return GLTFImportResult.Mesh(name: mesh.name, primitives: primitives, defaultWeights: morph.weights, targetNames: morph.names)
             }
 
         let nodes = try importNodes(gltf)
@@ -201,7 +230,8 @@ public struct NativeGLTFLoader: GLTFLoader {
             defaultScene: gltf.scene,
             skins: skins,
             animations: animations,
-            samplers: samplers
+            samplers: samplers,
+            warnings: warnings(for: gltf)
         )
     }
 

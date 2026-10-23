@@ -179,7 +179,10 @@ final class AdaScriptTestWorld: @unchecked Sendable, AdaScriptNonSendableBridge 
     /// worker threads take it to run script systems, and the test thread does nothing until they are done.
     @GSExportableIgnore
     private func runScheduler(_ name: SchedulerName, deltaTime: Float) {
-        #if canImport(Dispatch)
+        #if os(WASI)
+        // A synchronous script call cannot block the browser's single event-loop thread.
+        reportDiagnostic("TestWorld scheduler execution requires the native AdaScript test runner; use game preview in the browser.")
+        #else
         let finished = DispatchSemaphore(value: 0)
         let world = self.world
         AdaScriptRuntimeCoordinator.lock.unlock()
@@ -189,10 +192,6 @@ final class AdaScriptTestWorld: @unchecked Sendable, AdaScriptNonSendableBridge 
         }
         finished.wait()
         AdaScriptRuntimeCoordinator.lock.lock()
-        #else
-        // A browser cannot block its only thread while awaiting an async scheduler.
-        // Script tests run on the host; game systems use the normal async frame loop.
-        reportDiagnostic("Synchronous TestWorld stepping is unavailable on this platform; run script tests on the host.")
         #endif
     }
 

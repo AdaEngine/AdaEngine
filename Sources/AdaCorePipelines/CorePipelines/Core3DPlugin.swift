@@ -32,6 +32,8 @@ public struct Core3DPlugin: Plugin {
         Environment3D.registerComponent()
         AssetsManager.registerAssetType(ImageBasedLighting3D.self)
 
+        app.insertResource(DebugDraw3D())
+
         guard let app = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
@@ -50,9 +52,15 @@ public struct Core3DPlugin: Plugin {
         graph.addNode(LocalShadow3DRenderNode())
         graph.addNode(Main3DRenderNode())
         graph.addNode(ScreenSpaceAO3DRenderNode())
+        graph.addNode(AutoExposure3DRenderNode())
+        graph.addNode(Bloom3DRenderNode())
         graph.addNode(AntiAliasing3DRenderNode(notifiesCompletion: !includes2D))
+        graph.addNode(VolumetricFog3DRenderNode())
         graph.addNode(ScreenSpaceReflectionRenderNode(notifiesCompletion: !includes2D))
         graph.addNode(Temporal3DRenderNode())
+        graph.addNode(DepthOfField3DRenderNode(notifiesCompletion: !includes2D))
+        graph.addNode(DebugView3DRenderNode(notifiesCompletion: !includes2D))
+        graph.addNode(DebugDraw3DRenderNode(notifiesCompletion: !includes2D))
         graph.addNode(EmptyNode(), by: .Main3D.endPass)
         graph.addNode(UpscaleNode())
 
@@ -69,16 +77,23 @@ public struct Core3DPlugin: Plugin {
         graph.addNodeEdge(from: DirectionalShadow3DRenderNode.name, to: Main3DRenderNode.name)
         graph.addNodeEdge(from: Main3DRenderNode.name, to: ScreenSpaceReflectionRenderNode.name)
         graph.addNodeEdge(from: Main3DRenderNode.name, to: ScreenSpaceAO3DRenderNode.name)
-        graph.addNodeEdge(from: ScreenSpaceAO3DRenderNode.name, to: ScreenSpaceReflectionRenderNode.name)
+        graph.addNodeEdge(from: Main3DRenderNode.name, to: VolumetricFog3DRenderNode.name)
+        graph.addNodeEdge(from: VolumetricFog3DRenderNode.name, to: ScreenSpaceReflectionRenderNode.name)
+        graph.addNodeEdge(from: ScreenSpaceAO3DRenderNode.name, to: AutoExposure3DRenderNode.name)
+        graph.addNodeEdge(from: AutoExposure3DRenderNode.name, to: Bloom3DRenderNode.name)
+        graph.addNodeEdge(from: Bloom3DRenderNode.name, to: ScreenSpaceReflectionRenderNode.name)
         graph.addNodeEdge(from: ScreenSpaceReflectionRenderNode.name, to: AntiAliasing3DRenderNode.name)
         graph.addNodeEdge(from: AntiAliasing3DRenderNode.name, to: Temporal3DRenderNode.name)
+        graph.addNodeEdge(from: Temporal3DRenderNode.name, to: DepthOfField3DRenderNode.name)
+        graph.addNodeEdge(from: DepthOfField3DRenderNode.name, to: DebugView3DRenderNode.name)
+        graph.addNodeEdge(from: DebugView3DRenderNode.name, to: DebugDraw3DRenderNode.name)
         if includes2D {
             app.insertResource(Scene2DPipelines())
             graph.addNode(Scene2DRenderNode())
-            graph.addNodeEdge(from: Temporal3DRenderNode.name, to: Scene2DRenderNode.name)
+            graph.addNodeEdge(from: DebugDraw3DRenderNode.name, to: Scene2DRenderNode.name)
             graph.addNodeEdge(from: Scene2DRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
         } else {
-            graph.addNodeEdge(from: Temporal3DRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
+            graph.addNodeEdge(from: DebugDraw3DRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
         }
         graph.addNodeEdge(from: RenderNodeLabel.Main3D.endPass, to: UpscaleNode.name)
 
@@ -93,7 +108,9 @@ public struct Core3DPlugin: Plugin {
             .insertResource(LocalShadow3DViews())
             .insertResource(Render3DLightStatistics())
             .insertResource(LocalShadow3DScratch())
+            .insertResource(LocalShadow3DClear(device: renderDevice))
             .insertResource(LocalLighting3DGPUScratch())
+            .insertResource(LightTiles3DScratch())
             .insertResource(RenderPipelines(configurator: LocalShadow3DPipeline()))
             .insertResource(ExtractedMesh3DSources())
             .insertResource(VisibleMesh3DLists())
@@ -111,6 +128,14 @@ public struct Core3DPlugin: Plugin {
             .insertResource(ScreenSpaceReflectionScratch())
             .insertResource(ScreenQuality3DPipelines(device: renderDevice))
             .insertResource(ScreenQuality3DScratch())
+            .insertResource(DebugView3DPipelines(device: renderDevice))
+            .insertResource(Bloom3DViews(device: renderDevice))
+            .insertResource(AutoExposure3DViews(device: renderDevice))
+            .insertResource(DepthOfField3DViews(device: renderDevice))
+            .insertResource(VolumetricFog3DViews(device: renderDevice))
+            .insertResource(ExtractedDebugLines3D())
+            .insertResource(DebugDraw3DResources())
+            .addSystem(ExtractDebugDraw3DSystem.self, on: .extract)
             .addSystem(ExtractEnvironment3DSystem.self, on: .extract)
             .addSystem(PrepareEnvironment3DTexturesSystem.self, on: .prepare)
             .addSystem(PrepareTemporal3DSystem.self, on: .prepare)

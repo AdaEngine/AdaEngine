@@ -18,14 +18,36 @@ for relative in [
     "Tests/AdaRenderTests/WGSLReflectionTests.swift",
     "Tests/AdaEngineTests/SpriteMetalRenderingTests.swift",
     "Tests/AdaRenderTests/BoundedResourceCacheTests.swift",
+    "Tests/AdaRenderTests/RenderGraphDiagnosticsTests.swift",
     "Tests/AdaRenderTests/WindowFrameRequestsTests.swift",
     "Tests/AdaRenderTests/WGPUBindingStateTests.swift",
+    "Tests/AdaRenderTests/WGPUVisibilityProcessorTests.swift",
     "Tests/AdaEngineTests/MaterialUploadReuseTests.swift",
     "Tests/AdaECSTests/OptionalResourceTests.swift",
+    "Tests/AdaRenderTests/ShaderIncluderTests.swift",
+    "Tests/AdaRenderTests/ShaderCacheKeyTests.swift",
+    # 3D post-processing and debug views render through the selected GPU backend and compare against references.
+    "Tests/AdaEngineTests/GoldenFrameSupport.swift",
+    "Tests/AdaEngineTests/WGPUVisibilitySceneTests.swift",
+    "Tests/AdaEngineTests/Render3DDebugViewTests.swift",
+    "Tests/AdaEngineTests/Render3DPostProcessTests.swift",
+    "Tests/AdaEngineTests/Render3DColorGradingTests.swift",
+    "Tests/AdaEngineTests/Render3DAutoExposureTests.swift",
+    "Tests/AdaEngineTests/Render3DDepthOfFieldTests.swift",
+    "Tests/AdaEngineTests/Render3DReflectionTests.swift",
+    "Tests/AdaEngineTests/Render3DPerformanceBenchmarkTests.swift",
+    "Tests/AdaEngineTests/VisibleMesh3DListsEquivalenceTests.swift",
+    "Tests/AdaEngineTests/Render3DMetricsReportTests.swift",
+    "Tests/AdaEngineTests/GoldenBackendAgreementTests.swift",
 ]:
     source = root / relative
     shutil.copy2(source, sources / source.name)
-modules = ["AdaApp", "AdaCorePipelines", "AdaECS", "AdaRender", "AdaSprite", "AdaTilemap", "AdaTransform", "AdaUtils", "Math"]
+# Golden frames are read from next to the staged test sources unless ADAENGINE_GOLDEN_REFERENCES points elsewhere.
+golden_frames = root / "Tests/AdaEngineTests/GoldenFrames"
+if golden_frames.is_dir():
+    shutil.copytree(golden_frames, sources / "GoldenFrames", dirs_exist_ok=True)
+# AdaAssets has no package product; AdaScene re-exports it.
+modules = ["AdaApp", "AdaCorePipelines", "AdaECS", "AdaRender", "AdaScene", "AdaSprite", "AdaTilemap", "AdaTransform", "AdaUtils", "Math"]
 dependencies = ',\n'.join('.product(name: ' + json.dumps(module) + ', package: "AdaEngine")' for module in modules)
 (destination / "Package.swift").write_text('''// swift-tools-version: 6.2
 import PackageDescription

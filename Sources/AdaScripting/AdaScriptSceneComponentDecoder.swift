@@ -27,6 +27,9 @@ enum AdaScriptSceneComponentDecoder {
             return number.doubleValue
         }
         switch kind {
+        case let .optional(wrapped):
+            if json is NSNull { return .null }
+            return value(json, kind: wrapped)
         case .bool:
             return (json as? Bool).map(ReflectedFieldValue.bool)
         case .int:

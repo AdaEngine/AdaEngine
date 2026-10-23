@@ -29,7 +29,7 @@ public struct AdaWebPlayerProject: Codable, Equatable, Sendable {
     /// Creates a scene-backed project whose systems and scene load in the Web Player.
     public init(title: String, entryScene: String, moduleName: String, startupSystem: String? = nil, sources: [String]) {
         self.schemaVersion = 1
-        self.runtimeAPI = 3
+        self.runtimeAPI = 4
         self.title = title
         self.entryView = ""
         self.entryScene = entryScene
@@ -41,8 +41,8 @@ public struct AdaWebPlayerProject: Codable, Equatable, Sendable {
     public var profile: String { entryScene == nil ? "views" : "scene" }
 
     public func validate() throws {
-        guard schemaVersion == 1, (1...3).contains(runtimeAPI) else {
-            throw AdaWebPlayerProjectError.invalid("Unsupported Web Player schema or runtime API; expected API 1, 2 or 3.")
+        guard schemaVersion == 1, (1...4).contains(runtimeAPI) else {
+            throw AdaWebPlayerProjectError.invalid("Unsupported Web Player schema or runtime API; expected API 1, 2, 3 or 4.")
         }
         try validateResources()
         guard

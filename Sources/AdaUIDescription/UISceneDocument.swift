@@ -28,7 +28,7 @@ public struct UIModifierDescription: Codable, Hashable, Sendable, Identifiable {
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
-            id: try c.decode(String.self, forKey: .id),
+            id: try c.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString,
             type: try c.decode(String.self, forKey: .type),
             version: try c.decodeIfPresent(Int.self, forKey: .version) ?? 1,
             arguments: try c.decodeIfPresent([String: UIArgument].self, forKey: .arguments) ?? [:],
@@ -69,7 +69,7 @@ public struct UINodeDescription: Codable, Hashable, Sendable, Identifiable {
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
-            id: try c.decode(String.self, forKey: .id),
+            id: try c.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString,
             type: try c.decode(String.self, forKey: .type),
             version: try c.decodeIfPresent(Int.self, forKey: .version) ?? 1,
             arguments: try c.decodeIfPresent([String: UIArgument].self, forKey: .arguments) ?? [:],

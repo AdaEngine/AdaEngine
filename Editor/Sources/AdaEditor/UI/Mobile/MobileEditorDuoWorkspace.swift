@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
 @_spi(AdaEngine) import AdaEngine
 import Foundation
 
@@ -155,7 +155,7 @@ struct MobileEditorInlineComposer: View {
                 }
                 HStack {
                     Button {
-                        ProjectOpenPicker.presentAgentAttachmentSourcePicker(pickFiles: pickFiles, pickPhotos: pickPhotos)
+                        MobileEditorPlatform.pickAttachmentSource(pickFiles: pickFiles, pickPhotos: pickPhotos)
                     } label: { symbol("\u{E145}") }
                     .accessibilityIdentifier("AdaEditor.Duo.Attach")
                     Spacer()

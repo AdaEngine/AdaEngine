@@ -1,5 +1,6 @@
 @_spi(AdaEngine) import AdaEngine
 import AdaScriptCompilerCore
+import AdaSpine
 import Foundation
 
 struct EditorSceneLoadSummary: Equatable, Sendable {
@@ -88,6 +89,9 @@ enum EditorSceneFileLoader {
         typeName: String, payload: EditorComponentPayload, sourceURL: URL?, resourceRootURL: URL?
     ) throws -> EditorComponentPayload {
         var resolvedPayload = payload
+        if typeName == EditorBuiltInComponentType.spineSource, let reference = payload["source"]?.stringValue, !reference.isEmpty {
+            resolvedPayload["source"] = .string(try EditorSpineResource.resolve(reference, sourceURL: sourceURL, resourceRootURL: resourceRootURL).path)
+        }
         if typeName == EditorBuiltInComponentType.particleEmitter,
             let reference = payload["effect"]?.stringValue, !reference.isEmpty {
             guard let url = resolveTileMapReference(reference, relativeTo: sourceURL, resourceRootURL: resourceRootURL, fileExtension: "particles"),
@@ -95,6 +99,14 @@ enum EditorSceneFileLoader {
                 throw AssetError.message("Particle effect must be a .particles resource inside project assets.")
             }
             resolvedPayload["effect"] = .string(url.path)
+        }
+        if typeName == EditorBuiltInComponentType.spriteAnimator,
+            let reference = payload["animations"]?.stringValue, !reference.isEmpty {
+            guard let url = resolveTileMapReference(reference, relativeTo: sourceURL, resourceRootURL: resourceRootURL, fileExtension: "spriteanim"),
+                url.pathExtension.lowercased() == "spriteanim" else {
+                throw AssetError.message("Sprite animation must be a .spriteanim resource inside project assets.")
+            }
+            resolvedPayload["animations"] = .string(url.path)
         }
         if typeName == EditorBuiltInComponentType.environment3D,
             let reference = payload["imageBasedLightingSource"]?.stringValue, reference.hasPrefix("@res://"), let resourceRootURL {
@@ -239,6 +251,16 @@ enum EditorSceneFileLoader {
             }
             completeRuntimeBundle(for: entity, in: world)
             #if !WASM
+            if let reference = entity.components[SpineSource.self], !reference.source.isEmpty {
+                do {
+                    let handle = try AssetsManager.loadSync(SpineSkeleton.self, at: reference.source)
+                    guard let skeleton = handle.asset else { throw AssetError.message("Spine skeleton has not loaded.") }
+                    try reference.instantiate(skeleton, on: entity)
+                } catch {
+                    entity.components[SpineSourceState.self] = .init(reference: reference, error: error.localizedDescription)
+                    warnings.append("Failed to load Spine on \(sceneEntity.name): \(error.localizedDescription)")
+                }
+            }
             if let reference = entity.components[Model3DSource.self], !reference.source.isEmpty {
                 do {
                     let model = try AssetsManager.loadSync(ModelAsset3D.self, at: reference.assetPath)

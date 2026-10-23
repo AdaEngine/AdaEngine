@@ -239,7 +239,7 @@ extension EditorSceneEntityTemplate {
         case .camera2D,
             .camera3D:
             "\u{E3AF}"
-        case .sprite: "\u{E3B6}"
+        case .sprite, .spine2D: "\u{E3B6}"
         case .mesh2D,
             .model3D,
             .importedModel3D:

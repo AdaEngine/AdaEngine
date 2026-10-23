@@ -11,6 +11,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 import zipfile
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 ABIS = {"arm64-v8a": ("aarch64", "aarch64-linux-android"), "x86_64": ("x86_64", "x86_64-linux-android")}
@@ -88,6 +89,16 @@ def validate_options(args):
         raise AndroidError("product must be a SwiftPM dynamic library product name")
     if args.min_sdk < 29 or args.target_sdk < args.min_sdk:
         raise AndroidError("Native host requires Android API 29+ and target-sdk >= min-sdk")
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+", args.activity):
+        raise AndroidError("activity must be a fully qualified Java class name")
+    if args.activity != ACTIVITY and not args.java_source:
+        raise AndroidError("A custom activity requires --java-source")
+    for source in args.java_source:
+        tool(Path(source))
+    for callback in args.callback_url:
+        url=urlsplit(callback)
+        if not args.java_source or not url.scheme or not url.hostname or url.query or url.fragment:
+            raise AndroidError("callback-url requires a Java host and a scheme://host/path URL")
 
 def validate_webgpu(args, env):
     swan = env.get("ADAENGINE_SWAN_PACKAGE_PATH")
@@ -114,13 +125,45 @@ def write_manifest(path, args):
     ET.SubElement(manifest,"uses-sdk",{ANDROID+"minSdkVersion":str(args.min_sdk),ANDROID+"targetSdkVersion":str(args.target_sdk)})
     ET.SubElement(manifest,"uses-feature",{ANDROID+"glEsVersion":"0x00030001",ANDROID+"required":"true"})
     ET.SubElement(manifest,"uses-permission",{ANDROID+"name":"android.permission.INTERNET"})
-    app=ET.SubElement(manifest,"application",{ANDROID+"label":args.label,ANDROID+"hasCode":"false",ANDROID+"debuggable":str(args.configuration=="debug").lower(),ANDROID+"extractNativeLibs":"true",ANDROID+"theme":"@android:style/Theme.Material.NoActionBar.Fullscreen"})
-    activity=ET.SubElement(app,"activity",{ANDROID+"name":ACTIVITY,ANDROID+"exported":"true",ANDROID+"configChanges":"orientation|screenSize|screenLayout|keyboardHidden|uiMode|density",ANDROID+"windowSoftInputMode":"adjustNothing"})
+    app=ET.SubElement(manifest,"application",{ANDROID+"label":args.label,ANDROID+"hasCode":str(bool(args.java_source)).lower(),ANDROID+"debuggable":str(args.configuration=="debug").lower(),ANDROID+"extractNativeLibs":"true",ANDROID+"theme":"@android:style/Theme.Material.NoActionBar.Fullscreen"})
+    if args.java_source:
+        # Keystore keys cannot be restored with backed-up encrypted preferences.
+        app.set(ANDROID+"allowBackup", "false")
+    activity=ET.SubElement(app,"activity",{ANDROID+"name":args.activity,ANDROID+"exported":"true",ANDROID+"configChanges":"orientation|screenSize|screenLayout|keyboardHidden|uiMode|density",ANDROID+"windowSoftInputMode":"adjustNothing"})
     ET.SubElement(activity,"meta-data",{ANDROID+"name":"android.app.lib_name",ANDROID+"value":args.product})
     intent=ET.SubElement(activity,"intent-filter")
     ET.SubElement(intent,"action",{ANDROID+"name":"android.intent.action.MAIN"})
     ET.SubElement(intent,"category",{ANDROID+"name":"android.intent.category.LAUNCHER"})
+    if args.callback_url:
+        activity.set(ANDROID+"launchMode","singleTask")
+        for callback in args.callback_url:
+            url=urlsplit(callback)
+            link=ET.SubElement(activity,"intent-filter")
+            ET.SubElement(link,"action",{ANDROID+"name":"android.intent.action.VIEW"})
+            for category in ("DEFAULT","BROWSABLE"):
+                ET.SubElement(link,"category",{ANDROID+"name":"android.intent.category."+category})
+            ET.SubElement(link,"data",{ANDROID+"scheme":url.scheme,ANDROID+"host":url.hostname,ANDROID+"path":url.path})
     ET.ElementTree(manifest).write(path,encoding="utf-8",xml_declaration=True)
+
+
+def compile_java(args, output, sdk, build_tools, env):
+    """Compile optional NativeActivity services with the SDK's D8, without Gradle."""
+    if not args.java_source:
+        return []
+    classes=output/"java-classes"
+    dex=output/"dex"
+    # Both directories are task-owned, under the selected APK output directory.
+    for directory in (classes, dex):
+        if directory.exists(): shutil.rmtree(directory)
+        directory.mkdir(parents=True)
+    javac=Path(env["JAVA_HOME"])/"bin/javac" if env.get("JAVA_HOME") else Path(shutil.which("javac") or "javac")
+    android_jar=tool(sdk/"platforms"/f"android-{args.target_sdk}"/"android.jar")
+    run([javac,"--release","8","-encoding","UTF-8","-classpath",android_jar,"-d",classes,*args.java_source],env=env)
+    bytecode=sorted(classes.rglob("*.class"))
+    if not bytecode:
+        raise AndroidError("Java activity compilation produced no classes")
+    run([tool(build_tools/"d8"),"--min-api",str(args.min_sdk),"--lib",android_jar,"--output",dex,*bytecode],env=env)
+    return sorted(dex.glob("classes*.dex"))
 
 def needed_libraries(library, readelf):
     output=run([readelf,"--dynamic",library],capture=True)
@@ -160,8 +203,10 @@ def stage_resources(binaries, assets):
         raise AndroidError("No SwiftPM resource bundles were built")
     (destination/"manifest.txt").write_bytes(("\n".join(files)+"\n").encode("utf-8"))
 
-def append_payload(unsigned,staging):
+def append_payload(unsigned,staging,dex_files=()):
     with zipfile.ZipFile(unsigned,"a",compression=zipfile.ZIP_STORED) as apk:
+        for path in dex_files:
+            apk.write(path,path.name)
         # Preserve the exact SwiftPM bundle manifest, including dotfiles and
         # UTF-8 names. aapt2 filters dotfiles and omits the ZIP UTF-8 flag;
         # appending with Python would then corrupt non-ASCII directory entries.
@@ -217,7 +262,7 @@ def build(args):
     for abi in abis:
         arch,ndk_triple=ABIS[abi]
         triple=f"{arch}-unknown-linux-android{args.min_sdk}"
-        command=swift_command(args)+["build","--package-path",args.package,"--scratch-path",scratch,"--swift-sdks-path",selected_sdks,"--swift-sdk",triple,"--build-system","native","--product",args.product,"--configuration",args.configuration,"--jobs",str(args.jobs),"--no-static-swift-stdlib","-Xcc","-include","-Xcc","strings.h"]
+        command=swift_command(args)+["build","--package-path",args.package,"--scratch-path",scratch,"--swift-sdks-path",selected_sdks,"--swift-sdk",triple,"--build-system","native","--product",args.product,"--configuration",args.configuration,"--jobs",str(args.jobs),"--no-static-swift-stdlib","-Xcc","-include","-Xcc",ROOT/"Tools/Android/c_compat.h"]
         run(command,env=env)
         # --show-bin-path is queried with the same destination and configuration.
         binaries=Path(run(command+["--show-bin-path"],env=env,capture=True).strip())
@@ -234,8 +279,9 @@ def build(args):
     manifest=output/"AndroidManifest.xml"
     write_manifest(manifest,args)
     unsigned=output/"unsigned.apk"
+    dex_files=compile_java(args,output,sdk,tools,env)
     run([tool(tools/"aapt2"),"link","--manifest",manifest,"-I",tool(sdk/"platforms"/f"android-{args.target_sdk}"/"android.jar"),"--version-code","1","--version-name","0.1", "-o",unsigned],env=env)
-    append_payload(unsigned,staging)
+    append_payload(unsigned,staging,dex_files)
     aligned=output/"aligned.apk"
     run([tool(tools/"zipalign"),"-P","16","-f","4",unsigned,aligned],env=env)
     key=Path(args.debug_keystore).expanduser().resolve() if args.debug_keystore else output/"debug.keystore"
@@ -267,7 +313,7 @@ def launch(args):
     adb=adb_command(args)
     run(adb+["shell","am","force-stop",args.application_id])
     run(adb+["install","--no-incremental","-r",apk])
-    run(adb+["shell","am","start","-W","-n",f"{args.application_id}/{ACTIVITY}"])
+    run(adb+["shell","am","start","-W","-n",f"{args.application_id}/{args.activity}"])
     output=run(adb+["shell","pidof",args.application_id],capture=True).strip()
     if not output:
         raise AndroidError("Activity exited during launch; inspect `adb logcat -s AdaEngine AndroidRuntime DEBUG`.")
@@ -280,6 +326,9 @@ def parser():
     parser.add_argument("--product",default="AndroidDemo")
     parser.add_argument("--application-id",default="org.adaengine.android.demo")
     parser.add_argument("--label",default="AdaEngine Android")
+    parser.add_argument("--activity",default=ACTIVITY)
+    parser.add_argument("--java-source",action="append",default=[],help="Java source for optional native activity services; repeat for multiple files")
+    parser.add_argument("--callback-url",action="append",default=[],help="Custom-scheme callback handled by a Java activity")
     parser.add_argument("--swift",default=os.environ.get("SWIFT_ANDROID_SWIFT","swift"))
     parser.add_argument("--swift-sdk",default=os.environ.get("SWIFT_ANDROID_SDK","swift-6.4.0-RELEASE_android"))
     parser.add_argument("--swift-sdks",default=os.environ.get("SWIFT_ANDROID_SDKS_PATH"))

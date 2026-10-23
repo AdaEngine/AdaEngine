@@ -3,7 +3,10 @@ import Foundation
 
 /// Strict, noninteractive command contract shared by the bundled CLI and its tests.
 struct EditorCLIInvocation: Sendable {
-    enum Command: String, Sendable { case help, version, doctor, inspect, validate, build, export }
+    enum Command: String, Sendable {
+        case help, version, doctor, inspect, validate, build, export
+        case agentResources = "agent-resources"
+    }
     enum Format: String, Sendable { case text, json }
 
     let command: Command
@@ -26,6 +29,7 @@ struct EditorCLIInvocation: Sendable {
         case "validate": command = .validate
         case "build": command = .build
         case "export": command = .export
+        case "agent-resources": command = .agentResources
         default: throw EditorCLIError.argument("Unknown command '\(first)'. Use --help.")
         }
         let common: Set<String> = ["format"]
@@ -38,6 +42,7 @@ struct EditorCLIInvocation: Sendable {
         case .doctor: allowed = common.union(toolchain)
         case .inspect, .validate: allowed = common.union(project)
         case .build, .export: allowed = common.union(project).union(toolchain).union(build)
+        case .agentResources: allowed = common.union(["output"])
         }
         var parsed: [String: String] = [:]
         var index = 1
@@ -73,6 +78,9 @@ struct EditorCLIInvocation: Sendable {
         if parsed["device"] != nil, parsed["emulator"] != nil { throw EditorCLIError.argument("Choose --device or --emulator, not both.") }
         if let abi = parsed["abi"], !["arm64-v8a", "x86_64", "all"].contains(abi) { throw EditorCLIError.argument("Unsupported Android ABI.") }
         self.format = format
+        if command == .agentResources, parsed["output"] == nil {
+            throw EditorCLIError.argument("agent-resources requires --output <file>.")
+        }
         options = parsed
         projectURL = URL(fileURLWithPath: parsed["project"] ?? directory.path, relativeTo: directory).standardizedFileURL
     }
@@ -88,6 +96,7 @@ struct EditorCLIInvocation: Sendable {
       validate                   Check metadata, AdaScript and the entry scene
       build                      Build an AdaScript macOS .app
       export                     Export a macOS .app, Web bundle or Android APK
+      agent-resources            Export native agent contracts with --output <file>
 
     Common:    --format text|json
     Project:   --project <directory> (default: current directory)

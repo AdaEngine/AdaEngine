@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
     import AdaEngine
     import Foundation
 

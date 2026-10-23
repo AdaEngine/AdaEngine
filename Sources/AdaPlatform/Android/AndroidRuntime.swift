@@ -1,5 +1,6 @@
 #if os(Android)
     import AdaApp
+    import AdaInput
     import CAndroid
     import Foundation
 
@@ -10,7 +11,50 @@
     /// Android main looper before invoking the entry point.
     @MainActor
     public enum AndroidRuntime {
+        static var textInputSession = TextInputEvent.Session()
+
         private static var task: Task<Void, Never>?
+
+        /// Optional native host integration for AdaUI's software keyboard focus.
+        public static var textInputFocusChanged: (@MainActor (Bool) -> Void)?
+
+        static func updateTextInputFocus(_ focused: Bool) {
+            textInputSession.invalidate()
+            textInputSession = TextInputEvent.Session()
+            textInputFocusChanged?(focused)
+        }
+
+        /// Refreshes host services when a paused or recreated activity resumes.
+        public static var didResume: (@MainActor () -> Void)?
+
+        /// Return true after handling Android Back inside the app's navigation.
+        /// Returning false finishes the native activity.
+        public static var backRequested: (@MainActor () -> Bool)?
+
+        /// Routes a native Back gesture through the app before finishing its activity.
+        public static func requestBack() {
+            if backRequested?() != true { unsafe ada_android_finish() }
+        }
+
+        /// Delivers committed IME text to the focused AdaUI control.
+        public static func insertText(_ text: String, deleteBackward: Bool = false) {
+            (Application.shared as? AndroidApplication)?.insertText(text, deleteBackward: deleteBackward)
+        }
+
+        /// Delivers an operation from a full Android InputConnection.
+        public static func inputText(_ text: String, action: TextInputEvent.Action, cursorOffset: Int = 1, rangeStart: Int = 0, rangeEnd: Int = 0) {
+            (Application.shared as? AndroidApplication)?.inputText(text, action: action, cursorOffset: cursorOffset, rangeStart: rangeStart, rangeEnd: rangeEnd)
+        }
+
+        /// Updates AdaUI's keyboard avoidance from the native IME inset, in pixels.
+        public static func setKeyboardOccludedHeight(_ height: Float) {
+            (Application.shared as? AndroidApplication)?.setKeyboardOccludedHeight(height)
+        }
+
+        /// Updates physical system-bar and cutout insets reported by a native host, in pixels.
+        public static func setSafeAreaInsets(top: Float, leading: Float, bottom: Float, trailing: Float) {
+            (Application.shared as? AndroidApplication)?.setSafeAreaInsets(top: top, leading: leading, bottom: bottom, trailing: trailing)
+        }
 
         /// Writes a native Android logcat message under the AdaEngine tag.
         public nonisolated static func log(_ message: String) {
@@ -61,6 +105,7 @@
             // Android may recreate NativeActivity inside the same process. Keep
             // the single app context suspended and resume it with the new surface.
             app.setResumed(state == 1)
+            if state == 1 { AndroidRuntime.didResume?() }
         }
     }
 
@@ -68,6 +113,13 @@
     func androidTouch(_ id: Int32, _ phase: Int32, _ x: Float, _ y: Float) {
         Task { @MainActor in
             (Application.shared as? AndroidApplication)?.touch(id: id, phase: phase, x: x, y: y)
+        }
+    }
+
+    @_cdecl("ada_android_back")
+    func androidBack() {
+        Task { @MainActor in
+            AndroidRuntime.requestBack()
         }
     }
 #endif

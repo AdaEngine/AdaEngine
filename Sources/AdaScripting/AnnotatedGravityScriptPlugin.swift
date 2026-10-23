@@ -37,6 +37,11 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
     private var dataSchemas: [AdaScriptDataSchema]
     private var networkCommands: [AdaScriptNetworkCommandSchema]
     private var runtimeComponents: [RuntimeComponentDescriptor]
+    /// Script `@resource` structs. Nothing in a script-hosted game can insert them later, so every one is
+    /// present from setup regardless of `autoInsert`.
+    private var runtimeResources: [RuntimeResourceLayout] {
+        AdaScriptComponentRuntime.runtimeResourceLayouts(schemas: dataSchemas)
+    }
     private var runtime: AnnotatedGravityRuntime
 
     public convenience init(contentsOf fileURL: URL) throws {
@@ -64,7 +69,8 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         name: String,
         startupSystemIdentifier: String? = nil,
         communityPolicy: AdaScriptCommunityPolicy? = nil,
-        includeTests: Bool = false
+        includeTests: Bool = false,
+        testTimeout: Duration? = nil
     ) throws {
         if communityPolicy != nil {
             for source in sources { try AdaScriptCommunityLowerer.validate(source: source.source) }
@@ -81,7 +87,8 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
                 componentConstructors: componentConstructors,
                 runtimeComponents: runtimeComponents,
                 networkCommands: networkCommands,
-                communityPolicy: communityPolicy
+                communityPolicy: communityPolicy,
+                testTimeout: includeTests ? testTimeout : nil
             )
         } catch AdaScriptError.compilation(let diagnostics) where !module.importDiagnostics.isEmpty {
             // The compiler's own errors come first; import findings explain a missing name they report.
@@ -147,7 +154,9 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
     }
 
     /// Runs the loaded `@test` functions, optionally only those whose name or display name contains `filter`.
-    public func runTests(matching filter: String? = nil) -> [AdaScriptTestResult] {
+    ///
+    /// `onResult` is called after each test, so a caller can stream progress.
+    public func runTests(matching filter: String? = nil, onResult: ((AdaScriptTestResult) -> Void)? = nil) -> [AdaScriptTestResult] {
         let selected = tests.filter { test in
             guard let filter, !filter.isEmpty else {
                 return true
@@ -158,7 +167,9 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         return selected.map { test in
             let start = clock.now
             let execution = AdaScriptRuntimeCoordinator.lock.withLock { runtime }.runTest(named: test.name)
-            return AdaScriptTestResult(test: test, execution: execution, duration: start.duration(to: clock.now))
+            let result = AdaScriptTestResult(test: test, execution: execution, duration: start.duration(to: clock.now))
+            onResult?(result)
+            return result
         }
     }
 
@@ -247,6 +258,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         for descriptor in runtimeComponents {
             app.main.registerRuntimeComponent(descriptor)
         }
+        app.main.registerRuntimeResources(runtimeResources)
         let replicatedSchemas = dataSchemas.filter { $0.replication != nil }
         if !networkCommands.isEmpty || !replicatedSchemas.isEmpty {
             guard app.getResource(MultiplayerRegistry.self) != nil else {
@@ -312,6 +324,22 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         }
     }
 
+    /// Decodes authored AdaScript component fields without exposing the module's mutable runtime.
+    @MainActor
+    public func decodeSceneComponent(named name: String, data: Data) throws -> (any Component)? {
+        guard let descriptor = runtimeComponents.first(where: { $0.name == name || $0.stableID == name || $0.aliases.contains(name) }) else { return nil }
+        guard let fields = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw AdaScriptError.invalidManifest("Scene component must be an object: \(name)")
+        }
+        return try AdaScriptSceneComponentDecoder.decode(fields, as: descriptor)
+    }
+    /// Installs authored data in an editor world without starting gameplay systems.
+    @MainActor
+    public func registerSceneComponents(in world: World) {
+        for descriptor in runtimeComponents { world.registerRuntimeComponent(descriptor) }
+        world.registerRuntimeResources(runtimeResources)
+    }
+
     /// Registers the module's runtime components in a bare world for a `TestWorld`, so a test can spawn them
     /// before any system is installed.
     ///
@@ -321,6 +349,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         for descriptor in runtimeComponents {
             world.registerRuntimeComponent(descriptor)
         }
+        world.registerRuntimeResources(runtimeResources)
     }
 
     /// Installs systems into a `TestWorld`: the one named by `className`, or every system when it is nil.
@@ -377,7 +406,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
                 )
             }
         let resources = try plan.resources.map { resource in
-            try prepareResource(resource, systemIdentifier: plan.identifier)
+            try prepareResource(resource, systemIdentifier: plan.identifier, world: world)
         }
         if !(plan.eventReaders + plan.eventWriters).isEmpty, !world.supportsEventDelivery {
             throw AdaScriptError.invalidManifest("System '\(plan.identifier)' uses @events or @eventWriter, which requires EventsPlugin")
@@ -446,7 +475,8 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
 
     private static func prepareResource(
         _ plan: AnnotatedResourcePlan,
-        systemIdentifier: String
+        systemIdentifier: String,
+        world: World
     ) throws -> PreparedAnnotatedResource {
         if plan.resourceName == "Input" {
             return .input(propertyName: plan.propertyName, parameter: Res<Input?>(), optional: plan.isOptional)
@@ -458,6 +488,15 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
             )
         }
         guard let resourceType = RuntimeTypeRegistry.resourceType(named: plan.resourceName) else {
+            // A script-declared `@resource` has no Swift type; it lives in the shared runtime store.
+            if let layout = world.getResource(RuntimeResourceStore.self)?.layout(named: plan.resourceName) {
+                return .reflected(
+                    fields: Dictionary(uniqueKeysWithValues: layout.fields.map { ($0.key, $0) }),
+                    parameter: DynamicResource(resourceType: RuntimeResourceStore.self, isOptional: plan.isOptional, writable: plan.access == .write),
+                    propertyName: plan.propertyName,
+                    resourceName: plan.resourceName
+                )
+            }
             throw AdaScriptError.unknownResource(system: systemIdentifier, resource: plan.resourceName)
         }
         let descriptor = RuntimeResourceReflectionRegistry.descriptor(for: resourceType)
@@ -1026,6 +1065,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
     private let taskRuntime: AdaScriptTaskRuntime
     private let asyncHost: AdaScriptAsyncHost
     private let communityBudget: AdaScriptCommunityBudget?
+    private var testTimeoutSeconds: Double?
     /// Present only when the module was loaded with tests; the plugin supplies its `build` closure.
     let testWorldFactory: AdaScriptTestWorldFactory?
     private let globalVariableNames: [String]
@@ -1043,12 +1083,14 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         componentConstructors: [AdaScriptLinkedComponentConstructor],
         runtimeComponents: [RuntimeComponentDescriptor],
         networkCommands: [AdaScriptNetworkCommandSchema],
-        communityPolicy: AdaScriptCommunityPolicy?
+        communityPolicy: AdaScriptCommunityPolicy?,
+        testTimeout: Duration? = nil
     ) throws {
+        let isInstrumented = communityPolicy != nil || testTimeout != nil
         let guardedSources = try module.sourcesByPath.mapValues { source in
             ResolvedGravityScriptModule.Source(
                 fileID: source.fileID,
-                source: communityPolicy == nil ? source.source : try AdaScriptCommunityLowerer.instrument(source: source.source)
+                source: !isInstrumented ? source.source : try AdaScriptCommunityLowerer.instrument(source: source.source)
             )
         }
         let delegate = AnnotatedGravityRuntimeDelegate(module: module, sourcesByPath: guardedSources)
@@ -1060,7 +1102,20 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
 
         let virtualMachine = GravityVirtualMachine(settings: .init(), delegate: delegate)
         self.virtualMachine = virtualMachine
-        self.communityBudget = try communityPolicy.map { try AdaScriptCommunityBudget.install(in: virtualMachine, policy: $0) }
+        if let communityPolicy {
+            self.communityBudget = try AdaScriptCommunityBudget.install(in: virtualMachine, policy: communityPolicy)
+        } else if let testTimeout {
+            // Only the deadline applies: tests keep `System`, the VM's default limits and unrestricted spawns.
+            let seconds = Double(testTimeout.components.seconds) + Double(testTimeout.components.attoseconds) / 1e18
+            self.communityBudget = try AdaScriptCommunityBudget.install(
+                in: virtualMachine,
+                policy: AdaScriptCommunityPolicy(maximumCheckpoints: Int.max, maximumCallbackSeconds: seconds),
+                restrictsRuntime: false
+            )
+            self.testTimeoutSeconds = seconds
+        } else {
+            self.communityBudget = nil
+        }
         let suspensionPolicy = AdaScriptSuspensionPolicy(scriptNonSendableTypes: module.nonSendableTypeNames)
         let taskRuntime = AdaScriptTaskRuntime.make(
             virtualMachine: virtualMachine,
@@ -1125,13 +1180,14 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
 
         let authoredSource = module.entrySource
         let standardLibrary = communityPolicy == nil ? AdaScriptStandardLibrary.source : AdaScriptStandardLibrary.communitySource
-        let runtimeSource = (communityPolicy == nil ? "" : "extern var __adaUGCBudget;\n") + standardLibrary + "\n"
+        let runtimeSource = (isInstrumented ? "extern var __adaUGCBudget;\n" : "") + standardLibrary + "\n"
+                + "func __ada_instantiate_system(systemType) { return systemType(); }\n"
                 + AdaScriptTaskPrelude.source + "\n"
                 + (module.includesTests ? AdaScriptTestPrelude.source + "\n" : "")
                 + AdaScriptComponentRuntime.prelude(constructors: componentConstructors, authoredSource: module.combinedSource)
                 + AdaScriptNetworkBridge.prelude(commands: networkCommands)
                 + authoredSource
-        let binary = virtualMachine.loadGravityFile(from: communityPolicy == nil ? runtimeSource : try AdaScriptCommunityLowerer.instrument(source: runtimeSource))
+        let binary = virtualMachine.loadGravityFile(from: !isInstrumented ? runtimeSource : try AdaScriptCommunityLowerer.instrument(source: runtimeSource))
         guard delegate.errors.isEmpty else {
             throw AdaScriptError.compilation(delegate.errors)
         }
@@ -1152,7 +1208,10 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         communityBudget?.reset()
         for plan in plans {
             let systemClass = virtualMachine.getValue(forKey: plan.className)
-            guard systemClass.isClass, let instance = systemClass.callAsFunction(), instance.isInstance else {
+            // Class.exec can redirect to an automatically generated initializer. That
+            // redirection is executed by VM bytecode, not by a direct host closure call.
+            let factory = virtualMachine.getValue(forKey: "__ada_instantiate_system")
+            guard systemClass.isClass, let instance = factory.callConstructor(with: [systemClass]), instance.isInstance else {
                 throw AdaScriptError.invalidManifest("Unable to instantiate @system class '\(plan.className)'")
             }
             guard instance.hasMethod(named: "update") else {
@@ -1323,12 +1382,16 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         let errorsBefore = delegate.errors.count
         let globals = snapshotGlobals()
         defer { restoreGlobals(globals) }
+        communityBudget?.reset()
         let raw = virtualMachine.execute(closure: runner.toGravityClosure, params: [body])
         let reply = raw?.toList ?? []
         let failures = reply.count > 1 ? reply[1].toList.map(\.toString) : []
         return AdaScriptTestExecution(
             failures: failures,
-            runtimeErrors: Array(delegate.errors.dropFirst(errorsBefore)),
+            runtimeErrors: Array(delegate.errors.dropFirst(errorsBefore)).map { error in
+                guard let testTimeoutSeconds, error.contains("Community execution limit exceeded") else { return error }
+                return "\(name): test timed out after \(testTimeoutSeconds) seconds"
+            },
             didAbort: reply.first?.toInteger == 1
         )
     }

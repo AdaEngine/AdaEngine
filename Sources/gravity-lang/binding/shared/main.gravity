@@ -1,0 +1,29 @@
+// to be later registered at runtime
+extern var NSAlert
+
+// list here all the ObjC classes to register and use
+//var Alert
+
+//func loadObjCClasses() {
+//    Alert = ObjC.register("NSAlert")
+//}
+
+func main() {
+//    loadObjCClasses();
+    
+//    var obj = ObjC("NSAlert")
+//    System.print(obj)
+//    var alert = obj.register("NSAlert")
+    
+    // ObjC Hello World
+    var alert = NSAlert()
+//    alert.messageText = "Hello World"
+//    alert.informativeText = "Hello from Gravity!"
+    alert.runModal()
+    
+    System.print(NSAlert.methods())
+    System.print(alert == NSAlert)
+    System.print(alert.messageText)
+    
+    return 0
+}

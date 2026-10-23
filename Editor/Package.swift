@@ -3,9 +3,12 @@ import Foundation
 import PackageDescription
 
 let adaEngineLocalPath = ProcessInfo.processInfo.environment["ADAENGINE_PACKAGE_PATH"] ?? ".."
+let editorPackageURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+let adjacentAdaMCP = editorPackageURL.appendingPathComponent("../../AdaMCP").standardizedFileURL
 let adaMCPURL = ProcessInfo.processInfo.environment["ADA_MCP_LOCAL_PATH"].map {
-    URL(fileURLWithPath: $0, relativeTo: URL(fileURLWithPath: #filePath).deletingLastPathComponent()).standardizedFileURL
-}
+    URL(fileURLWithPath: $0, relativeTo: editorPackageURL).standardizedFileURL
+} ?? (FileManager.default.fileExists(atPath: adjacentAdaMCP.appendingPathComponent("Package.swift").path) ? adjacentAdaMCP : nil)
+let isAndroidStudio = ProcessInfo.processInfo.environment["ADAEDITOR_ANDROID"] == "1"
 let sloppyRuntimeLocalPath = ProcessInfo.processInfo.environment["SLOPPY_RUNTIME_LOCAL_PATH"] ?? "../../Sloppy/Packages/SloppyRuntime"
 let sloppyRuntimeURL = URL(fileURLWithPath: sloppyRuntimeLocalPath, relativeTo: URL(fileURLWithPath: #filePath).deletingLastPathComponent()).standardizedFileURL
 let hasSloppyRuntime = FileManager.default.fileExists(atPath: sloppyRuntimeURL.appendingPathComponent("Package.swift").path)
@@ -14,8 +17,8 @@ let sloppyRuntimePackage: [Package.Dependency] = hasSloppyRuntime
     : []
 let sloppyRuntimeTarget: [Target.Dependency] = hasSloppyRuntime
     ? [
-        .product(name: "SloppyRuntime", package: "SloppyRuntimePortable", condition: .when(platforms: [.iOS, .visionOS])),
-        .product(name: "Protocols", package: "SloppyRuntimePortable", condition: .when(platforms: [.iOS, .visionOS])),
+        .product(name: "SloppyRuntime", package: "SloppyRuntimePortable", condition: .when(platforms: [.iOS, .visionOS, .android])),
+        .product(name: "Protocols", package: "SloppyRuntimePortable", condition: .when(platforms: [.iOS, .visionOS, .android])),
     ]
     : []
 // AdaMCP's dependency graph includes Git revisions, so SwiftPM requires a revision here.
@@ -23,11 +26,15 @@ let adaMCPPackage: Package.Dependency = adaMCPURL.map {
     .package(name: "AdaMCP", path: $0.path)
 } ?? .package(url: "https://github.com/AdaEngine/AdaMCP.git", revision: "v0.2.0")
 
+let engineSourceURL = URL(fileURLWithPath: adaEngineLocalPath, relativeTo: URL(fileURLWithPath: #filePath).deletingLastPathComponent()).standardizedFileURL
 let gravityAOTPath = ProcessInfo.processInfo.environment["ADAENGINE_GRAVITY_PACKAGE_PATH"]
-let gravityAOTPackage: [Package.Dependency] = gravityAOTPath.map { [.package(name: "gravity-lang", path: $0)] }
-    ?? [.package(url: "https://github.com/AdaEngine/gravity-lang.git", branch: "master")]
+    ?? engineSourceURL.appendingPathComponent("Sources/gravity-lang").path
+let gravityAOTPackage: [Package.Dependency] = [.package(name: "gravity-lang", path: gravityAOTPath)]
 let gravityAOTTarget: [Target.Dependency] = [.product(name: "GravityAOT", package: "gravity-lang"), .product(name: "CGravity", package: "gravity-lang")]
 
+if isAndroidStudio && !hasSloppyRuntime {
+    fatalError("Android Studio requires SLOPPY_RUNTIME_LOCAL_PATH pointing to Sloppy/Packages/SloppyRuntime.")
+}
 let windowsIconResource = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".build-tools/AdaStudio.res").path
 let windowsIconLinkerSettings: [LinkerSetting] = FileManager.default.fileExists(atPath: windowsIconResource)
     ? [.unsafeFlags(["-Xlinker", windowsIconResource], .when(platforms: [.windows]))] : []
@@ -42,16 +49,16 @@ let package = Package(
         .macOS(.v15),
     ],
     products: [
-        .executable(
-            name: "AdaEditor",
-            targets: ["AdaEditor"]
-        ),
+        isAndroidStudio
+            ? .library(name: "AdaStudioMobile", type: .dynamic, targets: ["AdaEditor"])
+            : .executable(name: "AdaEditor", targets: ["AdaEditor"]),
         .executable(
             name: "gravity-lsp",
             targets: ["GravityLanguageServer"]
         ),
     ],
     dependencies: [
+        .package(path: "StudioCore"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "4.0.0"),
         .package(name: "AdaEngine", path: adaEngineLocalPath),
         .package(name: "AdaDebugging", path: "Debugging"),
@@ -64,6 +71,9 @@ let package = Package(
         .package(url: "https://github.com/alex-pinkus/tree-sitter-swift", branch: "with-generated-files"),
     ] + sloppyRuntimePackage + gravityAOTPackage,
     targets: [
+        .target(name: "CAndroidStudio", dependencies: [
+            .product(name: "CAndroid", package: "AdaEngine", condition: .when(platforms: [.android]))
+        ]),
         .target(
             name: "GravityLanguageCore",
             dependencies: [
@@ -94,18 +104,20 @@ let package = Package(
                 "AdaPackageManifestTool"
             ]
         ),
-        .executableTarget(
+        makeEditorTarget(
             name: "AdaEditor",
             dependencies: [
+                .product(name: "AdaStudioCore", package: "StudioCore"),
                 .product(name: "AdaDebugging", package: "AdaDebugging"),
                 .product(name: "AdaPlayerConnect", package: "AdaPlayerConnect"),
                 .product(name: "AdaEngine", package: "AdaEngine"),
+                .product(name: "AdaSpine", package: "AdaEngine"),
                 .product(name: "AdaA2UI", package: "AdaEngine"),
                 .product(name: "AdaEngineEmbeddable", package: "AdaEngine"),
                 .product(name: "AdaMultiplayer", package: "AdaEngine"),
                 .product(name: "AdaScriptCompilerCore", package: "AdaEngine"),
                 .product(name: "Math", package: "AdaEngine"),
-                .product(name: "AdaMCPPlugin", package: "AdaMCP"),
+                .product(name: "AdaMCPPlugin", package: "AdaMCP", condition: .when(platforms: [.macOS, .iOS, .tvOS, .visionOS, .windows, .linux])),
                 .product(name: "AdaMCPCore", package: "AdaMCP"),
                 .product(name: "MCP", package: "AdaMCP"),
                 .product(name: "ACP", package: "swift-acp", condition: .when(platforms: [.macOS])),
@@ -118,6 +130,7 @@ let package = Package(
                 .product(name: "Crypto", package: "swift-crypto"),
                 "AdaPackageManifestTool",
                 "GravityLanguageCore",
+                .target(name: "CAndroidStudio", condition: .when(platforms: [.android])),
             ] + sloppyRuntimeTarget + gravityAOTTarget,
             exclude: [
                 "Platforms/iOS/Info.plist",
@@ -135,6 +148,7 @@ let package = Package(
                 .product(name: "AdaDebugging", package: "AdaDebugging"),
                 .product(name: "AdaPlayerConnect", package: "AdaPlayerConnect"),
                 "AdaEditor",
+                .product(name: "AdaSpine", package: "AdaEngine"),
                 .product(name: "AdaMCPCore", package: "AdaMCP"),
                 .product(name: "MCP", package: "AdaMCP"),
                 "AdaPackageManifestTool",
@@ -175,3 +189,17 @@ let editorSwiftSettings: [SwiftSetting] = [
     .strictMemorySafety(),
     .unsafeFlags(["-Xfrontend", "-validate-tbd-against-ir=none"]),
 ]
+
+private func makeEditorTarget(
+    name: String,
+    dependencies: [Target.Dependency],
+    exclude: [String],
+    resources: [Resource],
+    swiftSettings: [SwiftSetting],
+    linkerSettings: [LinkerSetting]
+) -> Target {
+    if isAndroidStudio {
+        return .target(name: name, dependencies: dependencies, exclude: exclude, resources: resources, swiftSettings: swiftSettings, linkerSettings: linkerSettings)
+    }
+    return .executableTarget(name: name, dependencies: dependencies, exclude: exclude, resources: resources, swiftSettings: swiftSettings, linkerSettings: linkerSettings)
+}

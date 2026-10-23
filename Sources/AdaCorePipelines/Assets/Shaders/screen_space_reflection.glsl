@@ -27,6 +27,11 @@ layout (binding = 7) uniform sampler u_RadianceSampler;
 layout (binding = 8) uniform texture2D u_Indirect;
 layout (binding = 9) uniform texture2D u_AO;
 layout (binding = 11) uniform sampler u_GBufferSampler;
+layout (binding = 12) uniform texture2D u_Bloom;
+layout (binding = 13) uniform texture2D u_GradingLUT;
+layout (binding = 14) uniform sampler u_GradingSampler;
+layout (binding = 15) uniform texture2D u_ExposureState;
+layout (binding = 16) uniform texture2D u_Volumetric;
 
 layout (binding = 4) uniform Environment3DUniform {
     mat4 u_Projection;
@@ -42,30 +47,92 @@ layout (binding = 4) uniform Environment3DUniform {
     vec4 u_Starfield;
     vec4 u_IBL;
     vec4 u_Quality;
+    vec4 u_PostProcess; // x exposure scale, y bloom intensity, z tone mapper (see Tonemapping.glsl), w LUT intensity
+    vec4 u_Grading;     // x saturation, y contrast, z vignette intensity, w vignette radius
+    vec4 u_Vignette;    // x vignette smoothness, y 1 when automatic exposure is bound
+    vec4 u_FogColor;    // rgb sRGB fog color, w density (0 = fog off)
+    vec4 u_FogShape;    // x height falloff, y base height, z start distance, w maximum opacity
+    vec4 u_FogRange;    // x sky influence, y sun exponent, z 1 when volumetric light shafts are bound
+    vec4 u_FogSun;      // xyz world direction to the sun, w sun in-scattering strength
+    vec4 u_FogSunColor; // rgb sun radiance times intensity
 };
 
 const float PI = 3.14159265359;
+// Weight below which a screen-space reflection ray is not traced (reflectivity times ambient occlusion).
+const float MINIMUM_TRACED_REFLECTIVITY = 0.004;
 
 vec3 srgbToLinear(vec3 value) {
     return mix(value / 12.92, pow((value + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), value));
 }
 
-vec3 linearToSrgb(vec3 value) {
-    value = max(value, vec3(0.0));
-    return mix(value * 12.92, 1.055 * pow(value, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), value));
-}
+#include <AdaEngine/Tonemapping.glsl>
+#include <AdaEngine/ColorGrading.glsl>
 
-vec3 acesToneMap(vec3 value) {
-    const float a = 2.51;
-    const float b = 0.03;
-    const float c = 2.43;
-    const float d = 0.59;
-    const float e = 0.14;
-    return clamp((value * (a * value + b)) / (value * (c * value + d) + e), 0.0, 1.0);
-}
-
+// Exposure and bloom act on linear HDR before tone mapping. The bloom texture is already exposed; with bloom
+// off it is a white placeholder scaled by zero, so default settings leave the color unchanged.
 vec3 presentColor(vec3 linearColor) {
-    return u_Quality.z > 0.5 ? linearColor : linearToSrgb(acesToneMap(linearColor));
+    float automatic = u_Vignette.y > 0.5 ? exp2(textureLod(sampler2D(u_ExposureState, u_GradingSampler), vec2(0.5), 0.0).x) : 1.0;
+    vec3 exposed = linearColor * (u_PostProcess.x * automatic)
+        + texture(sampler2D(u_Bloom, u_LinearSampler), v_UV).rgb * u_PostProcess.y;
+    exposed = adaGradeLinear(exposed, u_Grading, u_Vignette, v_UV);
+    if (u_Quality.z > 0.5) {
+        return exposed;
+    }
+    return adaApplyLut(adaOutputTransform(exposed, u_PostProcess.z), u_PostProcess.w);
+}
+
+// View-space depth the half-resolution volumetric pass saw at `uv`; sky counts as very far.
+float volumetricDepthAt(vec2 uv) {
+    vec3 position = texture(sampler2D(u_ViewPositionMetallic, u_GBufferSampler), uv).xyz;
+    return length(position) > 0.0001 ? position.z : 10000.0;
+}
+
+// Shadowed sun light marched through the fog by the half-resolution volumetric pass. The four surrounding
+// half-resolution texels are weighted by how close their depth is to this pixel's, so shafts do not bleed
+// across silhouettes.
+vec3 volumetricScatter(float depth) {
+    if (u_FogRange.z < 0.5) {
+        return vec3(0.0);
+    }
+    vec2 size = vec2(textureSize(sampler2D(u_Volumetric, u_LinearSampler), 0));
+    vec2 base = floor(v_UV * size - 0.5);
+    vec2 fraction = fract(v_UV * size - 0.5);
+    vec3 sum = vec3(0.0);
+    vec3 plain = vec3(0.0);
+    float weights = 0.0;
+    for (int y = 0; y < 2; ++y) {
+        for (int x = 0; x < 2; ++x) {
+            vec2 uv = clamp((base + vec2(float(x), float(y)) + 0.5) / size, 0.5 / size, vec2(1.0) - 0.5 / size);
+            float bilinear = (x == 0 ? 1.0 - fraction.x : fraction.x) * (y == 0 ? 1.0 - fraction.y : fraction.y);
+            vec3 value = texture(sampler2D(u_Volumetric, u_GBufferSampler), uv).rgb;
+            float weight = bilinear * exp(-abs(volumetricDepthAt(uv) - depth) / max(0.1 * depth, 0.05));
+            sum += value * weight;
+            plain += value * bilinear;
+            weights += weight;
+        }
+    }
+    return weights > 0.001 ? sum / weights : plain;
+}
+
+// Blends exponential height fog into linear HDR color. `viewPosition` is the view-space position of the surface
+// (or a far point along the ray for the sky, flagged by `isSky`) and `skyAmount` scales fog for sky pixels.
+vec3 applyFog(vec3 linearColor, vec3 viewPosition, float skyAmount, bool isSky) {
+    if (u_FogColor.w <= 0.0) {
+        return linearColor;
+    }
+    float travel = max(length(viewPosition) - u_FogShape.z, 0.0);
+    vec3 worldDirection = normalize((u_InverseView * vec4(viewPosition, 0.0)).xyz);
+    float falloff = u_FogShape.x;
+    float cameraHeight = u_InverseView[3].y;
+    float rise = falloff * worldDirection.y;
+    // Integral of exp(-falloff * (height - base)) along the ray, with the series limit for a flat ray.
+    float exponent = clamp(rise * travel, -60.0, 60.0);
+    float pathFactor = abs(rise * travel) > 0.0001 ? (1.0 - exp(-exponent)) / rise : travel;
+    float baseDensity = u_FogColor.w * exp(clamp(-falloff * (cameraHeight - u_FogShape.y), -60.0, 60.0));
+    float opacity = min(1.0 - exp(-baseDensity * pathFactor), u_FogShape.w) * skyAmount;
+    float sunAlignment = pow(max(dot(worldDirection, u_FogSun.xyz), 0.0), u_FogRange.y);
+    vec3 scattered = srgbToLinear(u_FogColor.rgb) + u_FogSunColor.rgb * (u_FogSun.w * sunAlignment);
+    return mix(linearColor, scattered, opacity) + volumetricScatter(isSky ? 10000.0 : viewPosition.z);
 }
 
 vec3 proceduralSky(vec3 direction) {
@@ -139,36 +206,67 @@ vec3 blurredScene(vec2 uv, float roughness) {
     return center;
 }
 
+// Projects a view-space point to screen UV, or reports that it falls outside the view.
+bool projectToScreen(vec3 point, out vec2 uv) {
+    vec4 clip = u_Projection * vec4(point, 1.0);
+    if (clip.w <= 0.0) {
+        return false;
+    }
+    uv = (clip.xy / clip.w) * vec2(0.5, -0.5) + 0.5;
+    return !(any(lessThanEqual(uv, vec2(0.0))) || any(greaterThanEqual(uv, vec2(1.0))));
+}
+
+// How far behind the visible surface the point lies (negative in front of it), or a large negative number when
+// nothing is rendered there.
+float depthBehindSurface(vec3 point, vec2 uv) {
+    vec3 scenePosition = texture(sampler2D(u_ViewPositionMetallic, u_GBufferSampler), uv).xyz;
+    // View-space z grows away from the camera, so a point farther than the surface has the larger z.
+    return length(scenePosition) > 0.0001 ? point.z - scenePosition.z : -1000000.0;
+}
+
+// Marches in steps of twice the configured stride and, once a step crosses a surface, narrows the crossing with a
+// short binary search. Half the steps of a fixed-stride march find the same hits.
 bool traceReflection(vec3 origin, vec3 direction, out vec2 hitUV) {
-    vec3 ray = origin + direction * u_Reflection.w;
-    for (int step = 0; step < 64; ++step) {
-        if (step >= int(u_ReflectionQuality.x)) {
+    float stride = u_Reflection.z * 2.0;
+    float thickness = u_Reflection.w;
+    vec3 previous = origin + direction * thickness;
+    vec3 ray = previous;
+    int steps = (min(int(u_ReflectionQuality.x), 64) + 1) / 2;
+    for (int step = 0; step < 32; ++step) {
+        if (step >= steps) {
             break;
         }
-        ray += direction * u_Reflection.z;
+        ray += direction * stride;
         if (distance(ray, origin) > u_Reflection.y) {
             break;
         }
-
-        vec4 clip = u_Projection * vec4(ray, 1.0);
-        if (clip.w <= 0.0) {
+        vec2 uv;
+        if (!projectToScreen(ray, uv)) {
             break;
         }
-        vec2 uv = clip.xy / clip.w;
-        uv = uv * vec2(0.5, -0.5) + 0.5;
-        if (any(lessThanEqual(uv, vec2(0.0))) || any(greaterThanEqual(uv, vec2(1.0)))) {
-            break;
-        }
-
-        vec3 scenePosition = texture(sampler2D(u_ViewPositionMetallic, u_GBufferSampler), uv).xyz;
-        if (length(scenePosition) > 0.0001) {
-            float rayDepth = -ray.z;
-            float sceneDepth = -scenePosition.z;
-            if (rayDepth >= sceneDepth - u_Reflection.w && rayDepth <= sceneDepth + u_Reflection.w) {
-                hitUV = uv;
+        float behind = depthBehindSurface(ray, uv);
+        if (behind > 0.0 && behind < stride + thickness) {
+            vec3 near = previous;
+            vec3 far = ray;
+            for (int refinement = 0; refinement < 4; ++refinement) {
+                vec3 middle = (near + far) * 0.5;
+                vec2 middleUV;
+                if (!projectToScreen(middle, middleUV)) {
+                    break;
+                }
+                if (depthBehindSurface(middle, middleUV) > 0.0) {
+                    far = middle;
+                } else {
+                    near = middle;
+                }
+            }
+            vec2 hitCandidate;
+            if (projectToScreen(far, hitCandidate) && abs(depthBehindSurface(far, hitCandidate)) <= thickness) {
+                hitUV = hitCandidate;
                 return true;
             }
         }
+        previous = ray;
     }
     return false;
 }
@@ -203,7 +301,7 @@ void ssr_fragment() {
         vec2 ndc = vec2(v_UV.x * 2.0 - 1.0, 1.0 - v_UV.y * 2.0);
         vec4 viewFar = u_InverseProjection * vec4(ndc, 1.0, 1.0);
         vec3 viewRay = normalize(viewFar.xyz / viewFar.w);
-        o_Color = vec4(presentColor(sampleSky(viewRay)), 1.0);
+        o_Color = vec4(presentColor(applyFog(sampleSky(viewRay), viewRay * 1000.0, u_FogRange.x, true)), 1.0);
         return;
     }
 
@@ -212,7 +310,7 @@ void ssr_fragment() {
     vec3 indirect = texture(sampler2D(u_Indirect, u_LinearSampler), v_UV).rgb;
     baseColor = max(baseColor - indirect * (1.0 - ao), vec3(0.0));
     // The PBR pass already integrated diffuse and specular IBL, including AO and material F0.
-    if (u_IBL.x > 0.5) { o_Color = vec4(presentColor(baseColor), 1.0); return; }
+    if (u_IBL.x > 0.5) { o_Color = vec4(presentColor(applyFog(baseColor, positionMetallic.xyz, 1.0, false)), 1.0); return; }
     vec3 normal = normalize(normalRoughness.xyz);
     float roughness = clamp(normalRoughness.w, 0.04, 1.0);
     float metallic = clamp(positionMetallic.w, 0.0, 1.0);
@@ -220,20 +318,22 @@ void ssr_fragment() {
     vec3 reflectionDirection = normalize(reflect(viewDirection, normal));
     vec3 environment = sampleSky(reflectionDirection);
 
+    float fresnel = pow(1.0 - clamp(dot(-viewDirection, normal), 0.0, 1.0), 5.0);
+    float reflectivity = mix(0.04, 1.0, metallic) * mix(1.0, fresnel, 0.35);
+    reflectivity *= (1.0 - roughness * 0.7) * u_ReflectionQuality.y;
+
     vec3 reflectedColor = environment;
     float visibility = 0.0;
-    if (u_Reflection.x > 0.5) {
+    // Most of a typical frame is matte or head-on surfaces whose reflection weighs a percent or two of the
+    // pixel. Tracing a ray for them costs the bulk of this pass and cannot change the result visibly.
+    if (u_Reflection.x > 0.5 && reflectivity * ao > MINIMUM_TRACED_REFLECTIVITY) {
         vec2 hitUV;
         if (traceReflection(positionMetallic.xyz + normal * u_Reflection.w, reflectionDirection, hitUV)) {
             reflectedColor = blurredScene(hitUV, roughness);
             visibility = edgeVisibility(hitUV);
         }
     }
-
-    float fresnel = pow(1.0 - clamp(dot(-viewDirection, normal), 0.0, 1.0), 5.0);
-    float reflectivity = mix(0.04, 1.0, metallic) * mix(1.0, fresnel, 0.35);
-    reflectivity *= (1.0 - roughness * 0.7) * u_ReflectionQuality.y;
     vec3 ambient = sampleSky(normal) * (0.035 + 0.035 * (1.0 - roughness));
     vec3 reflectionResult = mix(environment, reflectedColor, visibility);
-    o_Color = vec4(presentColor(baseColor + (ambient + reflectionResult * reflectivity) * ao), 1.0);
+    o_Color = vec4(presentColor(applyFog(baseColor + (ambient + reflectionResult * reflectivity) * ao, positionMetallic.xyz, 1.0, false)), 1.0);
 }

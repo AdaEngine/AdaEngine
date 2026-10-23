@@ -91,6 +91,12 @@ final class SpirvCompiler {
 
         unsafe spvc_compiler_install_compiler_options(spvcCompiler, spvcCompilerOptions)
 
+        // GLSL represents separate SPIR-V images/samplers as combined sampler uniforms.
+        if deviceLang == .glsl,
+            unsafe spvc_compiler_build_combined_image_samplers(spvcCompiler) != SPVC_SUCCESS {
+            throw unsafe Error(String(cString: spvc_context_get_last_error_string(context)))
+        }
+
         var compilerOutputSourcePtr: UnsafePointer<CChar>?
         let result = unsafe spvc_compiler_compile(spvcCompiler, &compilerOutputSourcePtr)
         if result != SPVC_SUCCESS {

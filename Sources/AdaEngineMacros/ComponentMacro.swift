@@ -111,38 +111,37 @@ extension ComponentMacro {
         type: T,
         requiredComponents: [String]
     ) throws -> [SwiftSyntax.ExtensionDeclSyntax] {
-        let properties = structDecl.memberBlock.members.compactMap { member -> (String, TypeSyntax, String)? in
-            guard let varDecl = member.decl.as(VariableDeclSyntax.self) else {
-                return nil
-            }
-            guard let binding = varDecl.bindings.first else {
-                return nil
-            }
-            guard let identifier = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text else {
-                return nil
-            }
-            guard let type = binding.typeAnnotation?.type else {
-                return nil
-            }
-            if varDecl.bindingSpecifier.tokenKind == .keyword(.let) {
-                return nil
-            }
-
-            // Ignore computed properties that only have a getter
+        let isPublic = structDecl.modifiers.contains { ["public", "package"].contains($0.name.text) }
+        let properties = structDecl.memberBlock.members.compactMap { member -> (String, TypeSyntax, String, Bool)? in
+            guard let declaration = member.decl.as(VariableDeclSyntax.self),
+                !declaration.modifiers.contains(where: { ["static", "class"].contains($0.name.text) }),
+                !declaration.attributes.contains(where: { element in
+                    guard let attribute = element.as(AttributeSyntax.self) else { return false }
+                    return attribute.attributeName.trimmedDescription.split(separator: ".").last == "MainActor"
+                }),
+                let binding = declaration.bindings.first,
+                let identifier = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text,
+                let type = binding.typeAnnotation?.type else { return nil }
+            let accessNames = ["public", "package", "internal", "fileprivate", "private"]
+            let access = declaration.modifiers.first { $0.detail == nil && accessNames.contains($0.name.text) }?.name.text ?? "internal"
+            var writable = declaration.bindingSpecifier.tokenKind != .keyword(.let)
+            if declaration.modifiers.contains(where: { $0.detail?.detail.text == "set" }) { writable = false }
             if let accessors = binding.accessorBlock?.accessors {
                 switch accessors {
-                case .getter:
-                    return nil
-                default:
-                    break
+                case .getter: writable = false
+                case let .accessors(list):
+                    if list.contains(where: { $0.accessorSpecifier.text == "get" }),
+                        !list.contains(where: { $0.accessorSpecifier.text == "set" }) { writable = false }
                 }
             }
-
-            let accessModifier = varDecl.modifiers.first?.name.text ?? "internal"
-            return (identifier, type, accessModifier)
+            return (identifier, type, access, writable)
+        }
+        // Private implementation state is not a script capability. Public components expose their public API.
+        let exposed = properties.filter { _, _, access, _ in
+            access != "private" && access != "fileprivate" && (!isPublic || access == "public")
         }
 
-        let functions = properties.map { propertyName, propertyType, accessModifier in
+        let functions = properties.filter { $0.3 }.map { propertyName, propertyType, accessModifier, _ in
             """
             \(accessModifier) func set\(propertyName.capitalizingFirstLetter())(_ value: \(propertyType)) -> Self {
                 var newValue = self
@@ -152,13 +151,24 @@ extension ComponentMacro {
             """
         }
 
-        let reflectedFields = properties.map { propertyName, propertyType, _ in
-            """
+        let reflectedFields = exposed.map { propertyName, propertyType, _, writable in
+            let writeBody = writable ? """
+                guard var typedComponent = component as? Self else { return nil }
+                guard AdaECS.ComponentReflection.write(fieldValue, to: &typedComponent.\(propertyName)) else { return nil }
+                return typedComponent
+                """ : "return nil"
+            let pointerWrite = writable ? """
+                { pointer, fieldValue in
+                    let typedComponent = unsafe pointer.assumingMemoryBound(to: Self.self)
+                    return unsafe AdaECS.ComponentReflection.write(fieldValue, to: &typedComponent.pointee.\(propertyName))
+                }
+                """ : "nil"
+            return """
             unsafe AdaECS.ReflectedComponentField(
                 key: "\(propertyName)",
                 label: "\(propertyName.reflectedFieldLabel)",
                 kind: AdaECS.ComponentReflection.kind(for: \(propertyType).self),
-                isWritable: AdaECS.ComponentReflection.isWritable(\(propertyType).self),
+                isWritable: \(writable) && AdaECS.ComponentReflection.isWritable(\(propertyType).self),
                 accepts: { fieldValue in
                     AdaECS.ComponentReflection.accepts(fieldValue, for: \(propertyType).self)
                 },
@@ -169,30 +179,18 @@ extension ComponentMacro {
                     return AdaECS.ComponentReflection.read(typedComponent.\(propertyName))
                 },
                 write: { component, fieldValue in
-                    guard var typedComponent = component as? Self else {
-                        return nil
-                    }
-                    guard AdaECS.ComponentReflection.write(fieldValue, to: &typedComponent.\(propertyName)) else {
-                        return nil
-                    }
-                    return typedComponent
+                    \(writeBody)
                 },
                 readPointer: { pointer in
                     let typedComponent = unsafe pointer.assumingMemoryBound(to: Self.self)
                     return AdaECS.ComponentReflection.read(unsafe typedComponent.pointee.\(propertyName))
                 },
-                writePointer: { pointer, fieldValue in
-                    let typedComponent = unsafe pointer.assumingMemoryBound(to: Self.self)
-                    return unsafe AdaECS.ComponentReflection.write(
-                        fieldValue,
-                        to: &typedComponent.pointee.\(propertyName)
-                    )
-                }
+                writePointer: \(pointerWrite)
             )
             """
         }
 
-        let runtimeConstructorParameters = properties.map { propertyName, propertyType, _ in
+        let runtimeConstructorParameters = exposed.filter { $0.3 }.map { propertyName, propertyType, _, _ in
             """
             AdaECS.RuntimeComponentConstructorParameter(
                 name: "\(propertyName)",
@@ -200,7 +198,7 @@ extension ComponentMacro {
             )
             """
         }
-        let runtimeConstructorAssignments = properties.map { propertyName, propertyType, _ in
+        let runtimeConstructorAssignments = exposed.filter { $0.3 }.map { propertyName, propertyType, _, _ in
             """
             if AdaECS.ComponentReflection.isWritable(\(propertyType).self) {
                 if let fieldValue = arguments[argumentIndex],
@@ -396,6 +394,7 @@ extension ComponentMacro {
     }
 
     private static func isSupportedRuntimeConstructorType(_ typeName: String) -> Bool {
+        if typeName.hasSuffix("?") { return isSupportedRuntimeConstructorType(String(typeName.dropLast())) }
         let supportedTypes = [
             "Bool", "Int", "Float", "Double", "String",
             "Vector2", "Vector3", "Vector4", "Quat", "Color",

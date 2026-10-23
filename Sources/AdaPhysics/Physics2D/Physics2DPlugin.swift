@@ -29,6 +29,18 @@ public struct Physics2DPlugin: Plugin {
                 return resource
             }()
 
+        if !app.main.supportsEventDelivery {
+            app.insertResource(HandledEvents())
+            app.addSystem(EventsUpdateSystem.self, on: .preUpdate)
+        }
+
+        let physicsWorld = PhysicsWorld2D(gravity: gravity, workerCount: threading.box2DWorkerCount)
+        physicsWorld.eventManager = app.main.eventManager
+        physicsWorld.eventSource = app.main
+
+        PhysicsWind2DComponent.registerComponent()
+        PhysicsPosition2DComponent.registerComponent()
+        CharacterController2DComponent.registerComponent()
         PhysicsBody2DComponent.registerComponent()
         PhysicsJoint2DComponent.registerComponent()
         Collision2DComponent.registerComponent()
@@ -36,16 +48,20 @@ public struct Physics2DPlugin: Plugin {
         app
             .insertResource(
                 Physics2DWorldHolder(
-                    world: PhysicsWorld2D(
-                        gravity: gravity,
-                        workerCount: threading.box2DWorkerCount
-                    )
+                    world: physicsWorld
                 )
             )
             .insertResource(PhysicsDebugOptions())
+            .addSystem(PhysicsCoordinate2DSyncSystem.self, on: .physicsSync)
             .addSystem(Physics2DSyncSystem.self, on: .physicsSync)
+            .addSystem(CharacterCoordinate2DSyncSystem.self, on: .physicsSync)
+            .addSystem(DynamicCharacter2DSyncSystem.self, on: .physicsSync)
+            .addSystem(PhysicsJoint2DSyncSystem.self, on: .physicsSync)
+            .addSystem(DynamicCharacter2DControlSystem.self, on: .physicsStep)
+            .addSystem(PhysicsWind2DSystem.self, on: .physicsStep)
             .addSystem(Physics2DUpdateSystem.self, on: .physicsStep)
             .addSystem(Physics2DWritebackSystem.self, on: .physicsWriteback)
+            .addSystem(CharacterController2DSystem.self, on: .physicsWriteback)
             .addSystem(PhysicsEventProxySystem.self, on: .startup)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
@@ -81,19 +97,34 @@ extension World {
 
 @System
 func PhysicsEventProxy(
+    _ physics: Res<Physics2DWorldHolder>,
     _ collisionBeganSender: EventsSender<CollisionEvents.Began>,
     _ collisionEndSender: EventsSender<CollisionEvents.Ended>,
+    _ collisionHitSender: EventsSender<CollisionEvents.Hit>,
+    _ jointThresholdSender: EventsSender<Joint2DEvents.ThresholdExceeded>,
     _ eventDisposeBag: Local<Set<AnyCancellable>> = .init([])
 ) {
-    EventManager.default
+    physics.world.ecsEventManager
+        .subscribe(to: Joint2DEvents.ThresholdExceeded.self) { event in
+            jointThresholdSender(event)
+        }
+        .store(in: &eventDisposeBag.wrappedValue)
+
+    physics.world.ecsEventManager
         .subscribe(to: CollisionEvents.Began.self) { event in
             collisionBeganSender(event)
         }
         .store(in: &eventDisposeBag.wrappedValue)
 
-    EventManager.default
+    physics.world.ecsEventManager
         .subscribe(to: CollisionEvents.Ended.self) { event in
             collisionEndSender(event)
+        }
+        .store(in: &eventDisposeBag.wrappedValue)
+
+    physics.world.ecsEventManager
+        .subscribe(to: CollisionEvents.Hit.self) { event in
+            collisionHitSender(event)
         }
         .store(in: &eventDisposeBag.wrappedValue)
 }

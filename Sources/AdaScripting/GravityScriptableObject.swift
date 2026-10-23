@@ -186,7 +186,7 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
 
     init(schema: AdaScriptObjectSchema, runtime: GravityScriptableModuleRuntime) throws {
         let bindings = try schema.bindings.map {
-            try Self.resolve($0, scriptableIdentifier: schema.identifier)
+            try Self.resolve($0, scriptableIdentifier: schema.identifier, runtime: runtime)
         }
         self.bindings = bindings
         var access = SystemAccessSet()
@@ -197,6 +197,11 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
                 access.addComponentWrite(type.identifier)
                 if required {
                     requiredComponents.append(type.identifier)
+                }
+            case let .runtimeComponent(_, descriptor, required):
+                access.addComponentWrite(descriptor.componentID)
+                if required {
+                    requiredComponents.append(descriptor.componentID)
                 }
             case let .resource(_, type, _, _):
                 access.addResourceWrite(ObjectIdentifier(type))
@@ -213,11 +218,20 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
 
     private static func resolve(
         _ binding: AdaScriptObjectBinding,
-        scriptableIdentifier: String
+        scriptableIdentifier: String,
+        runtime: GravityScriptableModuleRuntime
     ) throws -> ResolvedGravityScriptableBinding {
         switch binding.kind {
         case let .component(required):
             guard let type = RuntimeTypeRegistry.componentType(named: binding.typeName) else {
+                // Script-declared `@component` structs have no native type; they are runtime descriptors.
+                if let descriptor = runtime.runtimeComponent(named: binding.typeName) {
+                    return .runtimeComponent(
+                        propertyName: binding.propertyName,
+                        descriptor: descriptor,
+                        required: required
+                    )
+                }
                 throw AdaScriptError.unknownComponent(
                     system: scriptableIdentifier,
                     queryIndex: 0,
@@ -235,6 +249,14 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
                 return .input(propertyName: binding.propertyName, optional: optional)
             }
             guard let type = RuntimeTypeRegistry.resourceType(named: binding.typeName) else {
+                if let layout = runtime.runtimeResource(named: binding.typeName) {
+                    return .resource(
+                        propertyName: binding.propertyName,
+                        type: RuntimeResourceStore.self,
+                        fields: Dictionary(uniqueKeysWithValues: layout.fields.map { ($0.key, $0) }),
+                        optional: optional
+                    )
+                }
                 throw AdaScriptError.unknownResource(
                     system: scriptableIdentifier,
                     resource: binding.typeName
@@ -252,16 +274,22 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
 
     func validateRequiredBindings(context: ScriptableObjectContext) throws {
         for binding in bindings {
-            guard
-                case let .component(propertyName, type, _, required) = binding,
-                required,
-                !context.scriptingWorld.has(type.identifier, in: context.entityID)
-            else {
-                continue
+            let missing: (propertyName: String, name: String)?
+            switch binding {
+            case let .component(propertyName, type, _, true)
+            where !context.scriptingWorld.has(type.identifier, in: context.entityID):
+                missing = (propertyName, String(describing: type))
+            case let .runtimeComponent(propertyName, descriptor, true)
+            where !context.scriptingWorld.has(descriptor.componentID, in: context.entityID):
+                missing = (propertyName, descriptor.name)
+            default:
+                missing = nil
             }
-            throw AdaScriptError.invalidManifest(
-                "Required component '\(String(describing: type))' for '\(propertyName)' is missing"
-            )
+            if let missing {
+                throw AdaScriptError.invalidManifest(
+                    "Required component '\(missing.name)' for '\(missing.propertyName)' is missing"
+                )
+            }
         }
     }
 }
@@ -272,6 +300,11 @@ private enum ResolvedGravityScriptableBinding: @unchecked Sendable {
         propertyName: String,
         type: any Component.Type,
         descriptor: ReflectedComponentDescriptor?,
+        required: Bool
+    )
+    case runtimeComponent(
+        propertyName: String,
+        descriptor: RuntimeComponentDescriptor,
         required: Bool
     )
     case resource(
@@ -500,6 +533,9 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
     }
 
     private let factoryNamesByClass: [String: String]
+    /// Script `@component` structs of this module, which have no native Swift type.
+    private let runtimeComponents: [RuntimeComponentDescriptor]
+    private let runtimeResources: [RuntimeResourceLayout]
     private let getterNamesByClass: [String: [String: String]]
     // The runtime owns its delegate for exactly the VM lifetime; this is not a callback back-reference.
     // swiftlint:disable:next weak_delegate
@@ -510,6 +546,18 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
 
     private let communityBudget: AdaScriptCommunityBudget?
     var diagnostics: [String] { delegate.errors }
+
+    func runtimeResource(named name: String) -> RuntimeResourceLayout? {
+        runtimeResources.first { layout in
+            layout.name == name || layout.stableID == name || layout.aliases.contains(name)
+        }
+    }
+
+    func runtimeComponent(named name: String) -> RuntimeComponentDescriptor? {
+        runtimeComponents.first { descriptor in
+            descriptor.name == name || descriptor.stableID == name || descriptor.aliases.contains(name)
+        }
+    }
 
     init(sources: [AdaScriptSource], schemas: [AdaScriptObjectSchema], communityPolicy: AdaScriptCommunityPolicy? = nil) throws {
         AdaScriptRuntimeCoordinator.lock.lock()
@@ -546,6 +594,9 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
                 }
         )
         self.getterNamesByClass = getterNamesByClass
+        let dataSchemas = (try? AdaScriptSchemaParser.parse(sources: sources)) ?? []
+        self.runtimeComponents = AdaScriptComponentRuntime.runtimeDescriptors(schemas: dataSchemas)
+        self.runtimeResources = AdaScriptComponentRuntime.runtimeResourceLayouts(schemas: dataSchemas)
         let guarded = try module.sourcesByPath.mapValues { source in
             ResolvedGravityScriptModule.Source(fileID: source.fileID, source: communityPolicy == nil ? source.source : try AdaScriptCommunityLowerer.instrument(source: source.source))
         }
@@ -784,6 +835,15 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
                     entityID: context.entityID,
                     componentType: type,
                     descriptor: descriptor,
+                    reportDiagnostic: delegate.append,
+                    virtualMachine: virtualMachine
+                )
+            case let .runtimeComponent(name, descriptor, _):
+                propertyName = name
+                bridge = GravityAttachedComponentView.make(
+                    world: context.scriptingWorld,
+                    entityID: context.entityID,
+                    runtimeDescriptor: descriptor,
                     reportDiagnostic: delegate.append,
                     virtualMachine: virtualMachine
                 )

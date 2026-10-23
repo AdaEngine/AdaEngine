@@ -232,7 +232,7 @@ extension EditorViewModel {
             return .audio
         }
 
-        if url.pathExtension.lowercased() == "tileset" || EditorModelResource.extensions.contains(url.pathExtension.lowercased()) {
+        if url.pathExtension.lowercased() == "tileset" || EditorModelResource.extensions.contains(url.pathExtension.lowercased()) || EditorSpineResource.extensions.contains(url.pathExtension.lowercased()) {
             return .genericAsset
         }
 
@@ -267,6 +267,7 @@ extension EditorViewModel {
         for kind: EditorProjectFileKind,
         fileExtension: String
     ) -> EditorAssetPreviewKind {
+        if EditorSpineResource.extensions.contains(fileExtension.lowercased()) { return .spine2D }
         if EditorModelResource.extensions.contains(fileExtension.lowercased()) {
             return .model3D
         }
@@ -281,6 +282,9 @@ extension EditorViewModel {
         }
         if fileExtension == "particles" {
             return .particleEffect
+        }
+        if fileExtension == "spriteanim" {
+            return .spriteAnimation
         }
         switch kind {
         case .image:
@@ -327,6 +331,15 @@ extension EditorViewModel {
                 let reference = assetReference(for: item.relativePath, assetsRoot: assetsRoot),
                 let absolutePath = absoluteFilePath(from: item.id) else { return nil }
             return .init(name: item.title, reference: reference, absolutePath: absolutePath)
+        }
+    }
+
+    static func spriteAnimationAssets(from items: [EditorProjectSidebarViewModel.Item]) -> [EditorInspectorSidebarViewModel.TextureAsset] {
+        items.compactMap { item in
+            guard URL(fileURLWithPath: item.title).pathExtension.lowercased() == "spriteanim",
+                let root = item.assetRoot, let reference = assetReference(for: item.relativePath, assetsRoot: root),
+                let absolute = absoluteFilePath(from: item.id) else { return nil }
+            return .init(name: item.title, reference: reference, absolutePath: absolute)
         }
     }
 
@@ -397,7 +410,14 @@ extension EditorViewModel {
         inspectorSidebar.textureAssets = Self.textureAssets(from: projectSidebar.items)
         inspectorSidebar.tileMapAssets = Self.tileMapAssets(from: projectSidebar.items)
         inspectorSidebar.particleEffectAssets = Self.particleEffectAssets(from: projectSidebar.items)
+        inspectorSidebar.spriteAnimationAssets = Self.spriteAnimationAssets(from: projectSidebar.items)
         inspectorSidebar.modelAssets = Self.modelAssets(from: projectSidebar.items)
+        inspectorSidebar.spineAssets = projectSidebar.items.compactMap { item in
+            guard !item.isFolder, EditorSpineResource.extensions.contains(URL(fileURLWithPath: item.title).pathExtension.lowercased()),
+                  let root = item.assetRoot, let reference = Self.assetReference(for: item.relativePath, assetsRoot: root),
+                  let path = Self.absoluteFilePath(from: item.id) else { return nil }
+            return .init(name: item.title, reference: reference, absolutePath: path)
+        }
         inspectorSidebar.sceneAssets = Self.sceneAssets(from: projectSidebar.items)
         inspectorSidebar.uiSourcePaths = Self.uiSourcePaths(from: projectSidebar.items)
         inspectorSidebar.uiSceneFiles = Self.uiSceneFiles(from: projectSidebar.items)

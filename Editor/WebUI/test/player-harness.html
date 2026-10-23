@@ -1,0 +1,202 @@
+<!doctype html><meta charset="utf-8" /><title>
+  Agent authoring — fixed Player QA
+</title>
+<style>
+  body {
+    font: 15px system-ui;
+    background: #17191e;
+    color: #e4e7ef;
+    margin: 20px;
+  }
+  button,
+  select {
+    font: inherit;
+    padding: 8px 12px;
+    margin: 4px;
+    background: #2b3040;
+    color: inherit;
+    border: 1px solid #6571a0;
+    border-radius: 8px;
+  }
+  iframe {
+    width: 100%;
+    height: 55vh;
+    border: 1px solid #6571a0;
+    border-radius: 12px;
+  }
+  pre {
+    white-space: pre-wrap;
+    max-height: 30vh;
+    overflow: auto;
+  }
+  section {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+</style>
+<h1>Agent authoring — fixed Player QA</h1>
+<p>
+  Production WASM, protocol, source parser and value codecs. Bundled fixtures
+  only; no Cloud account.
+</p>
+<section>
+  <label
+    >Example
+    <select id="example"></select></label
+  ><label
+    >Mode
+    <select id="mode">
+      <option value="edit">Editor</option>
+      <option value="play">Play</option>
+    </select></label
+  ><button id="load">Load selected example</button
+  ><button id="invalid">Load invalid Space binding</button
+  ><button id="schemas">Inspect source components</button
+  ><button id="values">Validate native values</button
+  ><button id="input">Press Space</button
+  ><button id="right">Hold ArrowRight</button
+  ><button id="logs">Read logs</button
+  ><button id="capture">Capture frame</button>
+</section>
+<p role="status" id="status">Loading fixtures…</p>
+<iframe title="Production fixed Player" allow="autoplay"></iframe>
+<pre id="result"></pre>
+<img id="frame" alt="Captured game frame" hidden />
+<script type="module">
+  const fixtures = await (await fetch("/fixtures.json")).json();
+  const select = document.querySelector("#example"),
+    iframe = document.querySelector("iframe"),
+    status = document.querySelector("#status"),
+    result = document.querySelector("#result");
+  const origin = new URL(fixtures.previewURL).origin,
+    protocol = "ada-studio-preview-v1",
+    pending = new Map();
+  for (const example of fixtures.examples) {
+    const option = document.createElement("option");
+    option.value = example.id;
+    option.textContent = example.id;
+    select.append(option);
+  }
+  select.value = "keyboard-movement";
+  iframe.src =
+    fixtures.previewURL +
+    "#" +
+    new URLSearchParams({ studioParent: location.origin });
+  window.addEventListener("message", (event) => {
+    if (
+      event.source !== iframe.contentWindow ||
+      event.origin !== origin ||
+      event.data?.protocol !== protocol
+    )
+      return;
+    if (event.data.event === "runtime-diagnostics") {
+      result.textContent +=
+        "\nRuntime diagnostics: " + JSON.stringify(event.data.diagnostics);
+      return;
+    }
+    const entry = pending.get(event.data.id);
+    if (!entry) return;
+    pending.delete(event.data.id);
+    clearTimeout(entry.timer);
+    event.data.error
+      ? entry.reject(new Error(event.data.error))
+      : entry.resolve(event.data.value);
+  });
+  function message(type, payload) {
+    const id = crypto.randomUUID();
+    return new Promise((resolve, reject) => {
+      pending.set(id, {
+        resolve,
+        reject,
+        timer: setTimeout(() => {
+          pending.delete(id);
+          reject(new Error("Player timeout"));
+        }, 120000),
+      });
+      iframe.contentWindow.postMessage({ protocol, id, type, payload }, origin);
+    });
+  }
+  const example = () => fixtures.examples.find((e) => e.id === select.value);
+  const encode = (text) =>
+    btoa(String.fromCharCode(...new TextEncoder().encode(text)));
+  async function load(invalid = false) {
+    const e = example();
+    const files = Object.entries(e.files).map(([path, content]) => ({
+      path,
+      data: encode(content),
+    }));
+    for (const [path, data] of Object.entries(e.assets || {}))
+      files.push({ path, data });
+    if (invalid) {
+      const file = files.find((f) => f.path === ".ada/project.json");
+      const meta = JSON.parse(atob(file.data));
+      meta.inputActions = [
+        { name: "Jump", deadZone: 0.2, bindings: [{ key: { _0: "space" } }] },
+      ];
+      file.data = encode(JSON.stringify(meta));
+    }
+    return message("load", {
+      formatVersion: 1,
+      title: e.id,
+      files,
+      editMode: document.querySelector("#mode").value === "edit",
+      revision: crypto.randomUUID(),
+    });
+  }
+  async function run(task) {
+    status.textContent = "Running…";
+    try {
+      const value = await task();
+      result.textContent = JSON.stringify(value, null, 2);
+      status.textContent = "Passed";
+    } catch (error) {
+      result.textContent = error.message;
+      status.textContent = "Rejected: " + error.message;
+    }
+  }
+  document.querySelector("#load").onclick = () => run(() => load());
+  document.querySelector("#invalid").onclick = () => run(() => load(true));
+  document.querySelector("#schemas").onclick = () =>
+    run(() =>
+      message("agent-tool", {
+        name: "inspect-sources",
+        sources: Object.entries(example().files)
+          .filter(([p]) => p.startsWith("Sources/") && p.endsWith(".ada"))
+          .map(([path, source]) => ({ path, source })),
+      }),
+    );
+  document.querySelector("#values").onclick = () =>
+    run(() =>
+      message("agent-tool", {
+        name: "validate-component-values",
+        components: [
+          {
+            entityID: "physics",
+            typeName: "AdaPhysics.PhysicsBody2DComponent",
+            payloadJSON: fixtures.contract.components.find(
+              (c) => c.typeName === "AdaPhysics.PhysicsBody2DComponent",
+            ).defaultPayloadJSON,
+          },
+        ],
+      }),
+    );
+  document.querySelector("#input").onclick = () =>
+    run(() =>
+      message("input", { key: "Space", phase: "press", durationMs: 100 }),
+    );
+  document.querySelector("#right").onclick = () =>
+    run(() =>
+      message("input", { key: "ArrowRight", phase: "press", durationMs: 500 }),
+    );
+  document.querySelector("#logs").onclick = () => run(() => message("logs"));
+  document.querySelector("#capture").onclick = () =>
+    run(async () => {
+      const data = await message("capture");
+      const img = document.querySelector("#frame");
+      img.src = data;
+      img.hidden = false;
+      return { captured: true };
+    });
+  status.textContent = "Ready";
+</script>

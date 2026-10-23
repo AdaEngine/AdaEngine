@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
 @_spi(AdaEngine) import AdaEngine
 import Foundation
 
@@ -92,7 +92,7 @@ struct MobileEditorPublishScreen: View {
     }
 
     private func pickImages(cover: Bool) {
-        ProjectOpenPicker.presentAgentPhotoPicker { result in
+        MobileEditorPlatform.pickPhotos { result in
             guard case .selected(let urls) = result else {
                 if case .unavailable(let error) = result { message = error }
                 return
@@ -102,8 +102,10 @@ struct MobileEditorPublishScreen: View {
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                 let selected = cover ? Array(urls.prefix(1)) : Array(urls.prefix(max(0, 5 - draft.screenshots.count)))
                 let copied = try selected.map { url -> URL in
+                    #if os(iOS)
                     let scoped = url.startAccessingSecurityScopedResource()
                     defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                    #endif
                     let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
                     guard size > 0, size <= 5_000_000 else { throw EditorPublicationError("Choose images up to 5 MB each.") }
                     let destination = folder.appendingPathComponent(UUID().uuidString + "." + url.pathExtension)

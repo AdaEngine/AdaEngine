@@ -29,7 +29,7 @@ import StoreKit
 final class EditorCloudAccount: NSObject {
     static let shared = EditorCloudAccount()
     static var supportsSignIn: Bool {
-        #if (canImport(AuthenticationServices) && canImport(Security)) || os(Windows)
+        #if (canImport(AuthenticationServices) && canImport(Security)) || os(Windows) || os(Android)
         true
         #else
         false
@@ -113,7 +113,7 @@ final class EditorCloudAccount: NSObject {
         }
     }
     func signInOnWebsite() async throws {
-        #if (canImport(AuthenticationServices) && canImport(Security)) || os(Windows)
+        #if (canImport(AuthenticationServices) && canImport(Security)) || os(Windows) || os(Android)
         guard let endpoint = URL(string: server), Self.isAllowedCloudURL(endpoint) else {
             throw CloudError.message("Cloud sign-in is not configured for this build.")
         }
@@ -133,7 +133,9 @@ final class EditorCloudAccount: NSObject {
         }
         status = "Complete sign-in on the Ada Cloud website."
         let authenticationServer = server
-        #if os(Windows)
+        #if os(Android)
+        let callback = try await AndroidStudioHost.authenticate(authorizeURL)
+        #elseif os(Windows)
         let task = Task { try await EditorWindowsCloudAuthentication.authenticate(url: authorizeURL, state: state) }
         browserAuthentication = task
         defer { browserAuthentication = nil }
@@ -164,7 +166,9 @@ final class EditorCloudAccount: NSObject {
         #endif
     }
     func cancelBrowserSignIn() {
-        #if os(Windows)
+        #if os(Android)
+        _ = try? AndroidStudioHost.call("auth.cancel")
+        #elseif os(Windows)
         browserAuthentication?.cancel()
         #elseif canImport(AuthenticationServices)
         authentication?.cancel()
@@ -414,6 +418,9 @@ final class EditorCloudAccount: NSObject {
         for await result in Transaction.currentEntitlements { try await acceptPurchase(result) }
         try await refreshPlan()
         status = "Purchases restored."
+        #elseif os(Android)
+        try await refreshPlan()
+        status = "Subscription refreshed."
         #else
         throw CloudError.message("App Store purchases are unavailable on this platform.")
         #endif
@@ -542,6 +549,89 @@ final class EditorCloudAccount: NSObject {
         }
         return result
     }
+    /// A turn-scoped transport: switching accounts or servers invalidates every later tool round.
+    func hostedAIGenerator() async throws -> EditorCloudAITransport {
+        let revision = sessionRevision
+        guard accountID != nil else { throw CloudError.message("Sign in to Ada Cloud to use AI credits.") }
+        let catalog = try await aiCatalog()
+        guard catalog.enabled, catalog.capabilities.contains("llm") else { throw CloudError.message("Ada AI is not available on this server yet.") }
+        let providers = try await request("/ai/providers")
+        guard providers.array.contains(where: { $0["id"].string == "openrouter" && $0["hosted"].bool == true }) else {
+            throw CloudError.message("Ada AI is not available on this server yet.")
+        }
+        let balance = try await aiClient().balance()
+        guard !balance.suspended, !balance.closed else { throw CloudError.message("Ada AI is unavailable for this account.") }
+        guard balance.allowance > 0 else { throw CloudError.message("Cloud Pro includes 500 AI credits per month. Subscribe to use Ada AI.") }
+        guard balance.available > 0 else { throw CloudError.message("Your AI credits are used up. They renew with your monthly Cloud Pro allowance.") }
+        guard sessionRevision == revision else { throw EditorAIError.sessionChanged }
+        return { [weak self] input, receive in
+            guard let self else { throw EditorAIError.sessionChanged }
+            try await self.generateHostedAI(input, revision: revision, receive: receive)
+        }
+    }
+
+    private func generateHostedAI(_ input: EditorCloudValue, revision: UUID,
+                                  receive: @escaping @Sendable (EditorCloudValue) async throws -> Void) async throws {
+        guard sessionRevision == revision else { throw EditorAIError.sessionChanged }
+        // Refresh authentication through a read-only call. Never automatically retry a paid submission.
+        _ = try await request("/ai/providers")
+        guard sessionRevision == revision, let token = credentials["accessToken"].string,
+              let base = URL(string: server), Self.isAllowedCloudURL(base),
+              let url = URL(string: server.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/v1/ai/native/generate") else {
+            throw EditorAIError.sessionChanged
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 180
+        request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        request.httpBody = try JSONEncoder().encode(input)
+        var parser = EditorCloudAIStream()
+        do {
+            #if canImport(FoundationNetworking)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            try Self.validateAIHTTP(response, data: data)
+            let lines = String(decoding: data, as: UTF8.self).components(separatedBy: .newlines)
+            for line in lines {
+                try Task.checkCancellation()
+                guard sessionRevision == revision else { throw EditorAIError.sessionChanged }
+                if let event = try parser.event(line: line) { try await receive(event) }
+            }
+            #else
+            let (bytes, response) = try await URLSession.shared.bytes(for: request)
+            try Self.validateAIHTTP(response)
+            for try await line in bytes.lines {
+                try Task.checkCancellation()
+                guard sessionRevision == revision else { throw EditorAIError.sessionChanged }
+                if let event = try parser.event(line: line) { try await receive(event) }
+            }
+            #endif
+            try parser.finish()
+        } catch {
+            if sessionRevision == revision { await refreshAICredits(force: true) }
+            throw error
+        }
+        guard sessionRevision == revision else { throw EditorAIError.sessionChanged }
+        await refreshAICredits(force: true)
+    }
+
+    private static func validateAIHTTP(_ response: URLResponse, data: Data? = nil) throws {
+        guard let http = response as? HTTPURLResponse else { throw EditorAIError.invalidResponse }
+        guard http.statusCode == 200 else {
+            let message: String
+            switch http.statusCode {
+            case 401: message = "Sign in to Ada Cloud to use AI credits."
+            case 402: message = "Not enough AI credits for this request. Check your balance in Cloud settings."
+            case 403: message = "Ada AI is unavailable for this account."
+            case 429: message = "Too many AI requests. Please wait and try again."
+            default: message = "Ada AI is not available on this server yet."
+            }
+            throw CloudError.http(http.statusCode, message)
+        }
+        guard http.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("text/event-stream") == true else { throw EditorAIError.invalidResponse }
+    }
+
     private func invalidateAISession() {
         sessionRevision = UUID()
         refreshTask?.cancel()
@@ -645,6 +735,10 @@ final class EditorCloudAccount: NSObject {
         }
     }
     private static func keychainDelete() { SecItemDelete(keychainQuery as CFDictionary) }
+    #elseif os(Android)
+    private static func keychainRead() throws -> Data? { AndroidStudioCredentials.load(key: "org.adaengine.cloud:session") }
+    private static func keychainWrite(_ data: Data) throws { try AndroidStudioCredentials.save(data, key: "org.adaengine.cloud:session") }
+    private static func keychainDelete() { try? AndroidStudioCredentials.delete(key: "org.adaengine.cloud:session") }
     #elseif os(Windows)
     private static func keychainRead() throws -> Data? { try EditorWindowsCloudCredentials.read() }
     private static func keychainWrite(_ data: Data) throws { try EditorWindowsCloudCredentials.write(data) }

@@ -36,6 +36,9 @@ public struct PhysicsBody2DComponent: Codable {
     /// Should this body be prevented from rotating? Useful for characters.
     public var fixedRotation: Bool = false
 
+    public internal(set) var dynamics = PhysicsBody2DDynamics()
+    public internal(set) var motion = PhysicsBody2DMotion()
+
     /// Custom debug color.
     public var debugColor: Color?
 
@@ -124,6 +127,8 @@ public struct PhysicsBody2DComponent: Codable {
         case gravityScale
         case linearVelocity
         case angularVelocity
+        case dynamics
+        case motion
     }
 
     public init(from decoder: Decoder) throws {
@@ -139,6 +144,10 @@ public struct PhysicsBody2DComponent: Codable {
         self.initialGravityScale = try container.decodeIfPresent(Float.self, forKey: .gravityScale) ?? 1
         self.initialLinearVelocity = try container.decodeIfPresent(Vector2.self, forKey: .linearVelocity) ?? .zero
         self.initialAngularVelocity = try container.decodeIfPresent(Float.self, forKey: .angularVelocity) ?? 0
+        self.dynamics = try container.decodeIfPresent(PhysicsBody2DDynamics.self, forKey: .dynamics) ?? .init()
+        try dynamics.validate()
+        self.motion = try container.decodeIfPresent(PhysicsBody2DMotion.self, forKey: .motion) ?? .init()
+        try motion.validate()
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -154,6 +163,8 @@ public struct PhysicsBody2DComponent: Codable {
         try container.encode(self.gravityScale, forKey: .gravityScale)
         try container.encode(self.linearVelocity, forKey: .linearVelocity)
         try container.encode(self.angularVelocity, forKey: .angularVelocity)
+        try container.encode(dynamics, forKey: .dynamics)
+        try container.encode(motion, forKey: .motion)
     }
 
     // MARK: - Methods

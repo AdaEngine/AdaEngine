@@ -1,6 +1,9 @@
 @_spi(Internal) import AdaEngine
 import AdaScriptCompilerCore
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import GravityLanguageCore
 import MCP
 
@@ -125,7 +128,7 @@ final class EditorMobileAgentToolService {
                 "model3D": EditorAgentModelToolService.capabilities,
                 "languageService": "embedded GravityWorkspace; current disk sources; zero-based UTF-16 positions",
                 "simulation": "AdaScript, scenes, keyboard input, transforms and physics; rendering, audio, networking and touch UI require visible Play",
-                "limitations": ["AdaScript @view and @resource declarations are currently unavailable in portable projects; use supported scene UI components and @res Input."],
+                "limitations": ["AdaScript @view declarations are currently unavailable in portable projects; use supported scene UI components. @resource structs are supported and are bound with @res."],
             ]
         case "editor.gravity.diagnostics":
             return try diagnostics(path: arguments["path"]?.stringValue)

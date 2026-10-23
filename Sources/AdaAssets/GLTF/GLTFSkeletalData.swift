@@ -54,6 +54,8 @@ extension GLTFImportResult {
         case translation
         case rotation
         case scale
+        /// Morph target weights of the node's mesh: one value per target for each key.
+        case weights
     }
 
     public struct AnimationSampler: Sendable {

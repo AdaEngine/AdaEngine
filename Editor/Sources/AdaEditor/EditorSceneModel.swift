@@ -1,4 +1,5 @@
 @_spi(AdaEngine) import AdaEngine
+import AdaStudioCore
 import Foundation
 import Yams
 
@@ -20,66 +21,7 @@ enum EditorSceneEntityPreset: String, CaseIterable, Equatable, Sendable {
     }
 }
 
-enum EditorSceneValue: Codable, Equatable, Sendable {
-    case null
-    case bool(Bool)
-    case int(Int)
-    case uint(UInt64)
-    case double(Double)
-    case string(String)
-    case array([Self])
-    case object([String: Self])
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-
-        if container.decodeNil() {
-            self = .null
-        } else if let value = try? container.decode(Bool.self) {
-            self = .bool(value)
-        } else if let value = try? container.decode(Int.self) {
-            self = .int(value)
-        } else if let value = try? container.decode(UInt64.self) {
-            self = .uint(value)
-        } else if let value = try? container.decode(Double.self) {
-            self = .double(value)
-        } else if let value = try? container.decode(String.self) {
-            self = .string(value)
-        } else if let value = try? container.decode([Self].self) {
-            self = .array(value)
-        } else if let value = try? container.decode([String: Self].self) {
-            self = .object(value)
-        } else {
-            throw DecodingError.dataCorruptedError(
-                in: container,
-                debugDescription: "Unsupported scene value"
-            )
-        }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-
-        switch self {
-        case .null:
-            try container.encodeNil()
-        case let .bool(value):
-            try container.encode(value)
-        case let .int(value):
-            try container.encode(value)
-        case let .uint(value):
-            try container.encode(value)
-        case let .double(value):
-            try container.encode(value)
-        case let .string(value):
-            try container.encode(value)
-        case let .array(values):
-            try container.encode(values)
-        case let .object(values):
-            try container.encode(values)
-        }
-    }
-}
+typealias EditorSceneValue = StudioValue
 
 extension EditorSceneValue: YAMLEncodable {
     // Build payload collections once. Yams' Codable sequence container copies
@@ -292,6 +234,8 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
                 [EditorBuiltInComponentType.camera, EditorBuiltInComponentType.visibility]
             case .sprite:
                 [EditorBuiltInComponentType.sprite]
+            case .spine2D:
+                [EditorBuiltInComponentType.spineSource]
             case .mesh2D:
                 [EditorBuiltInComponentType.mesh2D]
             case .tileMap:
@@ -324,6 +268,8 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
         }
         if template == .scriptable {
             entities[entityIndex].components[EditorBuiltInComponentType.scriptableComponents] = ["scripts": .array([])]
+        } else if template == .spine2D {
+            entities[entityIndex].components[EditorBuiltInComponentType.transform]?["scale"] = .array([.double(0.005), .double(0.005), .double(1)])
         } else if template == .camera3D {
             entities[entityIndex].components[EditorBuiltInComponentType.camera]?["projection"] = .string("perspective")
             entities[entityIndex].components[EditorBuiltInComponentType.transform]?["position"] = .array([

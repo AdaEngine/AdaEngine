@@ -93,8 +93,10 @@ Ubuntu 24.04 under WSL 2 / WSLg, Swift 6.3.2 and Mesa llvmpipe Vulkan:
 - All 5 focused Linux runtime/platform tests pass, including real X11 resize,
   keyboard/text delivery, focus-loss releases and `WM_DELETE_WINDOW` teardown.
 - All 70 `AdaUtilsTests` / `AdaInputTests` tests pass.
-- All 27 focused WebGPU tests pass, including fresh Tint conversion, sprite
-  pixel comparisons, picking, tile occlusion and transient attachment lifetime.
+- All 50 checks selected by the current WebGPU validation script pass, including
+  fresh Tint conversion, sprite pixels, picking, tile occlusion, render graph
+  diagnostics, visible-list equivalence and transient attachment lifetime. The 3D golden-frame cases are
+  excluded by their Linux compile guards and are not covered by this result.
 - Both Swan staging helper tests pass; the Windows package manifest still loads.
 - The native demo displays its UI, accepts Latin and Cyrillic text, responds to
   button clicks, resizes and exits on a native close request.
@@ -109,22 +111,18 @@ Install `zenity` for the desktop file/folder chooser. Studio uses the shared Ada
 workbench, native X11 windows and the Linux run destination. Swift projects and
 AdaScript Run in a separate game window are enabled in this Standalone distribution.
 
-Prepare Gravity in a separate directory before building Studio or script games:
+The compiler bundled under `Sources/gravity-lang` includes the UTF-8 source-length
+and VM-owned string fixes. Use it for Studio and script games:
 
 ```sh
-git clone https://github.com/AdaEngine/gravity-lang.git "$HOME/adaengine-linux-tools/gravity-source"
-git -C "$HOME/adaengine-linux-tools/gravity-source" checkout --detach 26f80cc250d478b16dbbd21a3a517a669d13f616
-python3 script/prepare_gravity_linux.py "$HOME/adaengine-linux-tools/gravity-source" "$HOME/adaengine-linux-tools/gravity"
-export ADAENGINE_GRAVITY_PACKAGE_PATH="$HOME/adaengine-linux-tools/gravity"
+export ADAENGINE_GRAVITY_PACKAGE_PATH="$PWD/Sources/gravity-lang"
 sudo apt-get install -y zenity
 bash script/run_studio_linux.sh
 ```
 
 Keep the Swan, `SWAN_LOCAL_DAWN` and Tint overrides from the earlier setup.
-Gravity's pinned binding needs byte lengths when passing UTF-8 sources to C:
-Swift's character count truncates both Cyrillic text and CRLF files. The staging
-helper also copies string values with the VM allocator. Original dependencies
-remain untouched.
+The Studio launcher selects the bundled compiler by default; the environment
+override is useful for running standalone sample builds with the same compiler.
 
 The shared AdaScript lexer recognizes CRLF as one newline. This preserves
 declarations after `//` comments in Windows-authored projects and keeps diagnostic
@@ -153,11 +151,14 @@ selects this engine by local path and migrates Fold's older reflection API names
 Open AdaScript-only samples such as UnfoldTheWorld through Studio's Open Project
 dialog. Under WSLg, `GDK_BACKEND=x11` can select X11 for Zenity as well.
 
-The Linux Studio validation passes 13 focused tests across distribution, Linux
+The Linux Studio validation passes 13 focused tests serially across distribution, Linux
 destination/SDK discovery, UTF-8/CRLF AdaScript compilation, localization, scene
 script loading, hot reload and project input delivery. Another 23 compiler tests
 pass in an isolated package built from the production compiler sources, including
 newline positions and scriptable schema discovery after comments.
+The rebased Studio executable and test product build successfully. SwiftPM's
+post-build test invocation stalled under WSL; the compiled Swift Testing runner
+completed these 13 checks with `--testing-library swift-testing --no-parallel`.
 StarQuest and Fold render native windows; Fold's Jump and Turn controls execute
 its AdaScript controller. A 45-second Fold run held shared graphics memory near
 105 MiB after excluding transient render attachments from the persistent WebGPU

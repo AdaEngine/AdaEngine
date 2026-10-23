@@ -1,0 +1,24 @@
+func build(model) {            // a chunky low-poly body with a beak and an eye, 1 unit is 1 metre
+    model.material(1, 1.0, 0.69, 0.08);
+    model.surface(1, 0.0, 0.7);
+    model.material(2, 1.0, 0.29, 0.09);
+    model.material(3, 0.03, 0.08, 0.13);
+
+    var root = model.group();
+    model.name(root, "Runner");
+
+    var body = model.sphere(0.35, 16);
+    model.paint(body, 1);
+    model.parent(body, root);
+
+    var beak = model.cylinder(0.0, 0.14, 0.3, 12);
+    model.paint(beak, 2);
+    model.rotate(beak, 0.0, 0.0, -90.0);
+    model.place(beak, 0.42, -0.02, 0.0);
+    model.parent(beak, root);
+
+    var eye = model.sphere(0.07, 8);
+    model.paint(eye, 3);
+    model.place(eye, 0.18, 0.14, 0.27);
+    model.parent(eye, root);
+}

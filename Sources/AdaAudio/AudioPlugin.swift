@@ -6,6 +6,7 @@
 //
 
 import AdaApp
+import AdaAssets
 import AdaECS
 import AdaTransform
 import AdaUtils
@@ -22,6 +23,10 @@ public struct AudioPlugin: Plugin {
     }
 
     public func setup(in app: borrowing AppWorlds) {
+        // Registered even when no audio device is available, so scenes that use sounds still load.
+        AssetsManager.registerAssetType(AudioResource.self)
+        AudioSource.registerComponent()
+        AudioSourceState.registerComponent()
         do {
             try AudioServer.initialize()
             unsafe try AudioServer.shared.engine.start()
@@ -34,6 +39,7 @@ public struct AudioPlugin: Plugin {
             app
                 .insertResource(audioServer)
                 .addSystem(AudioSystem.self)
+                .addSystem(AudioSourceSystem.self)
         } catch {
             logger.error("Failed to setup AudioPlugin with error: \(error)")
         }

@@ -1,6 +1,8 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
 @_spi(AdaEngine) import AdaEngine
+#if canImport(UIKit)
 import UIKit
+#endif
 
 struct MobileEditorAgentSettingsScreen: View {
     @Environment(\.theme) private var theme
@@ -33,6 +35,30 @@ struct MobileEditorAgentSettingsScreen: View {
 
                 modelSelection
                 MobileEditorCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(L10n.text("Ada AI · Coder Next")).font(MobileEditorFont.navigationFont(size: 20)).foregroundColor(theme.editorColors.text)
+                        EditorAICreditsDetails()
+                        if modelStore.selectedProvider == .ada, !modelStore.errorMessage.isEmpty {
+                            Text(L10n.tr(modelStore.errorMessage)).font(MobileEditorFont.font(size: 13)).foregroundColor(theme.editorColors.text).lineLimit(4)
+                                .accessibilityIdentifier("AdaEditor.Mobile.CloudAIError")
+                        }
+                        MobileEditorPrimaryButton(title: "Use Ada AI") { _ = modelStore.useCloudAI() }
+                            .accessibilityIdentifier("AdaEditor.Mobile.UseCloudAI")
+                        if EditorCloudAccount.shared.accountID == nil {
+                            MobileEditorPrimaryButton(title: "Sign in to Ada Cloud") {
+                                EditorCloudAccount.shared.perform { try await EditorCloudAccount.shared.signInOnWebsite() }
+                            }
+                        } else if !EditorCloudAccount.shared.pro, EditorCloudAccount.shared.billingAvailable {
+                            MobileEditorPrimaryButton(title: "Subscribe to Cloud Pro") {
+                                EditorCloudAccount.shared.perform { try await EditorCloudAccount.shared.buyPro() }
+                            }
+                        }
+                        if !EditorCloudAccount.shared.status.isEmpty {
+                            Text(L10n.tr(EditorCloudAccount.shared.status)).font(MobileEditorFont.font(size: 12)).foregroundColor(theme.editorColors.muted).lineLimit(3)
+                        }
+                    }.padding(17)
+                }
+                MobileEditorCard {
                     EditorSloppyInviteSettingsView(catalog: sloppyInvites)
                         .padding(17)
                 }
@@ -53,7 +79,7 @@ struct MobileEditorAgentSettingsScreen: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .accessibilityIdentifier("AdaEditor.Mobile.CodexDeviceCode")
                                 Button {
-                                    UIPasteboard.general.string = deviceCode.userCode
+                                    MobileEditorPlatform.copy(deviceCode.userCode)
                                     isCodeCopied = true
                                 } label: {
                                     Text(isCodeCopied ? L10n.text("Copied") : L10n.text("Copy"))
@@ -298,7 +324,7 @@ struct MobileEditorAgentSettingsScreen: View {
                     deviceCode = nil
                     return
                 }
-                UIPasteboard.general.string = code.userCode
+                MobileEditorPlatform.copy(code.userCode)
                 isCodeCopied = true
                 statusMessage = "Code copied. Paste it in the sign-in window. Ada Studio will finish automatically."
                 let interval = max(1, code.interval)

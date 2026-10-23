@@ -69,7 +69,7 @@ struct AdaScriptNativeSpriteLayoutTests {
         let parameters = Sprite.runtimeComponentConstructor.parameters.map(\.name)
         let prepared = try AdaScriptNativeSourceBuilder.prepare(sources: [.init(path: "Layout.ada", source: source)], constructors: ["Sprite": parameters])
         #expect(prepared[0].source.contains(AdaScriptSpriteLayoutLibrary.nativeSource))
-        #expect(prepared[1].source.contains("makeNamed(\"Sprite\", [null, null, null, null, null, [0.0, 0.5], AdaSpriteImageModeTiled(true, false, 2)])"))
+        #expect(prepared[1].source.contains("makeNamed(\"Sprite\", [null, null, null, null, null, [0.0, 0.5], AdaSpriteImageModeTiled(true, false, 2)], [5, 6])"))
         let defaults = AdaScriptSpriteLayoutLibrary.lowerForNative("var a = SpriteAnchor(); var b = SpriteSliceBorder(8); var c = SpriteImageMode.tiled();")
         #expect(defaults.contains("SpriteAnchor(0, 0)"))
         #expect(defaults.contains("SpriteSliceBorder(8, 0, 0, 0)"))

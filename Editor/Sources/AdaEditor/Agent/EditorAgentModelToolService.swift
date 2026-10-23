@@ -20,7 +20,7 @@ final class EditorAgentModelToolService {
             "inspection": "CPU native glTF import; rest-pose scene bounds, geometry, PBR slots, hierarchy, skins and named clips",
             "verification": "Import/profile validation only. Use visible Play and a completed frame capture for rendering; exercise named clips for animation playback.",
             "limits": ["128 MiB model and local dependencies combined", "128 joints per skin", "glTF primitive topologies", "UV0/UV1", "one set of four skin influences"],
-            "unavailable": ["Blender execution", "3D model generation", "rig editing", "skeletal clip authoring", "Draco/Meshopt/KTX2 decoding"],
+            "unavailable": ["Blender execution", "organic or rigged model generation", "rig editing", "skeletal clip authoring", "Draco/Meshopt/KTX2 decoding"],
         ]
     }
 

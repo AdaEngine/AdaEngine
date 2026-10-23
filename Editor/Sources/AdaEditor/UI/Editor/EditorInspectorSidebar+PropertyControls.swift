@@ -169,7 +169,7 @@ extension EditorInspectorSidebar {
                     Text("\u{E3F4}")
                         .font(AdaEditorMaterialSymbolFont.font(size: 17))
                         .foregroundColor(theme.editorColors.purple)
-                    Text(value.isEmpty ? (isParticleField(fieldID) ? L10n.text("Choose particle effect…") : isModelField(fieldID) ? L10n.text("Choose model…") : fieldID.hasSuffix(".map") ? L10n.text("Choose tile map…") : L10n.text("Choose texture…")) : value)
+                    Text(value.isEmpty ? (isSpineField(fieldID) ? L10n.text("Choose skeleton...") : isSpriteAnimationField(fieldID) ? L10n.text("Choose sprite animation…") : isParticleField(fieldID) ? L10n.text("Choose particle effect…") : isModelField(fieldID) ? L10n.text("Choose model…") : fieldID.hasSuffix(".map") ? L10n.text("Choose tile map…") : L10n.text("Choose texture…")) : value)
                         .font(.system(size: 10))
                         .foregroundColor(value.isEmpty ? theme.editorColors.muted : theme.editorColors.text)
                         .lineLimit(1)
@@ -188,14 +188,14 @@ extension EditorInspectorSidebar {
             .accessibilityIdentifier("AdaEditor.Inspector.AssetReference.\(fieldID)")
             .overlay {
                 #if canImport(AppKit) && os(macOS)
-                if !isModelField(fieldID) {
+                if !isModelField(fieldID) && !isSpineField(fieldID) {
                         EditorInspectorTextureDropTarget(
                             onClick: {
                                 activeAssetFieldID = activeAssetFieldID == fieldID ? nil : fieldID
                                 assetSearchText = ""
                             },
                             onDrop: { url in
-                                let asset = isParticleField(fieldID) ? viewModel.particleEffectAssets.first(where: { $0.absolutePath == url.path }) : fieldID.hasSuffix(".map")
+                                let asset = isSpriteAnimationField(fieldID) ? viewModel.spriteAnimationAssets.first(where: { $0.absolutePath == url.path }) : isParticleField(fieldID) ? viewModel.particleEffectAssets.first(where: { $0.absolutePath == url.path }) : fieldID.hasSuffix(".map")
                                     ? viewModel.tileMapAssets.first(where: { $0.absolutePath == url.path })
                                     : viewModel.textureAsset(droppedFileURL: url)
                                 guard let asset else {
@@ -210,7 +210,7 @@ extension EditorInspectorSidebar {
             }
 
             if activeAssetFieldID == fieldID {
-                assetPicker(text: text, tileMaps: fieldID.hasSuffix(".map"), models: isModelField(fieldID), particles: isParticleField(fieldID))
+                assetPicker(text: text, tileMaps: fieldID.hasSuffix(".map"), models: isModelField(fieldID), particles: isParticleField(fieldID), spines: isSpineField(fieldID), spriteAnimations: isSpriteAnimationField(fieldID))
             }
         }
     }
@@ -226,7 +226,7 @@ extension EditorInspectorSidebar {
                     Text("\u{F720}")
                         .font(AdaEditorMaterialSymbolFont.font(size: 17))
                         .foregroundColor(theme.editorColors.blue)
-                    Text(value.isEmpty ? L10n.text("Choose scene prefab…") : value)
+                    Text(verbatim: value.isEmpty ? L10n.tr("Choose scene prefab…") : value)
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(value.isEmpty ? theme.editorColors.muted : theme.editorColors.text)
                         .lineLimit(1)
@@ -322,19 +322,28 @@ extension EditorInspectorSidebar {
         .overlay { RoundedRectangleShape(cornerRadius: 6).stroke(theme.editorColors.border.opacity(0.65), lineWidth: 1) }
     }
 
+    private func isSpineField(_ fieldID: String) -> Bool {
+        fieldID == "\(EditorBuiltInComponentType.spineSource).source"
+    }
+
     private func isModelField(_ fieldID: String) -> Bool {
         fieldID == "\(EditorBuiltInComponentType.model3DSource).source"
+    }
+
+    private func isSpriteAnimationField(_ fieldID: String) -> Bool {
+        fieldID == "\(EditorBuiltInComponentType.spriteAnimator).animations"
     }
 
     private func isParticleField(_ fieldID: String) -> Bool {
         fieldID == "\(EditorBuiltInComponentType.particleEmitter).effect"
     }
 
-    func assetPicker(text: Binding<String>, tileMaps: Bool = false, models: Bool = false, particles: Bool = false) -> some View {
-        let assets = particles ? viewModel.particleEffectAssets(matching: assetSearchText) : models ? viewModel.modelAssets(matching: assetSearchText)
+    func assetPicker(text: Binding<String>, tileMaps: Bool = false, models: Bool = false, particles: Bool = false, spines: Bool = false, spriteAnimations: Bool = false) -> some View {
+        let assets = spriteAnimations ? viewModel.spriteAnimationAssets(matching: assetSearchText) : spines ? viewModel.spineAssets.filter { assetSearchText.isEmpty || $0.reference.localizedCaseInsensitiveContains(assetSearchText) } : particles ? viewModel.particleEffectAssets(matching: assetSearchText) : models ? viewModel.modelAssets(matching: assetSearchText)
             : tileMaps ? viewModel.tileMapAssets(matching: assetSearchText) : viewModel.textureAssets(matching: assetSearchText)
         return VStack(alignment: .leading, spacing: 5) {
-            TextField(particles ? L10n.text("Search particle effects") : models ? L10n.text("Search project models") : tileMaps ? L10n.text("Search project tile maps") : L10n.text("Search project textures"),
+            TextField(
+                spriteAnimations ? L10n.text("Search sprite animations") : spines ? L10n.text("Search Spine skeletons") : particles ? L10n.text("Search particle effects") : models ? L10n.text("Search project models") : tileMaps ? L10n.text("Search project tile maps") : L10n.text("Search project textures"),
                 text: Binding(get: { assetSearchText }, set: { assetSearchText = $0 })
             )
                 .font(.system(size: 10, weight: .bold))
@@ -363,7 +372,7 @@ extension EditorInspectorSidebar {
                     }
                     .buttonStyle(DefaultButtonStyle())
                     if assets.isEmpty {
-                        Text(models ? L10n.text("Import a GLB or glTF into Assets first.") : tileMaps ? L10n.text("No tile maps found in this project.") : L10n.text("No image assets found in this project."))
+                        Text(spriteAnimations ? L10n.text("Create a Sprite Animation resource in Assets first.") : spines ? L10n.text("Import a Spine skeleton and its atlas into Assets first.") : models ? L10n.text("Import a GLB or glTF into Assets first.") : tileMaps ? L10n.text("No tile maps found in this project.") : L10n.text("No image assets found in this project."))
                             .font(.system(size: 9))
                             .foregroundColor(theme.editorColors.muted)
                             .padding(6)

@@ -365,13 +365,13 @@ extension EditorCenterWorkbench {
             return document.language == .swift ? "\u{E86F}" : "\u{E873}"
         case .asset(let document):
             switch document.kind {
-            case .particleEffect, .atlas,
+            case .particleEffect, .spriteAnimation, .atlas,
                 .tileSource,
                 .tileMap:
                 return "\u{E8F1}"
             case .image:
                 return "\u{E3F4}"
-            case .model3D:
+            case .model3D, .spine2D:
                 return EditorProjectTreeIcon.mesh
             case .audio:
                 return "\u{EB82}"
@@ -404,13 +404,13 @@ extension EditorCenterWorkbench {
             return theme.editorColors.blue
         case .asset(let document):
             switch document.kind {
-            case .particleEffect, .atlas,
+            case .particleEffect, .spriteAnimation, .atlas,
                 .tileSource,
                 .tileMap:
                 return theme.editorColors.blue
             case .image:
                 return theme.editorColors.blue
-            case .model3D:
+            case .model3D, .spine2D:
                 return theme.editorColors.purple
             case .audio:
                 return theme.editorColors.purple
@@ -454,6 +454,11 @@ extension EditorCenterWorkbench {
         case .particleEffect:
             EditorParticleEffectAssetEditor(document: document, model: viewModel.particleEffectModel(for: document), workbench: viewModel)
                 .id(document.id)
+        case .spriteAnimation:
+            EditorSpriteAnimationAssetEditor(document: document, model: viewModel.spriteAnimationModel(for: document), workbench: viewModel)
+                .id(document.id)
+        case .spine2D:
+            EditorSpineAssetPreview(document: document, workbench: viewModel).id(document.id)
         case .model3D:
             EditorModelAssetPreview(document: document, workbench: viewModel, resourceRootURL: sceneResourceRootURL)
                 .id(document.id)

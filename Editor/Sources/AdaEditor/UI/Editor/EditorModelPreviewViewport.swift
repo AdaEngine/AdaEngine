@@ -128,6 +128,28 @@ struct EditorModelPreviewViewport: View {
     let camera: EditorModelPreviewCamera
     @Environment(\.theme) private var theme
 
+    static func configure(_ app: AppWorlds, model: EditorModelAssetPreviewModel, camera: EditorModelPreviewCamera) {
+        app.addPlugin(TransformPlugin())
+            .addPlugin(InputPlugin(actions: []))
+            .addPlugin(RenderWorldPlugin())
+            .addPlugin(CameraPlugin())
+            .addPlugin(AssetsPlugin(filePath: #filePath))
+            .addPlugin(VisibilityPlugin())
+            .addPlugin(Model3DPlugin())
+            .addPlugin(Core3DPlugin())
+            .addPlugin(UpscalePlugin())
+        app.addPlugin(EditorSkeleton3DPlugin())
+        guard let asset = model.asset else { return }
+        let root = asset.instantiate(in: app.main)
+        root.components[Transform.self] = model.normalizationTransform
+        app.main.spawn("Preview key light") {
+            Transform(rotation: Quat(axis: Vector3(0, 1, 0), angle: -0.4))
+            DirectionalLightComponent(radiance: Vector3(1, 0.96, 0.9), intensity: 4, castShadows: false)
+        }
+        camera.attach(to: app.main, bounds: model.normalizedBounds)
+        model.bind(to: app.main)
+    }
+
     var body: some View {
         GeometryReader { geometry in
             // AdaUI result builders require a declaration before view content.
@@ -136,24 +158,7 @@ struct EditorModelPreviewViewport: View {
             ZStack(anchor: .bottomLeading) {
                 SceneView(
                     make: { app in
-                        app.addPlugin(TransformPlugin())
-                            .addPlugin(InputPlugin(actions: []))
-                            .addPlugin(RenderWorldPlugin())
-                            .addPlugin(CameraPlugin())
-                            .addPlugin(AssetsPlugin(filePath: #filePath))
-                            .addPlugin(VisibilityPlugin())
-                            .addPlugin(Model3DPlugin())
-                            .addPlugin(Core3DPlugin(includes2D: true))
-                            .addPlugin(UpscalePlugin())
-                        guard let asset = model.asset else { return }
-                        let root = asset.instantiate(in: app.main)
-                        root.components[Transform.self] = model.normalizationTransform
-                        app.main.spawn("Preview key light") {
-                            Transform(rotation: Quat(axis: Vector3(0, 1, 0), angle: -0.4))
-                            DirectionalLightComponent(radiance: Vector3(1, 0.96, 0.9), intensity: 4, castShadows: false)
-                        }
-                        camera.attach(to: app.main, bounds: model.normalizedBounds)
-                        model.bind(to: app.main)
+                        Self.configure(app, model: model, camera: camera)
                     },
                     updateContent: { world, _ in
                         if let input = world.getResource(Input.self) {
@@ -161,6 +166,7 @@ struct EditorModelPreviewViewport: View {
                         }
                         camera.update()
                         model.pollGraphEvents(in: world)
+                        world.getResource(EditorSkeleton3DOverlay.self)?.isEnabled = model.showsBones
                     }
                 )
                 .frame(width: geometry.size.width, height: geometry.size.height)

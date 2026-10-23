@@ -49,6 +49,43 @@
         func frame(_ time: Int64) { frameContinuation.yield(time) }
         func stop() { frameContinuation.finish() }
 
+        func insertText(_ text: String, deleteBackward: Bool) {
+            inputText(text, action: deleteBackward ? .deleteBackward : .insert)
+        }
+
+        func inputText(_ text: String, action: TextInputEvent.Action, cursorOffset: Int = 1, rangeStart: Int = 0, rangeEnd: Int = 0) {
+            guard resumed, let window = windowManager.activeWindow, let input = windowManager.inputRef else { return }
+            input.wrappedValue.receiveEvent(TextInputEvent(
+                window: window.id,
+                text: text,
+                action: action,
+                time: Float(Time.absolute),
+                session: AndroidRuntime.textInputSession,
+                cursorOffset: cursorOffset,
+                rangeStart: rangeStart,
+                rangeEnd: rangeEnd
+            ))
+        }
+
+        func setKeyboardOccludedHeight(_ height: Float) {
+            guard let window = windowManager.activeWindow else { return }
+            let logicalHeight = max(0, height / screenManager.metrics.scale)
+            window.keyboardOccludedHeight = logicalHeight
+            for subview in window.subviews { subview.keyboardOccludedHeight = logicalHeight }
+        }
+
+        func setSafeAreaInsets(top: Float, leading: Float, bottom: Float, trailing: Float) {
+            guard let window = windowManager.windows.values.first?.value else { return }
+            let scale = screenManager.metrics.scale
+            let insets = EdgeInsets(top: max(0, top / scale), leading: max(0, leading / scale), bottom: max(0, bottom / scale), trailing: max(0, trailing / scale))
+            window.safeAreaInsets = insets
+            window.setNeedsLayout()
+            for subview in window.subviews {
+                subview.safeAreaInsets = insets
+                subview.setNeedsLayout()
+            }
+        }
+
         func setResumed(_ value: Bool) {
             resumed = value
             if value { reportsNextFrame = true }

@@ -164,6 +164,7 @@ final class EditorCommunityPlayerSession {
         app.addPlugin(VisibilityPlugin())
         app.addPlugin(TextPlugin())
         app.addPlugin(ScenePlugin(includesModel3D: artifact.plugins.contains(.model3D)))
+        app.addPlugin(Camera2DControllerPlugin())
         for plugin in artifact.plugins.pluginIDs {
             switch plugin {
             case .core2D: app.addPlugin(Core2DPlugin())

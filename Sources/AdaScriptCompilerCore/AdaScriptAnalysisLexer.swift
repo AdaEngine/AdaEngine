@@ -80,7 +80,7 @@ public struct AdaScriptAnalysisLexer {
         }
         index = source.index(after: index)
         offset += 1
-        if character.isNewline {
+        if character == "\n" || character == "\r" || character == "\r\n" {
             line += 1
             utf16Column = 0
         } else {
@@ -94,7 +94,7 @@ public struct AdaScriptAnalysisLexer {
         let startPosition = position
         advance()
         advance()
-        while let character = currentCharacter, !character.isNewline {
+        while let character = currentCharacter, character != "\n", character != "\r", character != "\r\n" {
             advance()
         }
         appendToken(kind: .comment, from: startIndex, offset: startOffset, position: startPosition)

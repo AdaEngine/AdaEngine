@@ -14,7 +14,7 @@ def compiler_root(engine, explicit):
     if explicit:
         candidates = [Path(explicit)]
     else:
-        candidates = [engine / "Editor/.build/checkouts/gravity-lang", engine / ".build/checkouts/gravity-lang"]
+        candidates = [engine / "Sources/gravity-lang", engine / "Editor/.build/checkouts/gravity-lang", engine / ".build/checkouts/gravity-lang"]
         if os.environ.get("BUILD_DIR"):
             # Archive build products are nested deeper than ordinary Build/Products.
             candidates.extend(parent / "SourcePackages/checkouts/gravity-lang"

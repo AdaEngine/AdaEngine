@@ -15,7 +15,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
     case uiScript, scriptableObject, script, emptyScript
     case scene, uiScene
     case vertexShader, fragmentShader, computeShader
-    case particleEffect, atlas, tileSource, tileMap, plainText, localization, json, yaml
+    case particleEffect, spriteAnimation, atlas, tileSource, tileMap, plainText, localization, json, yaml
     case swift
 
     var group: EditorNewFileGroup {
@@ -32,7 +32,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
             .fragmentShader,
             .computeShader:
             .shaders
-        case .particleEffect, .atlas,
+        case .particleEffect, .spriteAnimation, .atlas,
             .tileSource,
             .tileMap,
             .plainText,
@@ -57,6 +57,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .computeShader: "Compute Shader"
         case .atlas: "Atlas"
         case .particleEffect: "Particle FX"
+        case .spriteAnimation: "Sprite Animation"
         case .tileSource: "Tile Source"
         case .tileMap: "Tile Map"
         case .plainText: "Plain Text"
@@ -80,6 +81,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .computeShader: "GLSL compute kernel"
         case .atlas: "Packed PNG images with an atlas editor"
         case .particleEffect: "Emitters, lifetime curves and a live particle preview"
+        case .spriteAnimation: "Frame clips from a sprite sheet, with Aseprite import and a live preview"
         case .tileSource: "PNG sprite sheets with a visual tile editor"
         case .tileMap: "Paint cells on a map resource"
         case .plainText: "Unformatted text"
@@ -105,6 +107,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
             "glsl"
         case .atlas: "atlas"
         case .particleEffect: "particles"
+        case .spriteAnimation: "spriteanim"
         case .tileSource: "tileset"
         case .tileMap: "tilemap"
         case .plainText: "txt"
@@ -131,6 +134,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .computeShader: "\u{E322}"
         case .atlas: "\u{E3B6}"
         case .particleEffect: "\u{E3E7}"
+        case .spriteAnimation: "\u{E02C}"
         case .tileSource: "\u{E8F1}"
         case .tileMap: "\u{E8F1}"
         case .plainText: "\u{E873}"
@@ -200,6 +204,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .swift: return "import AdaEngine\n\n"
         case .atlas: return "images: []\nmargin: 0\npadding: 2\nextrude: 1\nsampler: linear\n"
         case .particleEffect: return "version: 1\nseed: 1\nemitters:\n  - name: Flame\n"
+        case .spriteAnimation: return "version: 1\nimage: \"\"\nfilter: nearest\nclips: []\n"
         case .tileSource: return "tileSize:\n  x: 16\n  y: 16\nsources: []\n"
         case .tileMap: return "atlasColors:\n- {red: 0.48, green: 0.25, blue: 0.21, alpha: 1}\n- {red: 0.38, green: 0.48, blue: 0.62, alpha: 1}\ncells: []\n"
         case .json: return "{}\n"

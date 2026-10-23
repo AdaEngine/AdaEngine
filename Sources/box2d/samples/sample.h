@@ -3,62 +3,140 @@
 
 #pragma once
 
-#include "box2d/id.h"
-#include "box2d/types.h"
-#include "settings.h"
+#include "draw.h"
+#include "imgui.h"
+
+#include "box2d/box2d.h"
 
 #define ARRAY_COUNT( A ) (int)( sizeof( A ) / sizeof( A[0] ) )
 
-namespace enki
+struct ImFont;
+
+struct SampleContext
 {
-class TaskScheduler;
-};
+	void Save();
+	void Load();
 
-#ifdef NDEBUG
-constexpr bool g_sampleDebug = false;
-#else
-constexpr bool g_sampleDebug = true;
-#endif
+	struct GLFWwindow* window = nullptr;
+	Camera camera;
+	Draw* draw;
+	class Sample* sample = nullptr;
+	b2Capacity capacity;
+	b2DebugDraw debugDraw;
+	float uiScale = 1.0f;
+	float hertz = 60.0f;
+	float recycleDistance = 0.05f;
+	int subStepCount = 4;
+	int restitutionIterations = 2;
+	int workerCount = 1;
+	bool restart = false;
+	bool pause = false;
+	int singleStep = 0;
+	bool enableWarmStarting = true;
+	bool enableContinuous = true;
+	bool enableRestitutionPropagation = false;
+	bool enableSSE2Fallback = false;
+	bool enableSleep = true;
+	bool showUI = true;
 
-constexpr int k_maxContactPoints = 12 * 2048;
+	// Metrics drawer visibility. M toggles.
+	bool showMetrics = false;
 
-struct ContactPoint
-{
-	b2ShapeId shapeIdA;
-	b2ShapeId shapeIdB;
-	b2Vec2 normal;
-	b2Vec2 position;
-	bool persisted;
-	float normalImpulse;
-	float tangentImpulse;
-	float separation;
-	int constraintIndex;
-	int color;
+	// Profile panel visibility. I toggles.
+	bool showProfile = false;
+
+	// Controls help window visibility. ? toggles, Esc closes.
+	bool showControls = false;
+
+	// Camera the sample set up on creation. Home returns to it.
+	b2Pos homeCenter = { 0.0f, 20.0f };
+	float homeZoom = 1.0f;
+
+	// Set by Ctrl+O; consumed by UpdateSampleUI to open the fuzzy sample picker.
+	bool openSamplePicker = false;
+
+	// Path the active recording is saved to when recording stops.
+	char recordingFile[256] = "recording.b2rec";
+
+	// Path the Replay menu hands to the viewer. Kept apart from the record path so opening a
+	// file to view never moves where the next recording lands.
+	char replayFile[256] = "";
+
+	// Last recording saved this session, empty until a save succeeds. The default record path
+	// may name a stale file from an earlier run, so Play only trusts this one.
+	char savedRecordingFile[256] = "";
+
+	// These are persisted
+	int sampleIndex = 0;
+	bool newUser = true;
+
+	// Replay keyframe policy, persisted and used to seed the Load popup.
+	int replayKeyframeBudgetMB = 512;
+	int replayKeyframeMinInterval = 16;
 };
 
 class Sample
 {
 public:
-	explicit Sample( Settings& settings );
+	// createWorld false lets a subclass that supplies its own world (e.g. the replay viewer)
+	// skip the throwaway world the base would otherwise build and immediately discard
+	explicit Sample( SampleContext* context, bool createWorld = true );
 	virtual ~Sample();
 
-	void CreateWorld( );
+	void CreateWorld();
 
-	void DrawTitle( const char* string );
-	virtual void Step( Settings& settings );
-	virtual void UpdateUI()
+	// Snapshot the live world and begin recording into a host-owned buffer
+	void StartRecording();
+
+	// Stop the active recording if any, save it to context->recordingFile, and free it
+	void FinishRecording();
+
+	void ResetText();
+	virtual void Step();
+
+	virtual bool DrawControls()
+	{
+		return false;
+	}
+
+	// Allow solver controls to be hidden by a sample.
+	virtual bool HasSolverControls() const
+	{
+		return true;
+	}
+
+	// Allow a sample without a world step to hide the profile panel.
+	virtual bool HasProfile() const
+	{
+		return true;
+	}
+
+	// Width of the right info panel in font units. A sample with a wide control area can widen it.
+	virtual float InfoPanelWidthEm() const;
+
+	// Allow a sample to add extra tabs to the metrics window.
+	virtual void DrawMetricsTab()
 	{
 	}
-	virtual void Keyboard( int )
+
+	virtual void Keyboard( int, int, int )
 	{
 	}
-	virtual void MouseDown( b2Vec2 p, int button, int mod );
-	virtual void MouseUp( b2Vec2 p, int button );
-	virtual void MouseMove( b2Vec2 p );
 
-	void DrawTextLine( const char* text, ... );
+	// Home. Defaults to the camera the sample set up on creation.
+	virtual void FocusHome();
+
+	virtual void MouseDown( b2Pos p, int button, int mod );
+	virtual void MouseUp( b2Pos p, int button );
+	virtual void MouseMove( b2Pos p );
+
+	bool IsProfileVisible() const;
+	float GetProfilePanelWidth() const;
+	void DrawProfile();
+	void DrawMetrics();
+	void DrawHud( float frameTime );
+	void DrawScreenTextLine( const char* text, ... );
 	void ResetProfile();
-	void ShiftOrigin( b2Vec2 newOrigin );
 
 	static int ParsePath( const char* svgPath, b2Vec2 offset, b2Vec2* points, int capacity, float scale, bool reverseOrder );
 
@@ -66,38 +144,65 @@ public:
 	friend class BoundaryListener;
 	friend class ContactListener;
 
-	static constexpr int m_maxTasks = 64;
+	static constexpr int m_maxTasks = 512;
 	static constexpr int m_maxThreads = 64;
+	static constexpr int m_profileCapacity = 512;
 
-	const Settings* m_settings;
-	enki::TaskScheduler* m_scheduler;
-	class SampleTask* m_tasks;
-	int m_taskCount;
-	int m_threadCount;
+#ifdef NDEBUG
+	static constexpr bool m_isDebug = false;
+#else
+	static constexpr bool m_isDebug = true;
+#endif
 
-	b2BodyId m_groundBodyId;
+	SampleContext* m_context;
+	Camera* m_camera;
+	Draw* m_draw;
 
-	// DestructionListener m_destructionListener;
-	int m_textLine;
+	b2BodyId m_mouseBodyId;
+
 	b2WorldId m_worldId;
+	b2Recording* m_recording; // active recording buffer, owned here; NULL when not recording
+	int m_recordStartStep;	  // step the active recording began at, for the UI indicator
 	b2JointId m_mouseJointId;
+	b2Pos m_mousePoint;
+	float m_mouseForceScale;
 	int m_stepCount;
-	int m_textIncrement;
-	b2Profile m_maxProfile;
-	b2Profile m_totalProfile;
+	float m_screenTextX;
+	float m_screenTextY;
+
+	b2Profile m_profiles[m_profileCapacity];
+	int m_currentProfileIndex;
+	uint64_t m_profileReadIndex;
+	uint64_t m_profileWriteIndex;
+
+	bool m_didStep;
+	bool m_stepWhilePaused;
 };
 
-typedef Sample* SampleCreateFcn( Settings& settings );
+typedef Sample* SampleCreateFcn( SampleContext* context );
+typedef b2Capacity SampleCapacityFcn( void );
 
 int RegisterSample( const char* category, const char* name, SampleCreateFcn* fcn );
+int RegisterSampleWithCapacity( const char* category, const char* name, SampleCreateFcn* fcn, SampleCapacityFcn* capacityFcn );
+int RegisterReplay( const char* category, const char* name, SampleCreateFcn* fcn );
+void SelectSample( SampleContext* context, int selection, bool restart );
+void DrawUI( SampleContext* context, float frameTime );
 
 struct SampleEntry
 {
 	const char* category;
 	const char* name;
 	SampleCreateFcn* createFcn;
+	SampleCapacityFcn* capacityFcn;
 };
+
+inline ImVec4 MakeColor( b2HexColor hexColor )
+{
+	ImU32 color = IM_COL32( ( hexColor >> 16 ) & 0xFF, ( hexColor >> 8 ) & 0xFF, hexColor & 0xFF, 255 );
+	return ImGui::ColorConvertU32ToFloat4( color );
+}
 
 #define MAX_SAMPLES 256
 extern SampleEntry g_sampleEntries[MAX_SAMPLES];
 extern int g_sampleCount;
+extern int g_replayIndex;

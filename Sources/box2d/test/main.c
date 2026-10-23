@@ -3,8 +3,12 @@
 
 #include "test_macros.h"
 
-#if defined( _WIN32 )
-	#include <crtdbg.h>
+#include "box2d/base.h"
+
+#include <string.h>
+
+#if defined( _MSC_VER )
+#include <crtdbg.h>
 
 // int MyAllocHook(int allocType, void* userData, size_t size, int blockType, long requestNumber, const unsigned char* filename,
 //	int lineNumber)
@@ -18,52 +22,126 @@
 // }
 #endif
 
-extern int BitSetTest( void );
-extern int CollisionTest( void );
-extern int DeterminismTest( void );
-extern int DistanceTest( void );
-extern int IdTest( void );
-extern int MathTest( void );
-extern int ShapeTest( void );
-extern int TableTest( void );
-extern int WorldTest( void );
-
-int main( void )
-{
-#if defined( _WIN32 )
-	// Enable memory-leak reports
-
-	// How to break at the leaking allocation, in the watch window enter this variable
-	// and set it to the allocation number in {}. Do this at the first line in main.
-	// {,,ucrtbased.dll}_crtBreakAlloc = <allocation number> 3970
-	// Note:
-	// Just _crtBreakAlloc in static link
-	// Tracy Profile server leaks
-
-	_CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE );
-	_CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDERR );
-	//_CrtSetDbgFlag(_CRTDBG_LEAK_CHECK_DF | _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG));
-	//_CrtSetAllocHook(MyAllocHook);
-	//_CrtSetBreakAlloc(196);
+#ifdef TRACY_ENABLE
+#include <tracy/TracyC.h>
 #endif
 
+extern int BitSetTest( void );
+extern int ChainTest( void );
+extern int CollisionTest( void );
+extern int ContainerTest( void );
+extern int DeterminismTest( void );
+extern int DistanceTest( void );
+extern int DynamicTreeTest( void );
+extern int IdTest( void );
+extern int InvalidInputTest( void );
+extern int LargeWorldTest( void );
+extern int MathTest( void );
+extern int MoverTest( void );
+extern int RecordingTest( void );
+extern int RecordingOutlinerTest( void );
+extern int RecordingKeyframeTest( void );
+extern int RecordingScrubTest( void );
+extern int RecordingQueryScrubTest( void );
+extern int RecordingSIMDWidthTest( void );
+extern int ReStepRaceTest( void );
+extern int RestitutionTest( void );
+extern int ShapeTest( void );
+extern int SnapshotTest( void );
+extern int SortTest( void );
+extern int TableTest( void );
+extern int ThreadTest( void );
+extern int WorldTest( void );
+
+int TestAssertFcn( const char* condition, const char* fileName, int lineNumber )
+{
+	fprintf( stderr, "BOX2D ASSERTION: %s, %s, line %d\n", condition, fileName, lineNumber );
+	fflush( stderr );
+	return 1;
+}
+
+void TestLogFcn( const char* message )
+{
+	printf( "Box2D: %s\n", message );
+}
+
+int main( int argc, char** argv )
+{
+#if defined( _MSC_VER )
+	// Enable memory-leak reports
+	//_CrtSetBreakAlloc(196);
+	_CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE );
+	_CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDERR );
+	// Route CRT errors and assertions to stderr instead of a modal dialog so a headless run
+	// (CI, redirected stdout) fails fast rather than blocking on Abort/Retry/Ignore.
+	_CrtSetReportMode( _CRT_ERROR, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE );
+	_CrtSetReportFile( _CRT_ERROR, _CRTDBG_FILE_STDERR );
+	_CrtSetReportMode( _CRT_ASSERT, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE );
+	_CrtSetReportFile( _CRT_ASSERT, _CRTDBG_FILE_STDERR );
+	//_CrtSetDbgFlag(_CRTDBG_LEAK_CHECK_DF | _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG));
+	//_CrtSetAllocHook(MyAllocHook);
+#endif
+
+#ifdef TRACY_ENABLE
+	___tracy_startup_profiler();
+#endif
+
+	b2SetAssertCallback( TestAssertFcn );
+	b2SetLogCallback( TestLogFcn );
+
+	const char* filter = NULL;
+	if ( argc > 1 )
+	{
+		filter = argv[1];
+	}
+
+	uint64_t ticks = b2GetTicks();
+
 	printf( "Starting Box2D unit tests\n" );
+	if ( filter != NULL )
+	{
+		printf( "Filter: %s\n", filter );
+	}
 	printf( "======================================\n" );
 
-	RUN_TEST( BitSetTest );
-	RUN_TEST( CollisionTest );
-	RUN_TEST( DeterminismTest );
-	RUN_TEST( DistanceTest );
-	RUN_TEST( IdTest );
-	RUN_TEST( MathTest );
-	RUN_TEST( ShapeTest );
-	RUN_TEST( TableTest );
-	RUN_TEST( WorldTest );
+	MAYBE_RUN_TEST( TableTest );
+	MAYBE_RUN_TEST( BitSetTest );
+	MAYBE_RUN_TEST( ChainTest );
+	MAYBE_RUN_TEST( CollisionTest );
+	MAYBE_RUN_TEST( ContainerTest );
+	MAYBE_RUN_TEST( DeterminismTest );
+	MAYBE_RUN_TEST( DistanceTest );
+	MAYBE_RUN_TEST( DynamicTreeTest );
+	MAYBE_RUN_TEST( IdTest );
+	MAYBE_RUN_TEST( InvalidInputTest );
+	MAYBE_RUN_TEST( LargeWorldTest );
+	MAYBE_RUN_TEST( MathTest );
+	MAYBE_RUN_TEST( MoverTest );
+	MAYBE_RUN_TEST( RecordingKeyframeTest );
+	MAYBE_RUN_TEST( RecordingOutlinerTest );
+	MAYBE_RUN_TEST( RecordingQueryScrubTest );
+	MAYBE_RUN_TEST( RecordingScrubTest );
+	MAYBE_RUN_TEST( RecordingSIMDWidthTest );
+	MAYBE_RUN_TEST( RecordingTest );
+	MAYBE_RUN_TEST( ReStepRaceTest );
+	MAYBE_RUN_TEST( RestitutionTest );
+	MAYBE_RUN_TEST( ShapeTest );
+	MAYBE_RUN_TEST( SnapshotTest );
+	MAYBE_RUN_TEST( SortTest );
+	MAYBE_RUN_TEST( ThreadTest );
+	MAYBE_RUN_TEST( WorldTest );
 
 	printf( "======================================\n" );
 	printf( "All Box2D tests passed!\n" );
 
-#if defined( _WIN32 )
+	float duration = b2GetMilliseconds( ticks );
+	printf( "Test duration = %.2f s\n", 0.001f * duration );
+
+#ifdef TRACY_ENABLE
+	___tracy_shutdown_profiler();
+#endif
+
+#if defined( _MSC_VER )
 	if ( _CrtDumpMemoryLeaks() )
 	{
 		return 1;

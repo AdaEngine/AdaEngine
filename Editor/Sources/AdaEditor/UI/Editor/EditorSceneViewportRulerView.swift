@@ -8,6 +8,13 @@ final class EditorViewportPresentation {
     @ObservationIgnored var revision: UInt = 0
     private(set) var rulerRevision: UInt = 0
     private(set) var statusSuffix: String?
+    private(set) var compassOrientation: CompassOrientation?
+
+    struct CompassOrientation: Equatable {
+        let right: Vector3
+        let up: Vector3
+        let front: Vector3
+    }
     @ObservationIgnored private var rulerState: RulerState?
     @ObservationIgnored private var preparedAnnotations: Annotations?
     @ObservationIgnored private(set) var presentedAnnotations: Annotations?
@@ -21,6 +28,8 @@ final class EditorViewportPresentation {
         let theme: Theme
         let grid: UIGraphicsContext
         let gizmos: UIGraphicsContext
+        let interactionGizmo: EditorSceneViewportModel.PresentedGizmo
+        let compassOrientation: CompassOrientation?
     }
 
     private struct RulerState: Equatable {
@@ -61,14 +70,26 @@ final class EditorViewportPresentation {
             var grid = UIGraphicsContext()
             var gizmos = UIGraphicsContext()
             viewportModel.drawGrid(in: &grid, size: size, theme: theme)
-            viewportModel.drawGizmos(in: &gizmos, size: size, theme: theme)
+            let gizmo = viewportModel.drawGizmos(in: &gizmos, size: size, theme: theme)
             grid.commitDraw()
             gizmos.commitDraw()
             annotationGeneration &+= 1
-            annotations = Annotations(generation: annotationGeneration, revision: revision, size: size, theme: theme, grid: grid, gizmos: gizmos)
+            let orientation = viewportModel.displayMode == .threeD
+                ? CompassOrientation(right: viewportModel.right3D, up: viewportModel.up3D, front: viewportModel.front3D) : nil
+            annotations = Annotations(
+                generation: annotationGeneration, revision: revision, size: size, theme: theme, grid: grid, gizmos: gizmos,
+                interactionGizmo: viewportModel.captureGizmo(gizmo), compassOrientation: orientation
+            )
             preparedAnnotations = annotations
         }
-        return { [weak self] in self?.presentedAnnotations = annotations }
+        return { [weak self, weak viewportModel] in
+            guard let self else { return }
+            self.presentedAnnotations = annotations
+            viewportModel?.presentedGizmo = annotations.interactionGizmo
+            if self.compassOrientation != annotations.compassOrientation {
+                self.compassOrientation = annotations.compassOrientation
+            }
+        }
     }
 }
 

@@ -12,10 +12,14 @@ public struct ActiveMotion3DPass: Resource {
 /// Motion and reactive mask share the main pass's instance data, UVs and alpha tests.
 public struct Motion3DPipeline: RenderPipelineConfigurator {
     private let base = Flat3DPipeline()
+    private let variants = PBR3DShaderVariants()
     public init() {}
 
     public func configurate(with configuration: PBR3DConfiguration) -> RenderPipelineDescriptor {
-        let shader = CorePipelineShaders.loadRequiredBundled(at: "Shaders/motion_3d.glsl")
+        let plain = CorePipelineShaders.loadRequiredBundled(at: "Shaders/motion_3d.glsl")
+        // Only the morph feature matters to the motion shader; the shading layers do not.
+        let morph = configuration.features.intersection(.morph)
+        let shader = morph.isEmpty ? plain : variants.shader(at: "Shaders/motion_3d.glsl", for: morph, fallback: plain)
         var descriptor = base.configurate(with: configuration.vertex)
         descriptor.vertex = shader.asset.requiredShader(for: .vertex)
         descriptor.fragment = shader.asset.getShader(for: .fragment)
@@ -48,6 +52,8 @@ struct Temporal3DUniform: Sendable {
     var inverseJitteredProjection: Transform3D
     var currentToPreviousView: Transform3D
     var parameters: Vector4
+    /// `x` tone mapper selector. Only the temporal tone-map shader declares this member.
+    var toneMapping: Vector4 = .zero
 }
 
 struct Temporal3DPipelines: Resource {
@@ -56,8 +62,13 @@ struct Temporal3DPipelines: Resource {
     var depth: (any RenderPipeline)?
     var toneMap: (any RenderPipeline)?
     let sampler: any Sampler
+    /// Filtering for the color-grading LUT.
+    let linear: any Sampler
 
-    init(device: RenderDevice) { sampler = device.createSampler(from: .init(minFilter: .nearest, magFilter: .nearest, mipFilter: .notMipmapped)) }
+    init(device: RenderDevice) {
+        sampler = device.createSampler(from: .init(minFilter: .nearest, magFilter: .nearest, mipFilter: .notMipmapped))
+        linear = device.createSampler(from: .init(minFilter: .linear, magFilter: .linear, mipFilter: .notMipmapped))
+    }
 
     mutating func skyPipeline(device: RenderDevice) -> any RenderPipeline {
         if let sky {

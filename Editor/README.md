@@ -29,7 +29,7 @@ swift test
 
 Studio Standalone can be built for X11/XWayland, including WSLg, with Swift 6.3.2
 and Vulkan. See [Linux setup and validation](../Documentation/Linux.md) for the
-pinned Swan/Dawn, Tint and UTF-8 Gravity setup, then run
+pinned Swan/Dawn, Tint and bundled compiler setup, then run
 `bash script/run_studio_linux.sh` from the engine root. It builds and stages the
 editor, resources, Swift runtime and source BuildSDK before launching. File
 dialogs require Zenity; Linux is the local Run destination. This initial port

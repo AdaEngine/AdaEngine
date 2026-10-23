@@ -9,6 +9,13 @@ import Foundation
 /// Ephemeral relay credentials supplied by the browser lobby after create/join.
 /// They are never included in the exported game files or URL.
 struct PlayerBrowserSession: Decodable {
+    static var editMode: Bool {
+        #if os(WASI)
+        JSObject.global["__adaStudioEditMode"].boolean == true
+        #else
+        false
+        #endif
+    }
     let sessionID: UUID
     let peerID: UUID
     let role: NetworkRole

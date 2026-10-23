@@ -10,6 +10,7 @@ struct EditorInspectorSidebar: View {
     @State var colorTextDrafts: [String: String] = [:]
     @State var activeSceneFieldID: String?
     @State var sceneSearchText = ""
+    @State var spineCatalog = EditorSpinePreviewModel()
     @State private var collapsedComponentTypeNames: Set<String> = []
 
     @Environment(\.metrics) private var metrics
@@ -194,6 +195,8 @@ struct EditorInspectorSidebar: View {
                     is3D: field.typeName == EditorBuiltInComponentType.physicsBody3D
                 )
                 .id(viewModel.selectedEntity?.editorID)
+            } else if field.typeName == EditorBuiltInComponentType.spineSource, ["animation", "skin"].contains(field.field.key) {
+                spineChoiceField(field)
             } else {
                 fieldControl(
                     fieldID: "\(field.typeName).\(field.field.key)",

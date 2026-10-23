@@ -29,7 +29,8 @@ extension EditorComponentRegistry {
                     if case .null = value { return nil }
                     return try JSONDecoder().decode(Model3DSourceLOD.self, from: Data(value.jsonString.utf8))
                 },
-                voxel: voxelSettings(in: payload)
+                voxel: voxelSettings(in: payload),
+                morphWeights: EditorMorphWeightsPayload.decode(payload["morphWeights"])
             )
         }
     )

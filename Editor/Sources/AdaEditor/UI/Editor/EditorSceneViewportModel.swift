@@ -1,3 +1,6 @@
+#if os(Android)
+import Android
+#endif
 @_spi(AdaEngine) import AdaEngine
 import Foundation
 import Math
@@ -41,6 +44,7 @@ final class EditorSceneViewportModel {
     private(set) var selectedEditorID: String?
     private(set) var activeTool: EditorSceneViewportTool = .translate
     private(set) var hoveredGizmoHandle: EditorTransformGizmo.Handle?
+    var presentedGizmo: PresentedGizmo?
     var activeGizmoHandle: EditorTransformGizmo.Handle? { transformDrag?.interaction.handle }
 
     var twoDCenter = Vector2.zero
@@ -140,6 +144,7 @@ final class EditorSceneViewportModel {
         }
         depthGridEntityIDs.removeAll()
         world = nil
+        presentedGizmo = nil
         cameraEntityID = nil
         sceneEnvironmentCameraID = nil
         entitiesByEditorID.removeAll()
@@ -305,7 +310,8 @@ final class EditorSceneViewportModel {
         }
     }
 
-    func drawGizmos(in context: inout UIGraphicsContext, size: Size, theme: Theme) {
+    @discardableResult
+    func drawGizmos(in context: inout UIGraphicsContext, size: Size, theme: Theme) -> EditorTransformGizmo? {
         let camera = cameraState(for: size)
         let viewProjection = camera.projection.makeClipView() * camera.transform.matrix.inverse
         if let world {
@@ -330,7 +336,7 @@ final class EditorSceneViewportModel {
         }
 
         guard let model = sceneModel else {
-            return
+            return nil
         }
 
         let selectedPoint = selectedEditorID.flatMap { gizmoWorldMatrix(for: $0) }
@@ -351,9 +357,9 @@ final class EditorSceneViewportModel {
                 in: &context
             )
         }
-        if let gizmo = transformGizmo(size: size) {
-            gizmo.draw(in: &context, highlighted: activeGizmoHandle ?? hoveredGizmoHandle)
-        }
+        let gizmo = transformGizmo(size: size)
+        gizmo?.draw(in: &context, highlighted: activeGizmoHandle ?? hoveredGizmoHandle)
+        return gizmo
     }
 
     func uiPreviews(size: Size) -> [EditorSceneUIPreview] {
@@ -446,7 +452,8 @@ extension EditorSceneViewportModel {
             return transformDrag != nil || handleScroll(event)
         }
         if event.phase == .changed, transformDrag == nil, !isTwoDPanning, !isThreeDRotating {
-            let handle = transformGizmo()?.hitTest(event.mousePosition)
+            let gizmo = interactionGizmo()
+            let handle = gizmo.flatMap { $0.hitTest(gizmoPosition(event.mousePosition, size: $0.size)) }
             if handle != hoveredGizmoHandle {
                 hoveredGizmoHandle = handle
                 return true
@@ -577,7 +584,7 @@ extension EditorSceneViewportModel {
             let entity = sceneModel?.entities.first(where: { $0.id == selectedEditorID }),
             let payload = entity.components[EditorBuiltInComponentType.transform],
             let transform = try? EditorComponentPayloadDecoder.decode(Transform.self, payload: payload) as? Transform,
-            let gizmo = transformGizmo(), let handle = gizmo.hitTest(position)
+            let gizmo = interactionGizmo(), let handle = gizmo.hitTest(gizmoPosition(position, size: gizmo.size))
         else {
             return false
         }
@@ -585,7 +592,7 @@ extension EditorSceneViewportModel {
             editorID: selectedEditorID,
             startContent: sceneContent,
             startPayload: payload,
-            interaction: EditorTransformGizmo.Drag(gizmo: gizmo, handle: handle, start: position, transform: transform)
+            interaction: EditorTransformGizmo.Drag(gizmo: gizmo, handle: handle, start: gizmoPosition(position, size: gizmo.size), transform: transform)
         )
         hoveredGizmoHandle = handle
         return true
@@ -595,7 +602,7 @@ extension EditorSceneViewportModel {
         guard var drag = transformDrag else {
             return false
         }
-        let transform = drag.interaction.updated(at: position)
+        let transform = drag.interaction.updated(at: gizmoPosition(position, size: drag.interaction.gizmo.size))
         transformDrag = drag
         var payload = drag.startPayload
         if transform != drag.interaction.transform {

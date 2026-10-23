@@ -15,7 +15,9 @@ enum EditorAdaScriptProjectBuildOutcome: Sendable {
 final class EditorViewModel {
     let studioTools = EditorStudioToolHost()
     let performance = EditorPerformanceModel()
+    #if canImport(Network) || os(Windows)
     let playerSession = EditorPlayerSession()
+    #endif
     var playerPairingWindow: UIWindow?
     let debugger = EditorDebugger()
     let textSearch = EditorTextSearchModel()
@@ -44,6 +46,8 @@ final class EditorViewModel {
         }
     }
     var packageModel: SwiftPackageModel?
+    /// Counts and per-test results of the latest AdaScript test run; nil before the first run.
+    var adaScriptTestSummary: EditorAdaScriptTestSummary?
     var gameLogLines: [EditorWorkspaceLogLine] = []
     var activeLogSource = "Game"
     @ObservationIgnored var runtimeLogCursor = 0

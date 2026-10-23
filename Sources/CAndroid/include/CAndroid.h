@@ -15,3 +15,6 @@ const char *ada_android_files_path(void);
 void *ada_android_acquire_window(void);
 void ada_android_release_window(void *window);
 void ada_android_log(const char *message);
+
+// Borrowed NativeActivity; main-looper access only, invalidated on destruction.
+void *ada_android_activity(void);

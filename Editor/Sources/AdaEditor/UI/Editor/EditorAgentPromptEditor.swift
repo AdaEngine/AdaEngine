@@ -76,8 +76,21 @@ struct EditorAgentPromptEditor: View {
         guard let viewModel else { return nil }
         return TextEditorSourceInteraction(
             focusedRange: viewModel.promptCompletionFocus,
+            onCaretViewportRectChange: { position, _ in
+                // Pointer moves report viewport changes without requesting completion.
+                // Ignore repeated layout reports at the same source position.
+                let text = viewModel.prompt
+                let prefix = text.prefix(viewModel.promptCaretOffset ?? text.count)
+                let lines = prefix.split(separator: "\n", omittingEmptySubsequences: false)
+                let previous = TextEditorSourcePosition(line: lines.count - 1, column: lines.last?.count ?? 0)
+                guard position != previous else { return }
+                viewModel.updatePromptCaret(position, text: text)
+            },
             onCaretChange: viewModel.updatePromptCaret,
-            onRequestCompletion: { _, _ in viewModel.dismissCompletions() },
+            onRequestCompletion: { _, _ in
+                viewModel.dismissCompletions()
+                viewModel.dismissPromptSuggestions()
+            },
             onMoveCompletionSelection: viewModel.moveCompletionSelection,
             onAcceptCompletion: viewModel.submitPromptFromKeyboard
         )

@@ -5,16 +5,15 @@
 //  Created by Vladislav Prusakov on 26.02.2025.
 //
 
-import Testing
-import AdaECS
 @_spi(Internal) @testable import AdaApp
+import AdaECS
 @testable import AdaPhysics
 import AdaTransform
+import Testing
 
 @MainActor
 @Suite(.serialized)
 struct Physics2DTests {
-    
     let world: AppWorlds
 
     init() async throws {
@@ -68,17 +67,27 @@ struct Physics2DTests {
         #expect(box.components[Transform.self]?.position.x == 123)
     }
 
-    @Test
-    func workerCallbacksCanResolveOverlappingBodies() async throws {
+    @Test(arguments: [1, 4])
+    func nativeWorkersCanResolveOverlappingBodies(_ workerCount: Int) async throws {
+        let world = AppWorlds(main: World())
+        world
+            .insertResource(PhysicsSimulationThreading(workerCount: workerCount))
+            .addPlugin(MainSchedulerPlugin())
+            .addPlugin(Physics2DPlugin())
+            .addPlugin(TransformPlugin())
+        try await world.build()
+
         var boxes: [Entity] = []
-        for x: Float in [0, 0.25] {
+        for index in 0..<128 {
+            let x = Float(index % 16) * 0.75
+            let y = Float(index / 16) * 0.75
             boxes.append(world.main.spawn {
                 PhysicsBody2DComponent(
                     shapes: [Shape2DResource.generateBox(width: 1, height: 1)],
                     mass: 1,
                     mode: .dynamic
                 )
-                Transform(position: [x, 0, 0])
+                Transform(position: [x, y, 0])
             })
         }
 
@@ -103,6 +112,98 @@ struct Physics2DTests {
         #expect(snapshot.phases.contains { $0.phase == .collide })
         #expect(snapshot.phases.contains { $0.phase == .solve })
         #expect(snapshot.counters.bodyCount >= 0)
+    }
+    @Test(arguments: [false, true])
+    func fixedRotationControlsAngularMotion(_ fixed: Bool) async throws {
+        var component = PhysicsBody2DComponent(
+            shapes: [.generateBox(width: 1, height: 1)], mass: 1, mode: .dynamic
+        )
+        component.fixedRotation = fixed
+        component.angularVelocity = 2
+        let box = world.main.spawn {
+            component
+            Transform(position: [0, 4, 0])
+        }
+        await world.main.runScheduler(.physicsSync)
+        let physicsWorld = try #require(world.main.physicsWorld2D)
+        for _ in 0..<10 {
+            physicsWorld.updateSimulation(1.0 / 60.0)
+        }
+        let body = try #require(box.components[PhysicsBody2DComponent.self]?.runtimeBody)
+        if fixed {
+            #expect(abs(body.getAngle().radians) < 0.0001)
+        } else {
+            #expect(body.getAngle().radians > 0.1)
+        }
+        #expect(body.getPosition().y < 4)
+    }
+
+    @Test(arguments: [false, true])
+    func preSolveDelegateControlsCollision(_ shouldSolve: Bool) async throws {
+        let delegate = CollisionDelegate(shouldSolve: shouldSolve)
+        let physicsWorld = try #require(world.main.physicsWorld2D)
+        physicsWorld.delegate = delegate
+        world.main.spawn {
+            Collision2DComponent(shapes: [.generateBox(width: 10, height: 1)])
+            Transform()
+        }
+        let box = world.main.spawn {
+            PhysicsBody2DComponent(shapes: [.generateBox(width: 1, height: 1)], mass: 1)
+            Transform(position: [0, 2, 0])
+        }
+        await world.main.runScheduler(.physicsSync)
+        for _ in 0..<90 {
+            physicsWorld.updateSimulation(1.0 / 60.0)
+        }
+        let body = try #require(box.components[PhysicsBody2DComponent.self]?.runtimeBody)
+        if shouldSolve {
+            #expect(body.getPosition().y > 0.9)
+        } else {
+            #expect(body.getPosition().y < -1)
+        }
+    }
+
+    @Test
+    func customFilterDelegateCanRejectCollision() async throws {
+        let delegate = CollisionDelegate(shouldSolve: true, shouldCollide: false)
+        let physicsWorld = try #require(world.main.physicsWorld2D)
+        physicsWorld.delegate = delegate
+        world.main.spawn {
+            Collision2DComponent(shapes: [.generateBox(width: 10, height: 1)])
+            Transform()
+        }
+        let box = world.main.spawn {
+            PhysicsBody2DComponent(shapes: [.generateBox(width: 1, height: 1)], mass: 1)
+            Transform(position: [0, 2, 0])
+        }
+        await world.main.runScheduler(.physicsSync)
+        for _ in 0..<90 {
+            physicsWorld.updateSimulation(1.0 / 60.0)
+        }
+        let body = try #require(box.components[PhysicsBody2DComponent.self]?.runtimeBody)
+        #expect(body.getPosition().y < -1)
+    }
+
+    private final class CollisionDelegate: PhysicsWorld2DDelegate {
+        let shouldSolve: Bool
+        let shouldCollide: Bool
+
+        init(shouldSolve: Bool, shouldCollide: Bool = true) {
+            self.shouldSolve = shouldSolve
+            self.shouldCollide = shouldCollide
+        }
+
+        func physicsWorldOnPreSolve(
+            _ world: PhysicsWorld2D, entityA: Entity, entityB: Entity, manifold: Manifold2D?
+        ) -> Bool {
+            shouldSolve
+        }
+
+        func physicsWorldOnCustomFilterCalled(
+            _ world: PhysicsWorld2D, entityA: Entity, entityB: Entity
+        ) -> Bool {
+            shouldCollide
+        }
     }
 //    
 //    @Test

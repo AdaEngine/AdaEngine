@@ -1,14 +1,19 @@
 // SPDX-FileCopyrightText: 2023 Erin Catto
 // SPDX-License-Identifier: MIT
 
-#include "constants.h"
-#include "core.h"
 #include "test_macros.h"
+#include "benchmarks.h"
+#include "dynamic_tree.h"
+#include "joint.h"
+#include "physics_world.h"
+#include "solver_set.h"
 
 #include "box2d/box2d.h"
 #include "box2d/collision.h"
+#include "box2d/constants.h"
 #include "box2d/math_functions.h"
 
+#include <float.h>
 #include <stdio.h>
 
 // This is a simple example of building and running a simulation
@@ -20,14 +25,14 @@ int HelloWorld( void )
 {
 	// Construct a world object, which will hold and simulate the rigid bodies.
 	b2WorldDef worldDef = b2DefaultWorldDef();
-	worldDef.gravity = ( b2Vec2 ){ 0.0f, -10.0f };
+	worldDef.gravity = (b2Vec2){ 0.0f, -10.0f };
 
 	b2WorldId worldId = b2CreateWorld( &worldDef );
 	ENSURE( b2World_IsValid( worldId ) );
 
 	// Define the ground body.
 	b2BodyDef groundBodyDef = b2DefaultBodyDef();
-	groundBodyDef.position = ( b2Vec2 ){ 0.0f, -10.0f };
+	groundBodyDef.position = (b2Pos){ 0.0f, -10.0f };
 
 	// Call the body factory which allocates memory for the ground body
 	// from a pool and creates the ground box shape (also from a pool).
@@ -45,8 +50,7 @@ int HelloWorld( void )
 	// Define the dynamic body. We set its position and call the body factory.
 	b2BodyDef bodyDef = b2DefaultBodyDef();
 	bodyDef.type = b2_dynamicBody;
-	bodyDef.position = ( b2Vec2 ){ 0.0f, 4.0f };
-
+	bodyDef.position = (b2Pos){ 0.0f, 4.0f };
 	b2BodyId bodyId = b2CreateBody( worldId, &bodyDef );
 
 	// Define another box shape for our dynamic body.
@@ -59,7 +63,7 @@ int HelloWorld( void )
 	shapeDef.density = 1.0f;
 
 	// Override the default friction.
-	shapeDef.friction = 0.3f;
+	shapeDef.material.friction = 0.3f;
 
 	// Add the shape to the body.
 	b2CreatePolygonShape( bodyId, &shapeDef, &dynamicBox );
@@ -70,7 +74,7 @@ int HelloWorld( void )
 	float timeStep = 1.0f / 60.0f;
 	int subStepCount = 4;
 
-	b2Vec2 position = b2Body_GetPosition( bodyId );
+	b2Pos position = b2Body_GetPosition( bodyId );
 	b2Rot rotation = b2Body_GetRotation( bodyId );
 
 	// This is our little game loop.
@@ -252,13 +256,12 @@ static bool CustomFilter( b2ShapeId shapeIdA, b2ShapeId shapeIdB, void* context 
 	return true;
 }
 
-static bool PreSolveStatic( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Manifold* manifold, void* context )
+static void PreSolveStatic( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Manifold* manifold, void* context )
 {
 	(void)shapeIdA;
 	(void)shapeIdB;
 	(void)manifold;
-	ENSURE( context == NULL );
-	return false;
+	(void)context;
 }
 
 // This test is here to ensure all API functions link correctly.
@@ -290,7 +293,7 @@ int TestWorldCoverage( void )
 	ENSURE( value == 100.0f );
 
 	b2World_SetCustomFilterCallback( worldId, CustomFilter, NULL );
-	b2World_SetPreSolveCallback( worldId, PreSolveStatic, NULL );
+	b2World_SetPreSolveCallback( worldId, PreSolveStatic, NULL, NULL );
 
 	b2Vec2 g = { 1.0f, 2.0f };
 	b2World_SetGravity( worldId, g );
@@ -302,10 +305,12 @@ int TestWorldCoverage( void )
 	b2World_Explode( worldId, &explosionDef );
 
 	b2World_SetContactTuning( worldId, 10.0f, 2.0f, 4.0f );
-	b2World_SetJointTuning( worldId, 10.0f, 2.0f );
+	float hertz, dampingRatio, pushSpeed;
+	b2World_GetContactTuning( worldId, &hertz, &dampingRatio, &pushSpeed );
+	ENSURE( hertz == 10.0f && dampingRatio == 2.0f && pushSpeed == 4.0f );
 
-	b2World_SetMaximumLinearSpeed( worldId, 10.0f );
-	value = b2World_GetMaximumLinearSpeed( worldId );
+	b2World_SetMaxLinearSpeed( worldId, 10.0f );
+	value = b2World_GetMaxLinearSpeed( worldId );
 	ENSURE( value == 10.0f );
 
 	b2World_EnableWarmStarting( worldId, true );
@@ -339,6 +344,7 @@ static int TestSensor( void )
 	b2BodyId wallId = b2CreateBody( worldId, &bodyDef );
 	b2Polygon box = b2MakeBox( 0.5f, 10.0f );
 	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	shapeDef.enableSensorEvents = true;
 	b2CreatePolygonShape( wallId, &shapeDef, &box );
 
 	// Bullet fired towards the wall
@@ -346,11 +352,12 @@ static int TestSensor( void )
 	bodyDef.type = b2_dynamicBody;
 	bodyDef.isBullet = true;
 	bodyDef.gravityScale = 0.0f;
-	bodyDef.position = (b2Vec2){ 7.39814, 4.0 };
+	bodyDef.position = (b2Pos){ 7.39814f, 4.0f };
 	bodyDef.linearVelocity = (b2Vec2){ -20.0f, 0.0f };
 	b2BodyId bulletId = b2CreateBody( worldId, &bodyDef );
 	shapeDef = b2DefaultShapeDef();
 	shapeDef.isSensor = true;
+	shapeDef.enableSensorEvents = true;
 	b2Circle circle = { { 0.0f, 0.0f }, 0.1f };
 	b2CreateCircleShape( bulletId, &shapeDef, &circle );
 
@@ -363,8 +370,8 @@ static int TestSensor( void )
 		int subStepCount = 4;
 		b2World_Step( worldId, timeStep, subStepCount );
 
-		b2Vec2 bulletPos = b2Body_GetPosition( bulletId );
-		//printf( "Bullet pos: %g %g\n", bulletPos.x, bulletPos.y );
+		b2Pos bulletPos = b2Body_GetPosition( bulletId );
+		// printf( "Bullet pos: %g %g\n", bulletPos.x, bulletPos.y );
 
 		b2SensorEvents events = b2World_GetSensorEvents( worldId );
 
@@ -392,6 +399,1372 @@ static int TestSensor( void )
 	return 0;
 }
 
+static int TestSetWorkerCount( void )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.workerCount = 1;
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+	ENSURE( b2World_IsValid( worldId ) );
+	ENSURE( b2World_GetWorkerCount( worldId ) == 1 );
+
+	CreateJunkyard( worldId );
+	StepJunkyard( worldId, 1 );
+
+	b2World_SetWorkerCount( worldId, 4 );
+	ENSURE( b2World_GetWorkerCount( worldId ) == 4 );
+
+	StepJunkyard( worldId, 2 );
+
+	b2World_SetWorkerCount( worldId, 4 );
+	ENSURE( b2World_GetWorkerCount( worldId ) == 4 );
+
+	StepJunkyard( worldId, 3 );
+
+	b2World_SetWorkerCount( worldId, 0 );
+	ENSURE( b2World_GetWorkerCount( worldId ) == 1 );
+
+	StepJunkyard( worldId, 4 );
+
+	b2World_SetWorkerCount( worldId, -5 );
+	ENSURE( b2World_GetWorkerCount( worldId ) == 1 );
+
+	StepJunkyard( worldId, 5 );
+
+	b2World_SetWorkerCount( worldId, B2_MAX_WORKERS + 10 );
+	ENSURE( b2World_GetWorkerCount( worldId ) == B2_MAX_WORKERS );
+
+	StepJunkyard( worldId, 2 );
+
+	b2DestroyWorld( worldId );
+
+	return 0;
+}
+
+static int ChainSegmentShapeTest( void )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.gravity = (b2Vec2){ 0.0f, -10.0f };
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	b2BodyId groundId = b2CreateBody( worldId, &bodyDef );
+
+	b2ChainSegment cs = { 0 };
+	cs.ghost1 = (b2Vec2){ 2.0f, 0.0f };
+	cs.segment.point1 = (b2Vec2){ 1.0f, 0.0f };
+	cs.segment.point2 = (b2Vec2){ -1.0f, 0.0f };
+	cs.ghost2 = (b2Vec2){ -2.0f, 0.0f };
+	cs.chainId = 99;
+
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	b2ShapeId orphanShape = b2CreateChainSegmentShape( groundId, &shapeDef, &cs );
+	ENSURE( B2_IS_NON_NULL( orphanShape ) );
+
+	ENSURE( b2Shape_GetType( orphanShape ) == b2_chainSegmentShape );
+
+	b2ChainId parentChain = b2Shape_GetParentChain( orphanShape );
+	ENSURE( B2_IS_NULL( parentChain ) );
+
+	b2ChainSegment got = b2Shape_GetChainSegment( orphanShape );
+	ENSURE_SMALL( got.ghost1.x - cs.ghost1.x, 1e-5f );
+	ENSURE_SMALL( got.ghost1.y - cs.ghost1.y, 1e-5f );
+	ENSURE_SMALL( got.segment.point1.x - cs.segment.point1.x, 1e-5f );
+	ENSURE_SMALL( got.segment.point1.y - cs.segment.point1.y, 1e-5f );
+	ENSURE_SMALL( got.segment.point2.x - cs.segment.point2.x, 1e-5f );
+	ENSURE_SMALL( got.segment.point2.y - cs.segment.point2.y, 1e-5f );
+	ENSURE_SMALL( got.ghost2.x - cs.ghost2.x, 1e-5f );
+	ENSURE_SMALL( got.ghost2.y - cs.ghost2.y, 1e-5f );
+	ENSURE( got.chainId == B2_NULL_INDEX );
+
+	b2BodyDef dynamicDef = b2DefaultBodyDef();
+	dynamicDef.type = b2_dynamicBody;
+	dynamicDef.position = (b2Pos){ 0.0f, 2.0f };
+	b2BodyId circleBodyId = b2CreateBody( worldId, &dynamicDef );
+	b2Circle circle = { { 0.0f, 0.0f }, 0.5f };
+	b2ShapeDef circleShapeDef = b2DefaultShapeDef();
+	b2CreateCircleShape( circleBodyId, &circleShapeDef, &circle );
+
+	for ( int i = 0; i < 120; ++i )
+	{
+		b2World_Step( worldId, 1.0f / 60.0f, 4 );
+	}
+
+	b2Pos circlePos = b2Body_GetPosition( circleBodyId );
+	ENSURE( circlePos.y > 0.0f );
+
+	b2ChainSegment cs2 = { 0 };
+	cs2.ghost1 = (b2Vec2){ 3.0f, 0.0f };
+	cs2.segment.point1 = (b2Vec2){ 2.0f, 0.0f };
+	cs2.segment.point2 = (b2Vec2){ -2.0f, 0.0f };
+	cs2.ghost2 = (b2Vec2){ -3.0f, 0.0f };
+	cs2.chainId = B2_NULL_INDEX;
+
+	b2Shape_SetChainSegment( orphanShape, &cs2 );
+
+	b2ChainSegment got2 = b2Shape_GetChainSegment( orphanShape );
+	ENSURE_SMALL( got2.segment.point1.x - cs2.segment.point1.x, 1e-5f );
+	ENSURE_SMALL( got2.segment.point1.y - cs2.segment.point1.y, 1e-5f );
+	ENSURE_SMALL( got2.segment.point2.x - cs2.segment.point2.x, 1e-5f );
+	ENSURE_SMALL( got2.segment.point2.y - cs2.segment.point2.y, 1e-5f );
+	ENSURE_SMALL( got2.ghost1.x - cs2.ghost1.x, 1e-5f );
+	ENSURE_SMALL( got2.ghost1.y - cs2.ghost1.y, 1e-5f );
+	ENSURE_SMALL( got2.ghost2.x - cs2.ghost2.x, 1e-5f );
+	ENSURE_SMALL( got2.ghost2.y - cs2.ghost2.y, 1e-5f );
+	ENSURE( got2.chainId == B2_NULL_INDEX );
+
+	b2ChainId parentChain2 = b2Shape_GetParentChain( orphanShape );
+	ENSURE( B2_IS_NULL( parentChain2 ) );
+
+	b2BodyId convBody = b2CreateBody( worldId, &bodyDef );
+	b2Circle convCircle = { { 0.0f, 0.0f }, 0.25f };
+	b2ShapeId convShape = b2CreateCircleShape( convBody, &shapeDef, &convCircle );
+	ENSURE( b2Shape_GetType( convShape ) == b2_circleShape );
+
+	b2Shape_SetChainSegment( convShape, &cs2 );
+
+	ENSURE( b2Shape_GetType( convShape ) == b2_chainSegmentShape );
+	b2ChainSegment got3 = b2Shape_GetChainSegment( convShape );
+	ENSURE_SMALL( got3.ghost1.x - cs2.ghost1.x, 1e-5f );
+	ENSURE_SMALL( got3.ghost1.y - cs2.ghost1.y, 1e-5f );
+	ENSURE_SMALL( got3.ghost2.x - cs2.ghost2.x, 1e-5f );
+	ENSURE_SMALL( got3.ghost2.y - cs2.ghost2.y, 1e-5f );
+	ENSURE( got3.chainId == B2_NULL_INDEX );
+
+	b2ChainId parentChain3 = b2Shape_GetParentChain( convShape );
+	ENSURE( B2_IS_NULL( parentChain3 ) );
+
+	b2DestroyShape( orphanShape, true );
+	b2DestroyWorld( worldId );
+
+	return 0;
+}
+
+static int DeferredMassFlagSyncTest( void )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	bodyDef.type = b2_dynamicBody;
+	b2BodyId bodyId = b2CreateBody( worldId, &bodyDef );
+
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	shapeDef.updateBodyMass = false;
+
+	b2Circle circle = { { 0.0f, 0.0f }, 0.5f };
+	b2CreateCircleShape( bodyId, &shapeDef, &circle );
+
+	b2Body_UpdateMassFromShapes( bodyId );
+
+	b2World_Step( worldId, 1.0f / 60.0f, 4 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+static int EnableSleepFlagSyncTest( void )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	bodyDef.type = b2_dynamicBody;
+	bodyDef.enableSleep = false;
+	b2BodyId bodyId = b2CreateBody( worldId, &bodyDef );
+
+	ENSURE( b2Body_IsSleepingEnabled( bodyId ) == false );
+
+	b2Body_EnableSleeping( bodyId, true );
+	ENSURE( b2Body_IsSleepingEnabled( bodyId ) == true );
+
+	b2World_Step( worldId, 1.0f / 60.0f, 4 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+static int EnableContactRecyclingTest( void )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	bodyDef.type = b2_dynamicBody;
+
+	// Default is enabled
+	b2BodyId bodyA = b2CreateBody( worldId, &bodyDef );
+	ENSURE( b2Body_IsContactRecyclingEnabled( bodyA ) == true );
+
+	b2Body_EnableContactRecycling( bodyA, false );
+	ENSURE( b2Body_IsContactRecyclingEnabled( bodyA ) == false );
+
+	b2Body_EnableContactRecycling( bodyA, true );
+	ENSURE( b2Body_IsContactRecyclingEnabled( bodyA ) == true );
+
+	// Per-def opt-out at creation
+	bodyDef.enableContactRecycling = false;
+	b2BodyId bodyB = b2CreateBody( worldId, &bodyDef );
+	ENSURE( b2Body_IsContactRecyclingEnabled( bodyB ) == false );
+
+	// Stepping after toggling must not trip the flag-sync validator
+	b2World_Step( worldId, 1.0f / 60.0f, 4 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+static void PreSolveReject( b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Manifold* manifold, void* context )
+{
+	(void)shapeIdA;
+	(void)shapeIdB;
+	bool* reject = context;
+	if ( *reject )
+	{
+		manifold->pointCount = 0;
+	}
+}
+
+// A rejected pre-solve empties the manifold while the shapes may already touch. The next step must
+// rebuild the contact and ask again instead of recycling the empty pair. Box3D discussion #175.
+static int PreSolveRejectRecycleTest( void )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.enableSleep = false;
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+
+	bool reject = true;
+	b2World_SetPreSolveCallback( worldId, PreSolveReject, NULL, &reject );
+
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	bodyDef.position = (b2Pos){ 0.0f, -0.5f };
+	b2BodyId groundId = b2CreateBody( worldId, &bodyDef );
+	b2Polygon groundBox = b2MakeBox( 10.0f, 0.5f );
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	b2CreatePolygonShape( groundId, &shapeDef, &groundBox );
+
+	float radius = 0.25f;
+	bodyDef = b2DefaultBodyDef();
+	bodyDef.type = b2_dynamicBody;
+	bodyDef.position = (b2Pos){ 0.0f, radius };
+	b2BodyId bodyId = b2CreateBody( worldId, &bodyDef );
+
+	shapeDef.enablePreSolveEvents = true;
+	b2Circle circle = { { 0.0f, 0.0f }, radius };
+	b2CreateCircleShape( bodyId, &shapeDef, &circle );
+
+	b2World_Step( worldId, 1.0f / 60.0f, 4 );
+
+	reject = false;
+
+	float minSeparation = FLT_MAX;
+	for ( int i = 0; i < 30; ++i )
+	{
+		b2World_Step( worldId, 1.0f / 60.0f, 4 );
+
+		b2Pos p = b2Body_GetPosition( bodyId );
+		minSeparation = b2MinFloat( minSeparation, (float)p.y - radius );
+	}
+
+	b2DestroyWorld( worldId );
+
+	ENSURE( minSeparation > -B2_LINEAR_SLOP );
+
+	return 0;
+}
+
+static int SetBulletDriftTest( void )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+
+	{
+		b2BodyDef bodyDef = b2DefaultBodyDef();
+		bodyDef.type = b2_dynamicBody;
+		bodyDef.isBullet = false;
+		b2BodyId bodyId = b2CreateBody( worldId, &bodyDef );
+
+		ENSURE( b2Body_IsBullet( bodyId ) == false );
+
+		b2Body_SetBullet( bodyId, true );
+		ENSURE( b2Body_IsBullet( bodyId ) == true );
+
+		b2MotionLocks locks = { 0 };
+		locks.linearX = true;
+		b2Body_SetMotionLocks( bodyId, locks );
+
+		ENSURE( b2Body_IsBullet( bodyId ) == true );
+	}
+
+	{
+		b2BodyDef bodyDef = b2DefaultBodyDef();
+		bodyDef.type = b2_dynamicBody;
+		bodyDef.isBullet = true;
+		b2BodyId bodyId = b2CreateBody( worldId, &bodyDef );
+
+		ENSURE( b2Body_IsBullet( bodyId ) == true );
+
+		b2Body_SetBullet( bodyId, false );
+		ENSURE( b2Body_IsBullet( bodyId ) == false );
+
+		b2MotionLocks locks = { 0 };
+		locks.linearX = true;
+		b2Body_SetMotionLocks( bodyId, locks );
+
+		ENSURE( b2Body_IsBullet( bodyId ) == false );
+	}
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// Counts marked nodes, the root included. Free nodes are never marked.
+static int CountEnlargedNodes( const b2DynamicTree* tree )
+{
+	int count = 0;
+	for ( int i = 0; i < tree->nodeEnd; ++i )
+	{
+		count += b2IsNodeMoved( tree->nodes + i ) ? 1 : 0;
+	}
+
+	return count;
+}
+
+// A proxy can be enlarged in one step and destroyed before the next. The remove recomputes the
+// ancestor marks from the surviving children, so the mover's marks go with it and the next step
+// starts clean.
+static int EnlargedProxyDestroyed( int workerCount )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.gravity = b2Vec2_zero;
+	worldDef.workerCount = workerCount;
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+
+	b2World* world = b2GetWorldFromId( worldId );
+	const b2DynamicTree* tree = world->broadPhase.trees + b2_dynamicBody;
+
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	bodyDef.type = b2_dynamicBody;
+
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	b2Circle circle = { b2Vec2_zero, 0.25f };
+
+	// Resting bodies keep the tree deep enough that the mover has an ancestor that outlives it
+	for ( int i = 0; i < 8; ++i )
+	{
+		bodyDef.position = (b2Pos){ 2.0f * i, 0.0f };
+		b2BodyId restingId = b2CreateBody( worldId, &bodyDef );
+		b2CreateCircleShape( restingId, &shapeDef, &circle );
+	}
+
+	// This body outruns its AABB margin every step
+	bodyDef.position = (b2Pos){ 7.0f, 1.0f };
+	bodyDef.linearVelocity = (b2Vec2){ 6.0f, 0.0f };
+	b2BodyId moverId = b2CreateBody( worldId, &bodyDef );
+	b2CreateCircleShape( moverId, &shapeDef, &circle );
+
+	float timeStep = 1.0f / 60.0f;
+	b2World_Step( worldId, timeStep, 4 );
+
+	ENSURE( CountEnlargedNodes( tree ) > 0 );
+
+	b2DestroyBody( moverId );
+
+	ENSURE( CountEnlargedNodes( tree ) == 0 );
+
+	b2World_Step( worldId, timeStep, 4 );
+
+	ENSURE( CountEnlargedNodes( tree ) == 0 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+static int EnlargedProxyDestroyedTest( void )
+{
+	ENSURE( EnlargedProxyDestroyed( 1 ) == 0 );
+	ENSURE( EnlargedProxyDestroyed( 4 ) == 0 );
+
+	return 0;
+}
+
+// Broad phase pair creation through every route that marks a proxy: creation, teleport, a static
+// shape that asks for contacts, refiltering, collide connected, enable, a type change, a static
+// rebuild that must keep its pending marks, and the filters that reject a pair.
+// Bodies never move on their own here, gravity is off and sleep is disabled, so a contact can only
+// come from the route under test. The count is every live contact, touching or not, which is what
+// the broad phase decides.
+
+typedef struct PairBox
+{
+	b2BodyId bodyId;
+	b2ShapeId shapeId;
+} PairBox;
+
+static PairBox CreatePairBox( b2WorldId worldId, b2BodyType type, float x, float y, const b2ShapeDef* shapeDef )
+{
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	bodyDef.type = type;
+	bodyDef.position = (b2Pos){ x, y };
+
+	PairBox box;
+	box.bodyId = b2CreateBody( worldId, &bodyDef );
+
+	b2Polygon square = b2MakeSquare( 0.5f );
+	box.shapeId = b2CreatePolygonShape( box.bodyId, shapeDef, &square );
+	return box;
+}
+
+static b2WorldId CreatePairWorld( int workerCount )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.gravity = b2Vec2_zero;
+	worldDef.enableSleep = false;
+	worldDef.workerCount = workerCount;
+	return b2CreateWorld( &worldDef );
+}
+
+static int PairContactCount( b2WorldId worldId )
+{
+	return b2World_GetCounters( worldId ).contactCount;
+}
+
+static void StepPairWorld( b2WorldId worldId )
+{
+	b2World_Step( worldId, 1.0f / 60.0f, 4 );
+}
+
+// Every kind of proxy created over a resting body
+static int PairCreation( int workerCount )
+{
+	b2WorldId worldId = CreatePairWorld( workerCount );
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+
+	// Dynamic created on static
+	CreatePairBox( worldId, b2_staticBody, 0.0f, 0.0f, &shapeDef );
+	CreatePairBox( worldId, b2_dynamicBody, 0.5f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	// Dynamic created on a resting dynamic
+	CreatePairBox( worldId, b2_dynamicBody, 10.0f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+	CreatePairBox( worldId, b2_dynamicBody, 10.5f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 2 );
+
+	// Kinematic created on a resting dynamic, the mark is on the kinematic side
+	CreatePairBox( worldId, b2_dynamicBody, 20.0f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	CreatePairBox( worldId, b2_kinematicBody, 20.5f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 3 );
+
+	// A static shape created on a resting dynamic pairs by default and not when told to stay quiet
+	b2ShapeDef quietDef = b2DefaultShapeDef();
+	quietDef.invokeContactCreation = false;
+	CreatePairBox( worldId, b2_dynamicBody, 30.0f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	CreatePairBox( worldId, b2_staticBody, 30.5f, 0.0f, &quietDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 3 );
+
+	CreatePairBox( worldId, b2_staticBody, 29.5f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 4 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// A teleport marks the moved proxy, kinematic and static ones included
+static int PairTeleport( int workerCount )
+{
+	b2WorldId worldId = CreatePairWorld( workerCount );
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+
+	CreatePairBox( worldId, b2_staticBody, 0.0f, 0.0f, &shapeDef );
+	PairBox mover = CreatePairBox( worldId, b2_dynamicBody, 10.0f, 0.0f, &shapeDef );
+	CreatePairBox( worldId, b2_dynamicBody, 20.0f, 0.0f, &shapeDef );
+	PairBox wall = CreatePairBox( worldId, b2_staticBody, 30.0f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	b2Body_SetTransform( mover.bodyId, (b2Pos){ 0.5f, 0.0f }, b2Rot_identity );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2Body_SetTransform( wall.bodyId, (b2Pos){ 20.5f, 0.0f }, b2Rot_identity );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 2 );
+
+	// Kinematic onto a resting dynamic, the mark is on the kinematic side
+	CreatePairBox( worldId, b2_dynamicBody, 40.0f, 0.0f, &shapeDef );
+	PairBox pusher = CreatePairBox( worldId, b2_kinematicBody, 50.0f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 2 );
+
+	b2Body_SetTransform( pusher.bodyId, (b2Pos){ 40.5f, 0.0f }, b2Rot_identity );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 3 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// A filter change must find the pairs the old filter rejected and drop the ones it now rejects
+static int PairRefilter( int workerCount )
+{
+	b2WorldId worldId = CreatePairWorld( workerCount );
+
+	b2ShapeDef pickyDef = b2DefaultShapeDef();
+	pickyDef.filter.categoryBits = 2;
+	pickyDef.filter.maskBits = 1;
+
+	b2ShapeDef closedDef = b2DefaultShapeDef();
+	closedDef.filter.categoryBits = 4;
+
+	b2Filter openFilter = b2DefaultFilter();
+	openFilter.categoryBits = 1;
+
+	PairBox ground = CreatePairBox( worldId, b2_staticBody, 0.0f, 0.0f, &closedDef );
+	CreatePairBox( worldId, b2_dynamicBody, 0.5f, 0.0f, &pickyDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	b2Shape_SetFilter( ground.shapeId, openFilter );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2Shape_SetFilter( ground.shapeId, closedDef.filter );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	// Same on a dynamic shape
+	PairBox other = CreatePairBox( worldId, b2_dynamicBody, 10.0f, 0.0f, &closedDef );
+	CreatePairBox( worldId, b2_dynamicBody, 10.5f, 0.0f, &pickyDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	b2Shape_SetFilter( other.shapeId, openFilter );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// Collide connected is off by default and turning it on must find the pair, static partner too.
+// The weld frames coincide so the joint does not move anything.
+static int PairCollideConnected( int workerCount )
+{
+	b2WorldId worldId = CreatePairWorld( workerCount );
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+
+	PairBox boxA = CreatePairBox( worldId, b2_dynamicBody, 0.0f, 0.0f, &shapeDef );
+	PairBox boxB = CreatePairBox( worldId, b2_dynamicBody, 0.5f, 0.0f, &shapeDef );
+
+	b2WeldJointDef jointDef = b2DefaultWeldJointDef();
+	jointDef.base.bodyIdA = boxA.bodyId;
+	jointDef.base.bodyIdB = boxB.bodyId;
+	jointDef.base.localFrameB.p = (b2Vec2){ -0.5f, 0.0f };
+	b2JointId jointId = b2CreateWeldJoint( worldId, &jointDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	b2Joint_SetCollideConnected( jointId, true );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2Joint_SetCollideConnected( jointId, false );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	// Static partner, the mark goes on the dynamic body
+	PairBox wall = CreatePairBox( worldId, b2_staticBody, 10.0f, 0.0f, &shapeDef );
+	PairBox boxC = CreatePairBox( worldId, b2_dynamicBody, 10.5f, 0.0f, &shapeDef );
+	jointDef.base.bodyIdA = wall.bodyId;
+	jointDef.base.bodyIdB = boxC.bodyId;
+	b2JointId wallJointId = b2CreateWeldJoint( worldId, &jointDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	b2Joint_SetCollideConnected( wallJointId, true );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+static bool RejectTaggedShape( b2ShapeId shapeIdA, b2ShapeId shapeIdB, void* context )
+{
+	B2_UNUSED( context );
+	return b2Shape_GetUserData( shapeIdA ) == NULL && b2Shape_GetUserData( shapeIdB ) == NULL;
+}
+
+// The filters that reject a pair. The benchmarks never exercise these, so this is the only guard.
+static int PairFilters( int workerCount )
+{
+	b2WorldId worldId = CreatePairWorld( workerCount );
+	b2World_SetCustomFilterCallback( worldId, RejectTaggedShape, NULL );
+
+	// Category and mask must pass in both directions
+	b2ShapeDef defA = b2DefaultShapeDef();
+	defA.filter.categoryBits = 1;
+	defA.filter.maskBits = 2;
+	b2ShapeDef defB = b2DefaultShapeDef();
+	defB.filter.categoryBits = 2;
+	defB.filter.maskBits = 1;
+	b2ShapeDef defC = b2DefaultShapeDef();
+	defC.filter.categoryBits = 2;
+	defC.filter.maskBits = 4;
+	CreatePairBox( worldId, b2_dynamicBody, 0.0f, 0.0f, &defA );
+	CreatePairBox( worldId, b2_dynamicBody, 0.5f, 0.0f, &defB );
+	CreatePairBox( worldId, b2_dynamicBody, -0.5f, 0.0f, &defC );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	// Group index overrides the bits, negative rejects and positive accepts
+	b2ShapeDef negativeDef = b2DefaultShapeDef();
+	negativeDef.filter.groupIndex = -1;
+	CreatePairBox( worldId, b2_dynamicBody, 10.0f, 0.0f, &negativeDef );
+	CreatePairBox( worldId, b2_dynamicBody, 10.5f, 0.0f, &negativeDef );
+	b2ShapeDef positiveDef = defC;
+	positiveDef.filter.groupIndex = 1;
+	CreatePairBox( worldId, b2_dynamicBody, 20.0f, 0.0f, &positiveDef );
+	CreatePairBox( worldId, b2_dynamicBody, 20.5f, 0.0f, &positiveDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 2 );
+
+	// Custom filter rejects a tagged shape
+	b2ShapeDef customDef = b2DefaultShapeDef();
+	customDef.enableCustomFiltering = true;
+	CreatePairBox( worldId, b2_dynamicBody, 30.0f, 0.0f, &customDef );
+	CreatePairBox( worldId, b2_dynamicBody, 30.5f, 0.0f, &customDef );
+	customDef.userData = (void*)1;
+	CreatePairBox( worldId, b2_dynamicBody, 40.0f, 0.0f, &customDef );
+	customDef.userData = NULL;
+	CreatePairBox( worldId, b2_dynamicBody, 40.5f, 0.0f, &customDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 3 );
+
+	// Sensors never make contacts
+	b2ShapeDef sensorDef = b2DefaultShapeDef();
+	sensorDef.isSensor = true;
+	b2ShapeDef plainDef = b2DefaultShapeDef();
+	CreatePairBox( worldId, b2_staticBody, 50.0f, 0.0f, &sensorDef );
+	CreatePairBox( worldId, b2_dynamicBody, 50.5f, 0.0f, &plainDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 3 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// A body that outran its margin on the step it went to sleep still gets its contact. This is the
+// hazard behind section G: the marks live in the tree and do not care which set the body is in.
+static int PairSleepEscape( int workerCount, bool sleepBeforePairs )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.gravity = b2Vec2_zero;
+	worldDef.workerCount = workerCount;
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	CreatePairBox( worldId, b2_staticBody, 0.0f, 0.0f, &shapeDef );
+
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	bodyDef.type = b2_dynamicBody;
+	bodyDef.position = (b2Pos){ -2.0f, 0.0f };
+	bodyDef.linearVelocity = (b2Vec2){ 58.0f, 0.0f };
+	b2BodyId moverId = b2CreateBody( worldId, &bodyDef );
+	b2Polygon square = b2MakeSquare( 0.5f );
+	b2CreatePolygonShape( moverId, &shapeDef, &square );
+
+	// One step carries the mover 0.97, far past its margin and into the fat box of the wall with a
+	// few centimeters to spare, but not into the wall itself
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	if ( sleepBeforePairs )
+	{
+		b2Body_SetAwake( moverId, false );
+		ENSURE( b2Body_IsAwake( moverId ) == false );
+	}
+
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// Enable recreates the proxies with marks, on either side of a resting pair. The fat boxes
+// overlap across the gap while the shapes do not, so nothing pushes and nothing moves.
+static int PairEnable( int workerCount )
+{
+	b2WorldId worldId = CreatePairWorld( workerCount );
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+
+	PairBox ground = CreatePairBox( worldId, b2_staticBody, 0.0f, 0.0f, &shapeDef );
+	PairBox box = CreatePairBox( worldId, b2_dynamicBody, 1.1f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2Body_Disable( box.bodyId );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	b2Body_Enable( box.bodyId );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	// The static side, the resting box has no mark of its own
+	b2Body_Disable( ground.bodyId );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	b2Body_Enable( ground.bodyId );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// A type change recreates the proxies with marks and must find the resting neighbors again
+static int PairSetType( int workerCount )
+{
+	b2WorldId worldId = CreatePairWorld( workerCount );
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+
+	CreatePairBox( worldId, b2_staticBody, 0.0f, 0.0f, &shapeDef );
+	PairBox middle = CreatePairBox( worldId, b2_dynamicBody, 1.1f, 0.0f, &shapeDef );
+	CreatePairBox( worldId, b2_dynamicBody, 2.2f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 2 );
+
+	// Kinematic drops the static pair and keeps the dynamic one
+	b2Body_SetType( middle.bodyId, b2_kinematicBody );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2Body_SetType( middle.bodyId, b2_dynamicBody );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 2 );
+
+	// Static drops the static pair too and the dynamic pair becomes static versus dynamic
+	b2Body_SetType( middle.bodyId, b2_staticBody );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2Body_SetType( middle.bodyId, b2_dynamicBody );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 2 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// Bullet is a flag only, the pair must be untouched
+static int PairSetBullet( int workerCount )
+{
+	b2WorldId worldId = CreatePairWorld( workerCount );
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+
+	CreatePairBox( worldId, b2_staticBody, 0.0f, 0.0f, &shapeDef );
+	PairBox box = CreatePairBox( worldId, b2_dynamicBody, 1.1f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2Body_SetBullet( box.bodyId, true );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2Body_SetBullet( box.bodyId, false );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// A static rebuild must keep the pending marks. The resting box has none of its own, so a lost
+// mark means the pair is never found.
+static int PairRebuildStatic( int workerCount )
+{
+	b2WorldId worldId = CreatePairWorld( workerCount );
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+
+	PairBox box = CreatePairBox( worldId, b2_dynamicBody, 0.0f, 0.0f, &shapeDef );
+	CreatePairBox( worldId, b2_staticBody, 10.0f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	// No marks to keep
+	b2World_RebuildStaticTree( worldId );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 0 );
+
+	CreatePairBox( worldId, b2_staticBody, 1.1f, 0.0f, &shapeDef );
+	b2World_RebuildStaticTree( worldId );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	// A quiet static shape has no mark to keep
+	b2ShapeDef quietDef = b2DefaultShapeDef();
+	quietDef.invokeContactCreation = false;
+	CreatePairBox( worldId, b2_staticBody, -1.1f, 0.0f, &quietDef );
+	b2World_RebuildStaticTree( worldId );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	// Overlapping the resting box, the contact must touch on the first step after the rebuild
+	CreatePairBox( worldId, b2_staticBody, 0.0f, 0.5f, &shapeDef );
+	b2World_RebuildStaticTree( worldId );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 2 );
+
+	b2ContactData contactData[4];
+	int touchingCount = b2Body_GetContactData( box.bodyId, contactData, 4 );
+	ENSURE( touchingCount == 1 );
+	ENSURE( contactData[0].manifold.pointCount > 0 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// A static shape created over a sleeping body still gets its contact, parked with the sleeper
+// until it wakes. The world counter only sees awake contacts, so this counts on the body.
+static int PairSleepingStatic( int workerCount )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.gravity = b2Vec2_zero;
+	worldDef.workerCount = workerCount;
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	PairBox sleeper = CreatePairBox( worldId, b2_dynamicBody, 0.0f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	b2Body_SetAwake( sleeper.bodyId, false );
+	ENSURE( b2Body_IsAwake( sleeper.bodyId ) == false );
+
+	CreatePairBox( worldId, b2_staticBody, 0.5f, 0.0f, &shapeDef );
+	StepPairWorld( worldId );
+	ENSURE( b2Body_GetContactCapacity( sleeper.bodyId ) == 1 );
+	ENSURE( b2Body_IsAwake( sleeper.bodyId ) == false );
+
+	// The quiet kind never pairs with a sleeper
+	b2ShapeDef quietDef = b2DefaultShapeDef();
+	quietDef.invokeContactCreation = false;
+	CreatePairBox( worldId, b2_staticBody, -0.5f, 0.0f, &quietDef );
+	StepPairWorld( worldId );
+	ENSURE( b2Body_GetContactCapacity( sleeper.bodyId ) == 1 );
+
+	// Waking brings the parked contact into the step and it touches at once
+	b2Body_SetAwake( sleeper.bodyId, true );
+	StepPairWorld( worldId );
+	ENSURE( PairContactCount( worldId ) == 1 );
+
+	b2ContactData contactData[4];
+	int touchingCount = b2Body_GetContactData( sleeper.bodyId, contactData, 4 );
+	ENSURE( touchingCount == 1 );
+	ENSURE( contactData[0].manifold.pointCount > 0 );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// The contact sim carries a persistent locator for each body sim instead of a copy written by the
+// collide task every step. These scenarios drive every site that changes a body's set or local index
+// while its contacts are live, then step under validation so b2ValidateSolverSets and the prepare
+// asserts are the real check. Worker count parity on the state hash guards the multithreaded paths.
+
+static void StepLocatorWorld( b2WorldId worldId, int stepCount )
+{
+	for ( int i = 0; i < stepCount; ++i )
+	{
+		b2World_Step( worldId, 1.0f / 60.0f, 4 );
+	}
+}
+
+static bool StepUntilAsleep( b2WorldId worldId, b2BodyId bodyId, int maxSteps )
+{
+	for ( int i = 0; i < maxSteps; ++i )
+	{
+		b2World_Step( worldId, 1.0f / 60.0f, 4 );
+		if ( b2Body_IsAwake( bodyId ) == false )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static b2WorldId CreateLocatorWorld( int workerCount, bool enableSleep )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.gravity = (b2Vec2){ 0.0f, -10.0f };
+	worldDef.enableSleep = enableSleep;
+	worldDef.workerCount = workerCount;
+	return b2CreateWorld( &worldDef );
+}
+
+static b2BodyId CreateLocatorGround( b2WorldId worldId, float x, float halfWidth )
+{
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	bodyDef.position = (b2Pos){ x, -0.5f };
+	b2BodyId bodyId = b2CreateBody( worldId, &bodyDef );
+
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	b2Polygon box = b2MakeBox( halfWidth, 0.5f );
+	b2CreatePolygonShape( bodyId, &shapeDef, &box );
+	return bodyId;
+}
+
+static b2BodyId CreateLocatorBox( b2WorldId worldId, b2BodyType type, float x, float y )
+{
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	bodyDef.type = type;
+	bodyDef.position = (b2Pos){ x, y };
+	b2BodyId bodyId = b2CreateBody( worldId, &bodyDef );
+
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	b2Polygon square = b2MakeSquare( 0.5f );
+	b2CreatePolygonShape( bodyId, &shapeDef, &square );
+	return bodyId;
+}
+
+// A pile sleeps on static ground and a dropped body wakes it. Covers first touch, the graph add and
+// the wake of a whole sleeping set.
+static int LocatorSleepWake( int workerCount, uint64_t* hash )
+{
+	b2WorldId worldId = CreateLocatorWorld( workerCount, true );
+	CreateLocatorGround( worldId, 0.0f, 10.0f );
+
+	b2BodyId pile[3];
+	for ( int i = 0; i < 3; ++i )
+	{
+		pile[i] = CreateLocatorBox( worldId, b2_dynamicBody, 0.0f, 0.5f + i );
+	}
+
+	ENSURE( StepUntilAsleep( worldId, pile[0], 600 ) );
+	ENSURE( b2Body_IsAwake( pile[2] ) == false );
+
+	b2BodyId dropper = CreateLocatorBox( worldId, b2_dynamicBody, 0.0f, 6.0f );
+	ENSURE( b2Body_IsAwake( pile[0] ) == false );
+
+	StepLocatorWorld( worldId, 60 );
+	ENSURE( b2Body_IsAwake( pile[0] ) );
+	ENSURE( b2Body_IsAwake( dropper ) );
+
+	ENSURE( StepUntilAsleep( worldId, dropper, 900 ) );
+	ENSURE( b2Body_IsAwake( pile[0] ) == false );
+
+	*hash = b2World_GetStateHash( worldId );
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// Destroying a body in the middle of the awake set swaps the last awake sim into the hole while that
+// body's contacts are live.
+static int LocatorDestroyAwakeBody( int workerCount, uint64_t* hash )
+{
+	b2WorldId worldId = CreateLocatorWorld( workerCount, false );
+	CreateLocatorGround( worldId, 0.0f, 20.0f );
+
+	b2BodyId stack[4];
+	for ( int i = 0; i < 4; ++i )
+	{
+		stack[i] = CreateLocatorBox( worldId, b2_dynamicBody, 0.0f, 0.5f + i );
+	}
+
+	// A second stack far away owns the tail of the awake set
+	b2BodyId neighbors[3];
+	for ( int i = 0; i < 3; ++i )
+	{
+		neighbors[i] = CreateLocatorBox( worldId, b2_dynamicBody, 10.0f, 0.5f + i );
+	}
+
+	StepLocatorWorld( worldId, 120 );
+	float restY = (float)b2Body_GetPosition( neighbors[2] ).y;
+
+	b2DestroyBody( stack[0] );
+	StepLocatorWorld( worldId, 30 );
+
+	ENSURE_SMALL( (float)b2Body_GetPosition( neighbors[2] ).y - restY, 0.01f );
+
+	*hash = b2World_GetStateHash( worldId );
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// Destroying a static body swaps the last static sim into the hole. The moved body still has awake
+// contacts, so its side of them has to be re-encoded or the collide task reads past the static set.
+static int LocatorDestroyStaticBody( int workerCount, uint64_t* hash )
+{
+	b2WorldId worldId = CreateLocatorWorld( workerCount, false );
+
+	b2BodyId platforms[3];
+	b2BodyId boxes[3];
+	for ( int i = 0; i < 3; ++i )
+	{
+		float x = 10.0f * i;
+		platforms[i] = CreateLocatorGround( worldId, x, 2.0f );
+		boxes[i] = CreateLocatorBox( worldId, b2_dynamicBody, x, 0.5f );
+	}
+
+	StepLocatorWorld( worldId, 60 );
+	float restY = (float)b2Body_GetPosition( boxes[2] ).y;
+
+	b2DestroyBody( platforms[0] );
+	StepLocatorWorld( worldId, 40 );
+
+	ENSURE_SMALL( (float)b2Body_GetPosition( boxes[2] ).y - restY, 0.01f );
+	ENSURE( (float)b2Body_GetPosition( boxes[0] ).y < -1.0f );
+
+	*hash = b2World_GetStateHash( worldId );
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// A kinematic that never sleeps keeps a non touching contact to a body that falls asleep. That
+// contact stays in the awake set with its sleeping side on the cold path, then the kinematic closes
+// the gap and wakes it.
+static int LocatorSleepingNeighbor( int workerCount, uint64_t* hash )
+{
+	b2WorldId worldId = CreateLocatorWorld( workerCount, true );
+	CreateLocatorGround( worldId, 0.0f, 10.0f );
+
+	b2BodyId sleeper = CreateLocatorBox( worldId, b2_dynamicBody, 0.0f, 0.5f );
+
+	// The fat boxes overlap across a tenth of a meter, well past the speculative distance
+	b2BodyId mover = CreateLocatorBox( worldId, b2_kinematicBody, 1.1f, 0.5f );
+	b2Body_EnableSleeping( mover, false );
+
+	ENSURE( StepUntilAsleep( worldId, sleeper, 600 ) );
+	ENSURE( b2Body_IsAwake( mover ) );
+
+	b2ContactData contactData[4];
+	ENSURE( b2Body_GetContactCapacity( mover ) == 1 );
+	ENSURE( b2Body_GetContactData( mover, contactData, 4 ) == 0 );
+
+	StepLocatorWorld( worldId, 30 );
+	ENSURE( b2Body_IsAwake( sleeper ) == false );
+
+	b2Body_SetLinearVelocity( mover, (b2Vec2){ -2.0f, 0.0f } );
+	StepLocatorWorld( worldId, 10 );
+	ENSURE( b2Body_IsAwake( sleeper ) );
+
+	*hash = b2World_GetStateHash( worldId );
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// Type change, disable and enable all route through the body transfer, which pulls a body sim out of
+// the middle of a set while other bodies hold contacts.
+static int LocatorTypeChange( int workerCount, uint64_t* hash )
+{
+	b2WorldId worldId = CreateLocatorWorld( workerCount, false );
+	CreateLocatorGround( worldId, 0.0f, 20.0f );
+
+	b2BodyId subject = CreateLocatorBox( worldId, b2_dynamicBody, 0.0f, 0.5f );
+	CreateLocatorBox( worldId, b2_dynamicBody, 0.0f, 1.5f );
+
+	b2BodyId neighbors[3];
+	for ( int i = 0; i < 3; ++i )
+	{
+		neighbors[i] = CreateLocatorBox( worldId, b2_dynamicBody, 10.0f, 0.5f + i );
+	}
+
+	StepLocatorWorld( worldId, 120 );
+	float restY = (float)b2Body_GetPosition( neighbors[2] ).y;
+
+	b2Body_SetType( subject, b2_staticBody );
+	StepLocatorWorld( worldId, 30 );
+	ENSURE( b2Body_GetType( subject ) == b2_staticBody );
+
+	b2Body_SetType( subject, b2_dynamicBody );
+	StepLocatorWorld( worldId, 30 );
+	ENSURE( b2Body_GetType( subject ) == b2_dynamicBody );
+
+	b2Body_Disable( subject );
+	StepLocatorWorld( worldId, 10 );
+	ENSURE( b2Body_IsEnabled( subject ) == false );
+
+	b2Body_Enable( subject );
+	StepLocatorWorld( worldId, 30 );
+	ENSURE( b2Body_IsEnabled( subject ) );
+
+	ENSURE_SMALL( (float)b2Body_GetPosition( neighbors[2] ).y - restY, 0.01f );
+
+	*hash = b2World_GetStateHash( worldId );
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// A joint between two sleeping bodies merges their sets instead of waking them, while an awake
+// kinematic holds a non touching contact to one of them across the merge.
+static int LocatorSetMerge( int workerCount, uint64_t* hash )
+{
+	b2WorldId worldId = CreateLocatorWorld( workerCount, true );
+	CreateLocatorGround( worldId, 0.0f, 20.0f );
+
+	b2BodyId left = CreateLocatorBox( worldId, b2_dynamicBody, -5.0f, 0.5f );
+	b2BodyId right = CreateLocatorBox( worldId, b2_dynamicBody, 5.0f, 0.5f );
+
+	b2BodyId watcher = CreateLocatorBox( worldId, b2_kinematicBody, -3.9f, 0.5f );
+	b2Body_EnableSleeping( watcher, false );
+
+	ENSURE( StepUntilAsleep( worldId, left, 600 ) );
+	ENSURE( b2Body_IsAwake( right ) == false );
+	ENSURE( b2Body_IsAwake( watcher ) );
+	ENSURE( b2Body_GetContactCapacity( watcher ) == 1 );
+
+	b2DistanceJointDef jointDef = b2DefaultDistanceJointDef();
+	jointDef.base.bodyIdA = left;
+	jointDef.base.bodyIdB = right;
+	jointDef.length = 10.0f;
+	b2JointId jointId = b2CreateDistanceJoint( worldId, &jointDef );
+
+	ENSURE( b2Body_IsAwake( left ) == false );
+	ENSURE( b2Body_IsAwake( right ) == false );
+
+	StepLocatorWorld( worldId, 30 );
+	ENSURE( b2Body_IsAwake( left ) == false );
+
+	b2Body_SetAwake( left, true );
+	StepLocatorWorld( worldId, 10 );
+	ENSURE( b2Body_IsAwake( right ) );
+
+	b2DestroyJoint( jointId );
+	StepLocatorWorld( worldId, 10 );
+
+	*hash = b2World_GetStateHash( worldId );
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// A body moving far enough in one step carries the fast flag, which the collide task now reads off
+// the sim. A public setter mid flight makes sure a flag sync does not drop it.
+static int LocatorFastBody( int workerCount, uint64_t* hash )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.gravity = b2Vec2_zero;
+	worldDef.workerCount = workerCount;
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+
+	CreateLocatorBox( worldId, b2_staticBody, 10.0f, 0.0f );
+	b2BodyId bullet = CreateLocatorBox( worldId, b2_dynamicBody, 0.0f, 0.0f );
+	b2Body_SetLinearVelocity( bullet, (b2Vec2){ 40.0f, 0.0f } );
+
+	// A step carries it two thirds of a meter, well past half its minimum extent
+	StepLocatorWorld( worldId, 4 );
+	ENSURE( (float)b2Body_GetPosition( bullet ).x > 2.0f );
+
+	b2Body_EnableSleeping( bullet, false );
+	StepLocatorWorld( worldId, 4 );
+
+	b2Body_EnableSleeping( bullet, true );
+	StepLocatorWorld( worldId, 30 );
+
+	// It stopped at the wall instead of tunneling through
+	ENSURE( (float)b2Body_GetPosition( bullet ).x < 9.1f );
+	ENSURE( (float)b2Body_GetPosition( bullet ).x > 8.5f );
+
+	*hash = b2World_GetStateHash( worldId );
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
+// A row of boxes at rest in zero gravity is unaffected by sleeping, so the run that sleeps and wakes
+// on impact has to land where the run that never sleeps lands. Positions rather than the state hash
+// because the hash folds in set and local index, which sleeping is entitled to change.
+static int LocatorSleepParity( int workerCount )
+{
+	float finalX[2][3];
+
+	for ( int pass = 0; pass < 2; ++pass )
+	{
+		b2WorldDef worldDef = b2DefaultWorldDef();
+		worldDef.gravity = b2Vec2_zero;
+		worldDef.enableSleep = pass == 0;
+		worldDef.workerCount = workerCount;
+		b2WorldId worldId = b2CreateWorld( &worldDef );
+
+		b2BodyId boxes[3];
+		for ( int i = 0; i < 3; ++i )
+		{
+			boxes[i] = CreateLocatorBox( worldId, b2_dynamicBody, (float)i, 0.0f );
+		}
+
+		StepLocatorWorld( worldId, 60 );
+		ENSURE( b2Body_IsAwake( boxes[0] ) == ( pass == 1 ) );
+
+		b2BodyId impactor = CreateLocatorBox( worldId, b2_dynamicBody, -5.0f, 0.0f );
+		b2Body_SetLinearVelocity( impactor, (b2Vec2){ 5.0f, 0.0f } );
+
+		StepLocatorWorld( worldId, 120 );
+		ENSURE( b2Body_IsAwake( boxes[2] ) );
+
+		for ( int i = 0; i < 3; ++i )
+		{
+			finalX[pass][i] = (float)b2Body_GetPosition( boxes[i] ).x;
+		}
+
+		b2DestroyWorld( worldId );
+	}
+
+	for ( int i = 0; i < 3; ++i )
+	{
+		ENSURE_SMALL( finalX[0][i] - finalX[1][i], 0.01f );
+	}
+
+	return 0;
+}
+
+static int BodySimLocatorTest( void )
+{
+	int workerCounts[2] = { 1, 4 };
+	uint64_t hashes[2];
+
+	for ( int i = 0; i < 2; ++i )
+	{
+		ENSURE( LocatorSleepWake( workerCounts[i], hashes + i ) == 0 );
+	}
+	ENSURE( hashes[0] == hashes[1] );
+
+	for ( int i = 0; i < 2; ++i )
+	{
+		ENSURE( LocatorDestroyAwakeBody( workerCounts[i], hashes + i ) == 0 );
+	}
+	ENSURE( hashes[0] == hashes[1] );
+
+	for ( int i = 0; i < 2; ++i )
+	{
+		ENSURE( LocatorDestroyStaticBody( workerCounts[i], hashes + i ) == 0 );
+	}
+	ENSURE( hashes[0] == hashes[1] );
+
+	for ( int i = 0; i < 2; ++i )
+	{
+		ENSURE( LocatorSleepingNeighbor( workerCounts[i], hashes + i ) == 0 );
+	}
+	ENSURE( hashes[0] == hashes[1] );
+
+	for ( int i = 0; i < 2; ++i )
+	{
+		ENSURE( LocatorTypeChange( workerCounts[i], hashes + i ) == 0 );
+	}
+	ENSURE( hashes[0] == hashes[1] );
+
+	for ( int i = 0; i < 2; ++i )
+	{
+		ENSURE( LocatorSetMerge( workerCounts[i], hashes + i ) == 0 );
+	}
+	ENSURE( hashes[0] == hashes[1] );
+
+	for ( int i = 0; i < 2; ++i )
+	{
+		ENSURE( LocatorFastBody( workerCounts[i], hashes + i ) == 0 );
+	}
+	ENSURE( hashes[0] == hashes[1] );
+
+	for ( int i = 0; i < 2; ++i )
+	{
+		ENSURE( LocatorSleepParity( workerCounts[i] ) == 0 );
+	}
+
+	return 0;
+}
+
+static int BroadPhasePairsTest( void )
+{
+	int workerCounts[2] = { 1, 4 };
+	for ( int i = 0; i < 2; ++i )
+	{
+		int workerCount = workerCounts[i];
+		ENSURE( PairCreation( workerCount ) == 0 );
+		ENSURE( PairTeleport( workerCount ) == 0 );
+		ENSURE( PairRefilter( workerCount ) == 0 );
+		ENSURE( PairCollideConnected( workerCount ) == 0 );
+		ENSURE( PairFilters( workerCount ) == 0 );
+		ENSURE( PairEnable( workerCount ) == 0 );
+		ENSURE( PairSetType( workerCount ) == 0 );
+		ENSURE( PairSetBullet( workerCount ) == 0 );
+		ENSURE( PairRebuildStatic( workerCount ) == 0 );
+		ENSURE( PairSleepEscape( workerCount, false ) == 0 );
+		ENSURE( PairSleepEscape( workerCount, true ) == 0 );
+		ENSURE( PairSleepingStatic( workerCount ) == 0 );
+	}
+
+	return 0;
+}
+
+// A joint with no dynamic body lives in the static set even when one body is an awake kinematic.
+// Disabling and enabling that body has to respect this, whether the joint was created that way or
+// got there through body type changes. Box3D issue #164.
+static int NonDynamicJointDisableTest( void )
+{
+	b2WorldDef worldDef = b2DefaultWorldDef();
+	worldDef.gravity = b2Vec2_zero;
+	b2WorldId worldId = b2CreateWorld( &worldDef );
+
+	b2BodyDef bodyDef = b2DefaultBodyDef();
+	bodyDef.type = b2_dynamicBody;
+	b2BodyId bodyIdA = b2CreateBody( worldId, &bodyDef );
+	bodyDef.position = (b2Pos){ 2.0f, 0.0f };
+	b2BodyId bodyIdB = b2CreateBody( worldId, &bodyDef );
+
+	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	b2Polygon box = b2MakeBox( 0.5f, 0.5f );
+	b2CreatePolygonShape( bodyIdA, &shapeDef, &box );
+	b2CreatePolygonShape( bodyIdB, &shapeDef, &box );
+
+	b2WeldJointDef jointDef = b2DefaultWeldJointDef();
+	jointDef.base.bodyIdA = bodyIdA;
+	jointDef.base.bodyIdB = bodyIdB;
+	b2JointId weldId = b2CreateWeldJoint( worldId, &jointDef );
+
+	b2Body_SetType( bodyIdA, b2_staticBody );
+	b2Body_SetType( bodyIdB, b2_kinematicBody );
+	b2World_Step( worldId, 1.0f / 60.0f, 4 );
+
+	b2Body_Disable( bodyIdB );
+	b2World_Step( worldId, 1.0f / 60.0f, 4 );
+	b2Body_Enable( bodyIdB );
+	b2World_Step( worldId, 1.0f / 60.0f, 4 );
+	ENSURE( b2Joint_IsValid( weldId ) );
+
+	b2World* world = b2GetWorldFromId( worldId );
+	ENSURE( b2GetJointFullId( world, weldId )->setIndex == b2_staticSet );
+
+	b2Body_SetType( bodyIdB, b2_dynamicBody );
+	b2World_Step( worldId, 1.0f / 60.0f, 4 );
+	ENSURE( b2GetJointFullId( world, weldId )->setIndex == b2_awakeSet );
+
+	// Created directly between a static and a kinematic body
+	bodyDef.type = b2_kinematicBody;
+	bodyDef.position = (b2Pos){ 4.0f, 0.0f };
+	b2BodyId bodyIdC = b2CreateBody( worldId, &bodyDef );
+	b2CreatePolygonShape( bodyIdC, &shapeDef, &box );
+
+	b2RevoluteJointDef revoluteDef = b2DefaultRevoluteJointDef();
+	revoluteDef.base.bodyIdA = bodyIdA;
+	revoluteDef.base.bodyIdB = bodyIdC;
+	b2JointId revoluteId = b2CreateRevoluteJoint( worldId, &revoluteDef );
+
+	b2Body_Disable( bodyIdC );
+	b2Body_Enable( bodyIdC );
+	b2World_Step( worldId, 1.0f / 60.0f, 4 );
+	ENSURE( b2GetJointFullId( world, revoluteId )->setIndex == b2_staticSet );
+
+	b2DestroyWorld( worldId );
+	return 0;
+}
+
 int WorldTest( void )
 {
 	RUN_SUBTEST( HelloWorld );
@@ -401,6 +1774,17 @@ int WorldTest( void )
 	RUN_SUBTEST( TestWorldRecycle );
 	RUN_SUBTEST( TestWorldCoverage );
 	RUN_SUBTEST( TestSensor );
+	RUN_SUBTEST( TestSetWorkerCount );
+	RUN_SUBTEST( ChainSegmentShapeTest );
+	RUN_SUBTEST( SetBulletDriftTest );
+	RUN_SUBTEST( DeferredMassFlagSyncTest );
+	RUN_SUBTEST( EnableSleepFlagSyncTest );
+	RUN_SUBTEST( EnableContactRecyclingTest );
+	RUN_SUBTEST( PreSolveRejectRecycleTest );
+	RUN_SUBTEST( EnlargedProxyDestroyedTest );
+	RUN_SUBTEST( BroadPhasePairsTest );
+	RUN_SUBTEST( BodySimLocatorTest );
+	RUN_SUBTEST( NonDynamicJointDisableTest );
 
 	return 0;
 }

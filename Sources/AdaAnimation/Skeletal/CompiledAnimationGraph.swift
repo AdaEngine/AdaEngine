@@ -10,6 +10,9 @@ struct CompiledAnimationGraph: Sendable {
     let clipIndices: [Int?]
     let rest: [SkeletalJointPose]
     var poses: [[SkeletalJointPose]]
+    /// Morph weights per graph node and rig node (empty for rig nodes without morph targets).
+    var morph: [[[Float]]]
+    let restMorph: [[Float]]
     var contributions: [Float]
     let duration: Double
     let loops: Bool
@@ -76,6 +79,9 @@ struct CompiledAnimationGraph: Sendable {
         self.clipIndices = clipIndices
         self.rest = rest
         self.poses = graph.nodes.map { _ in rest }
+        let restMorph = rig.nodes.map { $0.morphRestWeights ?? [] }
+        self.restMorph = restMorph
+        self.morph = graph.nodes.map { _ in restMorph }
         self.contributions = [Float](repeating: 0, count: graph.nodes.count)
         var duration: Double = 0
         var loops = false
@@ -132,9 +138,18 @@ struct CompiledAnimationGraph: Sendable {
                     case .scale: poses[index][track.nodeIndex].scale = value.xyz
                     }
                 }
+                for joint in restMorph.indices where !restMorph[joint].isEmpty {
+                    for target in restMorph[joint].indices { morph[index][joint][target] = restMorph[joint][target] }
+                }
+                for track in clip.morphTracks {
+                    track.sample(at: local, into: &morph[index][track.nodeIndex])
+                }
             } else {
                 for joint in rest.indices {
                     poses[index][joint] = node.kind == .blend ? blend(index, joint: joint) : additive(index, joint: joint)
+                    if !restMorph[joint].isEmpty {
+                        morph[index][joint] = node.kind == .blend ? blendMorph(index, joint: joint) : additiveMorph(index, joint: joint)
+                    }
                 }
             }
         }
@@ -171,6 +186,38 @@ struct CompiledAnimationGraph: Sendable {
         }
         let quaternion = Quat(x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w)
         return SkeletalJointPose(translation: translation / denominator, rotation: quaternion.squaredLength > 0.000001 ? quaternion.normalized : reference, scale: scale / denominator)
+    }
+
+    /// Blends morph weights by the same rules as poses: weighted by input weight and mask, with the rest weights filling any gap.
+    private func blendMorph(_ index: Int, joint: Int) -> [Float] {
+        let node = graph.nodes[index]
+        var total: Float = 0
+        for edge in node.inputs.indices { total += node.inputs[edge].weight * masks[index][edge][joint] }
+        let denominator = max(1, total)
+        let restWeight = max(0, 1 - total)
+        var result = restMorph[joint].map { $0 * restWeight }
+        for edge in node.inputs.indices {
+            let weight = node.inputs[edge].weight * masks[index][edge][joint]
+            let input = morph[inputs[index][edge]][joint]
+            for target in result.indices { result[target] += input[target] * weight }
+        }
+        for target in result.indices { result[target] /= denominator }
+        return result
+    }
+
+    /// Additive morph weights: the first input is the base, and each further input adds its offset from the rest weights.
+    private func additiveMorph(_ index: Int, joint: Int) -> [Float] {
+        let node = graph.nodes[index]
+        let rest = restMorph[joint]
+        let base = morph[inputs[index][0]][joint]
+        let amount = min(1, node.inputs[0].weight * masks[index][0][joint])
+        var result = rest.indices.map { rest[$0] + (base[$0] - rest[$0]) * amount }
+        for edge in node.inputs.indices.dropFirst() {
+            let weight = min(1, node.inputs[edge].weight * masks[index][edge][joint])
+            let input = morph[inputs[index][edge]][joint]
+            for target in result.indices { result[target] += (input[target] - rest[target]) * weight }
+        }
+        return result
     }
 
     private func additive(_ index: Int, joint: Int) -> SkeletalJointPose {

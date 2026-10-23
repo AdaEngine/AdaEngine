@@ -33,6 +33,10 @@ struct EditorProjectPreviewStore: Sendable {
         }
         CGImageDestinationAddImage(destination, thumbnail, nil)
         guard CGImageDestinationFinalize(destination) else { throw Failure.encodingFailed }
+        let outputData = output as Data
+        #else
+        let outputData = try portableThumbnail(image).pngData()
+        #endif
         try Task.checkCancellation()
         // Do not recreate a project deleted while this frame was being encoded.
         guard FileManager.default.fileExists(atPath: projectURL.path) else { throw Failure.projectUnavailable }
@@ -40,10 +44,22 @@ struct EditorProjectPreviewStore: Sendable {
         if !FileManager.default.fileExists(atPath: directory.path) {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         }
-        try (output as Data).write(to: imageURL, options: .atomic)
-        #else
-        throw Failure.encodingFailed
-        #endif
+        try outputData.write(to: imageURL, options: .atomic)
+    }
+
+    private func portableThumbnail(_ image: Image) -> Image {
+        let scale = min(1, 640 / Float(max(image.width, image.height)))
+        let width = max(1, Int(Float(image.width) * scale)), height = max(1, Int(Float(image.height) * scale))
+        let channels = image.format == .gray ? 1 : image.format == .rgb8 ? 3 : 4
+        var pixels = Data(count: width * height * channels)
+        for y in 0..<height {
+            for x in 0..<width {
+                let source = (min(image.height - 1, Int(Float(y) / scale)) * image.width + min(image.width - 1, Int(Float(x) / scale))) * channels
+                let target = (y * width + x) * channels
+                for channel in 0..<channels { pixels[target + channel] = image.data[source + channel] }
+            }
+        }
+        return Image(width: width, height: height, data: pixels, format: image.format)
     }
 
     enum Failure: Error, Equatable {

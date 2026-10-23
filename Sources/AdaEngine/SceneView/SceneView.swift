@@ -45,6 +45,17 @@ public struct SceneView<Placeholder: View>: View {
     let onFrameRendered: (@MainActor (Texture2D) -> Void)?
     let placeholder: @MainActor () -> Placeholder
     private var prepareFramePresentation: (@MainActor () -> (@MainActor () -> Void))?
+    private var frameCaptureLabel: String?
+
+    /// Makes completed frames of this scene readable through ``SceneViewFrameRegistry``.
+    ///
+    /// Use it for the running game, never for editor tooling previews, so automation
+    /// captures the game camera instead of the surrounding window.
+    public func frameCaptureLabel(_ label: String?) -> Self {
+        var view = self
+        view.frameCaptureLabel = label
+        return view
+    }
 
     /// Captures companion UI state for a scheduled scene frame. The returned
     /// closure runs when that exact frame becomes the displayed texture, before
@@ -95,13 +106,14 @@ public struct SceneView<Placeholder: View>: View {
 
     public var body: some View {
         OffscreenViewportContainer(
-            delegateFactory: { [make, updateContent, onFrameRendered, useSceneCameras, prepareFramePresentation] in
+            delegateFactory: { [make, updateContent, onFrameRendered, useSceneCameras, prepareFramePresentation, frameCaptureLabel] in
                 SceneViewCoordinator(
                     useSceneCameras: useSceneCameras,
                     make: make,
                     updateContent: updateContent,
                     onFrameRendered: onFrameRendered,
-                    prepareFramePresentation: prepareFramePresentation
+                    prepareFramePresentation: prepareFramePresentation,
+                    frameCaptureLabel: frameCaptureLabel
                 )
             },
             contentBuilder: { [placeholder, isInteractive, updatesWhenWindowInactive] delegate in

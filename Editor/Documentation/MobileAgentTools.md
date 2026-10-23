@@ -4,7 +4,7 @@ Mobile Studio hosts SloppyRuntime in process. The host advertises editor-owned t
 
 Mobile requests include short host rules, user instructions and a bounded catalog of enabled mobile skills. Full skill bodies, the detailed mobile workflow and the A2UI protocol are loaded on demand through `editor.skills.read`, rather than repeated in every user and repair prompt. `editor.skills.list` searches bundled workflows and enabled built-in/imported mobile skills. Imported skills use `mobile:<id>` IDs and remain readable from the saved run settings after the original Markdown file is removed; disabled skills are unavailable on subsequent runs. `mobile-studio-workflow` covers editing and verification, and `mobile-chat-ui` provides the complete A2UI contract. Existing saved prompt envelopes retain their chat presentation.
 
-Start with `editor.project.context`. Search and read the bundled documentation with `editor.docs.search` and `editor.docs.read`. Use `editor.api.describe` for the current compiler catalog, and `editor.components.describe` for exact serialized component names, fields, required components and default payloads. `editor.examples.list/read` returns complete project files for movement/input and dynamic component systems. These references work offline.
+Start with `editor.project.context`. Search and read the bundled documentation with `editor.docs.search` and `editor.docs.read`. Use `editor.api.describe` for the current compiler catalog, and `editor.components.describe` for exact serialized component names, fields, required components and default payloads. `editor.examples.list/read` returns complete project files for movement/input, dynamic component systems and a multi-file 3D side-scroller (`side-scroller-3d`); `editor.examples.list` accepts a `query` such as "3D game", "flappy" or "runner". The "AdaScript gameplay recipes" article explains input, movement, spawning, collisions, score, restart and `AudioSource` patterns. These references work offline.
 
 After writing files, run `editor.gravity.diagnostics`. It reloads the project workspace and reports project-relative paths and zero-based UTF-16 ranges. Completion, hover and definition take explicit paths and LSP positions. Use `editor.project.configure` for validated changes to `runtime.entry`, `runtime.plugins` and `inputActions`; arbitrary manifest writes remain unavailable.
 
@@ -44,6 +44,8 @@ Selected, pasted and marked-up images are transmitted as actual image segments t
 
 `editor.texture.render` creates procedural PNGs offline: solid colors, checkerboards, gradients, seeded noise and flat normal maps. It accepts `specJSON` with bounded dimensions and RGBA color arrays. Use these as sprite, tile, albedo, normal, metallic or roughness texture inputs.
 
+`editor.sprite.generate`, `editor.audio.generate`, `editor.model.generate` and `editor.voxel.generate` create a pixel-art PNG, a mono WAV, a low-poly GLB or a MagicaVoxel file from an AdaScript `func build(...)` that runs in an isolated VM with no file, network or scene access. They write a new file under the assets root (an existing path is refused) and return the `@res://` reference plus a summary: sizes and colors, parts and triangles, or audio measurements. `editor.audio.inspect` measures any WAV: peak and RMS in dBFS, clipping, silence, dominant frequency, brightness and a loudness envelope. The `ada-pixel-art`, `ada-sound-design`, `ada-procedural-models` and `ada-voxel-models` skills document the script APIs. Play a generated sound with the `AudioSource` component.
+
 `editor.atlas.read/write/pack` manages native `.atlas` descriptors. Packing uses the same engine algorithm as runtime loading and returns named pixel regions and UV coordinates plus a PNG preview. Source paths remain editable.
 
 `editor.tileset.create/read/edit` slices source images into a native `.tileset`, exposes stable source IDs and coordinates, and manages tile definitions and animation. `editor.tilemap.read/write/edit` validates palettes, stable tile references, cells and layers. Editing supports paint, erase, fill and new layers. Removing a referenced tile is rejected. Resource edits preserve existing fields and validate before committing.
@@ -51,6 +53,18 @@ Selected, pasted and marked-up images are transmitted as actual image segments t
 `editor.scene.asset.assign` binds images, atlases and maps to registered component asset fields. Read `editor.components.describe` for exact field names. `editor.model.texture.assign` updates glTF/GLB PBR material channels while preserving geometry and binary chunks. Texture creation does not unwrap a mesh or bake lighting; model UVs still come from the model.
 
 After edits, use `editor.asset.validate`, build, start visible Play, then `editor.play.capture`. Capture reads only a completed GPU frame and saves a project PNG for `editor.image.read`. Simulation results remain separate from visual proof.
+
+## Desktop game verification
+
+Desktop Studio sees the game through the game's own camera, not through the editor window.
+
+- `editor.play.capture` (`cameraName`, `maxDimension`): waits for a completed frame of the running game and saves a PNG under `<project>/.ada/workspace/agent-captures` (newest 80 kept). It returns an explicit error when no game is running, the camera is not active, or the backend cannot read pixels.
+- `render.capture_screenshot` returns the same game frame while Play runs. Without a running game it captures the editor window and says so in `world`; that image is not game evidence. `ui.capture_node_screenshot` keeps using the editor window.
+- `editor.play.run_scenario` runs a timed input script against an isolated offscreen runtime of the AdaScript project (`target: "offscreen"`, default) or the running game (`target: "play"`). Steps are `{t,key,down|tap}`, `{t,mouse,down|tap,x,y}`, `{t,move}`, `{t,capture,camera?}` and `{t,snapshot}`. The result lists `frames` (PNG paths or per-frame errors), `snapshots` (entities and component summaries chosen with `watch`), `logs`, `diagnostics`, `errors`, `status` (`completed`, `timed_out`, `cancelled`, `failed`) and `manualChecks` for unavailable frames. Limits: 60 s, 400 events, 12 frames, 40 snapshots, 1280 px frames, 25 entities per snapshot, wall-clock deadline of duration plus 15 s.
+- The offscreen runtime renders scene cameras only. `@view` HUD overlays and the Studio game toolbar are not part of it; use `target: "play"` to capture them. SwiftPM projects can use `target: "play"` and `editor.play.capture`; offscreen requires an AdaScript project.
+- Timing is wall-clock. Verify direction, ordering and thresholds rather than exact positions, and keep needed values in `@export` fields of a scriptable object (snapshots list them under `scripts[].fields`). Script statics and `System.print` output are not readable.
+
+Engine support: `SceneView.frameCaptureLabel(_:)` registers a view in `SceneViewFrameRegistry`; `SceneViewFrameSource` reads the latest completed frame (downscaled on request) and `OffscreenSceneRuntime` hosts a window-less scene. Games in Play use the label `game`.
 
 ## Background agent activity
 

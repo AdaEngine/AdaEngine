@@ -1,9 +1,15 @@
-#if os(iOS) || os(visionOS)
+#if os(iOS) || os(visionOS) || os(Android)
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(Security)
 import Security
 import UIKit
+#endif
 
 enum MobileAgentProvider: String, Codable, Sendable {
+    case ada
     case codex
     case api
 }
@@ -43,11 +49,17 @@ enum MobileSloppyCredentialStore {
         return try? JSONDecoder().decode(MobileSloppyCredentials.self, from: data)
     }
 
+    #if os(Android)
+    @MainActor
+    #endif
     static func save(_ credentials: MobileSloppyCredentials) throws {
         try write(try JSONEncoder().encode(credentials), account: account)
     }
 
     private static func read(account: String) -> Data? {
+        #if os(Android)
+        return AndroidStudioCredentials.load(key: service + ":" + account)
+        #else
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -58,9 +70,16 @@ enum MobileSloppyCredentialStore {
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }
         return result as? Data
+        #endif
     }
 
+    #if os(Android)
+    @MainActor
+    #endif
     private static func write(_ data: Data, account: String) throws {
+        #if os(Android)
+        try AndroidStudioCredentials.save(data, key: service + ":" + account)
+        #else
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -74,6 +93,7 @@ enum MobileSloppyCredentialStore {
         create[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let createStatus = SecItemAdd(create as CFDictionary, nil)
         guard createStatus == errSecSuccess else { throw MobileSloppyCredentialError.keychain(createStatus) }
+        #endif
     }
 }
 
@@ -102,7 +122,13 @@ enum MobileCodexCredentialStore {
         return try? JSONDecoder().decode(MobileCodexCredentials.self, from: data)
     }
 
+    #if os(Android)
+    @MainActor
+    #endif
     static func save(_ credentials: MobileCodexCredentials) throws {
+        #if os(Android)
+        try AndroidStudioCredentials.save(try JSONEncoder().encode(credentials), key: service + ":" + account)
+        #else
         let data = try JSONEncoder().encode(credentials)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -117,9 +143,16 @@ enum MobileCodexCredentialStore {
         create[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let createStatus = SecItemAdd(create as CFDictionary, nil)
         guard createStatus == errSecSuccess else { throw MobileSloppyCredentialError.keychain(createStatus) }
+        #endif
     }
 
+    #if os(Android)
+    @MainActor
+    #endif
     static func delete() throws {
+        #if os(Android)
+        try AndroidStudioCredentials.delete(key: service + ":" + account)
+        #else
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -127,9 +160,13 @@ enum MobileCodexCredentialStore {
         ]
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else { throw MobileSloppyCredentialError.keychain(status) }
+        #endif
     }
 
     private static func read() -> Data? {
+        #if os(Android)
+        return AndroidStudioCredentials.load(key: service + ":" + account)
+        #else
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -140,9 +177,13 @@ enum MobileCodexCredentialStore {
         var result: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }
         return result as? Data
+        #endif
     }
 }
 
+#if os(Android)
+@MainActor
+#endif
 enum MobileCodexOAuth {
     private static let clientID = "app_EMoamEEZ73f0CkXaXp7hrann"
     private static let deviceCodeURL = "https://auth.openai.com/api/accounts/deviceauth/usercode"
@@ -330,7 +371,7 @@ private extension String {
 }
 
 enum MobileSloppyCredentialError: Error, LocalizedError {
-    case keychain(OSStatus)
+    case keychain(Int32)
     case authorization(String)
 
     var errorDescription: String? {
@@ -344,6 +385,11 @@ enum MobileSloppyCredentialError: Error, LocalizedError {
 @MainActor
 enum MobileSloppyAPIKeyPrompt {
     static func present(currentValue: String, completion: @escaping @MainActor (String) -> Void) {
+        #if os(Android)
+        AndroidStudioHost.request("prompt", text: currentValue, key: "OpenAI API key", secret: true) { reply in
+            if let text = reply.text, reply.cancelled != true { completion(text.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        }
+        #else
         let alert = UIAlertController(title: "OpenAI API key", message: "The key is stored in the device Keychain.", preferredStyle: .alert)
         alert.addTextField { field in
             field.placeholder = "API_KEY"
@@ -364,12 +410,18 @@ enum MobileSloppyAPIKeyPrompt {
               var presenter = window.rootViewController else { return }
         while let presented = presenter.presentedViewController { presenter = presented }
         presenter.present(alert, animated: true)
+        #endif
     }
 }
 
 @MainActor
 enum MobileSloppyPromptComposer {
     static func present(initialValue: String, completion: @escaping @MainActor (String) -> Void) {
+        #if os(Android)
+        AndroidStudioHost.request("prompt", text: initialValue, key: "New request") { reply in
+            if let text = reply.text, reply.cancelled != true { completion(text) }
+        }
+        #else
         let alert = UIAlertController(title: "New request", message: nil, preferredStyle: .alert)
         alert.addTextField { field in
             field.placeholder = "Describe your game or next change"
@@ -389,6 +441,7 @@ enum MobileSloppyPromptComposer {
               var presenter = window.rootViewController else { return }
         while let presented = presenter.presentedViewController { presenter = presented }
         presenter.present(alert, animated: true)
+        #endif
     }
 }
 #endif

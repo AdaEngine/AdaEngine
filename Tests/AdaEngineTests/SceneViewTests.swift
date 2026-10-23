@@ -64,6 +64,7 @@ struct SceneViewTests {
         _ = try #require(coordinator.appWorlds)
         coordinator.updateSize(SizeInt(width: 16, height: 16), scaleFactor: 1)
         coordinator.tick(0.016)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
         coordinator.shutdown()
 
         #expect(makeCallCount == 1)
@@ -129,6 +130,7 @@ struct SceneViewTests {
         var submittedTargets = Set<ObjectIdentifier>()
         for _ in 0..<poolSize {
             coordinator.tick(0.016)
+            for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
             let camera = try #require(sceneViewCamera(in: appWorlds.main))
             guard case let .texture(handle) = camera.renderTarget else {
                 Issue.record("SceneView camera must render into a texture.")
@@ -141,6 +143,7 @@ struct SceneViewTests {
         #expect(submittedTargets.count == poolSize)
 
         coordinator.tick(0.016)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
         let exhaustedCamera = try #require(sceneViewCamera(in: appWorlds.main))
         #expect(!exhaustedCamera.isActive)
         coordinator.shutdown()
@@ -185,6 +188,7 @@ struct SceneViewTests {
         displayTextureChangeCount = 0
 
         coordinator.tick(0.016)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
         let firstCamera = try #require(sceneViewCamera(in: appWorlds.main))
         guard case let .texture(firstHandle) = firstCamera.renderTarget else {
             Issue.record("SceneView camera must render into a RenderTexture.")
@@ -197,6 +201,7 @@ struct SceneViewTests {
         #expect(coordinator.renderTexture == nil)
         #expect(presentedFrame == 0)
         coordinator.tick(0.016)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
 
         let stableDisplayTexture = try #require(coordinator.renderTexture)
         let displayIdentity = ObjectIdentifier(stableDisplayTexture)
@@ -217,6 +222,7 @@ struct SceneViewTests {
         #expect(ObjectIdentifier(stableDisplayTexture.gpuTexture) == firstBackingIdentity)
         #expect(presentedFrames == [1])
         coordinator.tick(0.016)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
 
         #expect(ObjectIdentifier(try #require(coordinator.renderTexture)) == displayIdentity)
         #expect(ObjectIdentifier(stableDisplayTexture.gpuTexture) != firstBackingIdentity)
@@ -230,6 +236,7 @@ struct SceneViewTests {
         guard case let .texture(thirdHandle) = thirdCamera.renderTarget else { return }
         let thirdTarget = try #require(thirdHandle.asset)
         coordinator.tick(0.016)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
         let fourthCamera = try #require(sceneViewCamera(in: appWorlds.main))
         guard case let .texture(fourthHandle) = fourthCamera.renderTarget else { return }
         let fourthTarget = try #require(fourthHandle.asset)
@@ -237,11 +244,13 @@ struct SceneViewTests {
         fourthTarget.notifyRenderCompleted()
         for _ in 0..<50 { await Task.yield() }
         coordinator.tick(0.016)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
         #expect(presentedFrames == [1, 2])
         thirdTarget.notifyRenderCompleted()
         for _ in 0..<50 { await Task.yield() }
         #expect(presentedFrames == [1, 2])
         coordinator.tick(0.016)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
         #expect(presentedFrames == [1, 2, 4])
         #expect(completedFrames.last == ObjectIdentifier(fourthTarget))
         coordinator.shutdown()

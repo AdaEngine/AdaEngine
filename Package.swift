@@ -34,7 +34,7 @@ let isWebExportEnabled: Bool = {
     return webExportValue.map(enabledValues.contains) == true
 }()
 
-// Local compiler development can override the Gravity default branch.
+// Local compiler development can override the checked-in, patched AdaScript runtime.
 let gravityDevelopmentPath = ProcessInfo.processInfo.environment["ADAENGINE_GRAVITY_PACKAGE_PATH"]
 let gravityAOTDependencies: [Target.Dependency] = [
     .product(name: "GravityAOT", package: "gravity-lang")
@@ -70,6 +70,13 @@ extension String {
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
 var products: [Product] = [
+    .executable(name: "NavigationDemo", targets: ["NavigationDemo"]),
+    .executable(name: "Physics2DDemo", targets: ["Physics2DDemo"]),
+    .library(name: "AdaNavigation", targets: ["AdaNavigation"]),
+    .library(name: "AdaNavigationBaking", targets: ["AdaNavigationBaking"]),
+    .executable(name: "SpinePreview", targets: ["SpinePreview"]),
+    .library(name: "AdaSpine", targets: ["AdaSpine"]),
+    .library(name: "CAndroid", targets: ["CAndroid"]),
     .executable(name: "AdaWebPlayer", targets: ["AdaWebPlayer"]),
     .executable(name: "AdaWebPlayerPackager", targets: ["AdaWebPlayerPackager"]),
     .executable(name: "AdaScriptTest", targets: ["AdaScriptTest"]),
@@ -233,6 +240,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "AdaRender",
     "AdaText",
     "AdaInput",
+    "AdaNavigation",
     "AdaScene",
     "AdaScripting",
     "AdaSprite",
@@ -319,6 +327,60 @@ let adaEngineMacros: Target = .macro(
 // MARK: Other Targets
 
 var targets: [Target] = [
+    .executableTarget(
+        name: "Physics2DDemo",
+        dependencies: ["AdaEngine"],
+        path: "Demos/Physics2D",
+        exclude: ["README.md", "script", "dist", ".codex"],
+        swiftSettings: swiftSettings
+    ),
+    .executableTarget(
+        name: "NavigationDemo",
+        dependencies: ["AdaEngine", "AdaNavigationBaking"],
+        path: "Demos/Navigation",
+        resources: [.copy("NavigationRobot.ada")],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "Detour",
+        path: "Sources/RecastNavigation/Detour",
+        sources: ["Source"],
+        publicHeadersPath: "Include"
+    ),
+    .target(
+        name: "Recast",
+        path: "Sources/RecastNavigation/Recast",
+        sources: ["Source"],
+        publicHeadersPath: "Include"
+    ),
+    .target(name: "CNavigation", dependencies: ["Detour"]),
+    .target(name: "CNavigationBaking", dependencies: ["CNavigation", "Detour", "Recast"]),
+    .target(name: "AdaNavigation", dependencies: ["CNavigation", "Math"], swiftSettings: swiftSettings),
+    .target(name: "AdaNavigationBaking", dependencies: ["AdaNavigation", "CNavigationBaking", "Math"], swiftSettings: swiftSettings),
+    .testTarget(name: "AdaNavigationTests", dependencies: ["AdaNavigation", "AdaNavigationBaking", "Math"], swiftSettings: swiftSettings),
+    .executableTarget(
+        name: "SpinePreview",
+        dependencies: ["AdaSpineRuntime"],
+        path: "Demos/SpinePreview",
+        exclude: ["README.md"],
+        resources: [.copy("Assets")],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "SpineRuntimeC",
+        exclude: ["LICENSE", "UPSTREAM.md"],
+        publicHeadersPath: "include"
+    ),
+    .target(name: "AdaSpineBridgeC", dependencies: ["SpineRuntimeC"]),
+    .target(name: "AdaSpineRuntime", dependencies: ["AdaSpineBridgeC"], swiftSettings: swiftSettings),
+    .adaTarget(
+        name: "AdaSpine",
+        dependencies: ["AdaSpineRuntime", "AdaApp", "AdaAssets", "AdaCorePipelines", "AdaECS", "AdaRender", "AdaTransform", "AdaUtils", "Math"],
+        resources: [.copy("Assets")],
+        swiftSettings: swiftSettings
+    ),
+    .testTarget(name: "AdaSpineTests", dependencies: ["AdaSpineRuntime"], resources: [.copy("Fixtures")]),
+    .testTarget(name: "AdaSpineIntegrationTests", dependencies: ["AdaSpine", "AdaApp", "AdaAssets", "AdaCorePipelines", "AdaECS", "AdaRender", "AdaTransform", "AdaUtils", "Math"]),
     .target(
         name: "CAndroid",
         linkerSettings: [
@@ -612,6 +674,7 @@ var targets: [Target] = [
             "AdaECS",
             "AdaAnimation",
             "box2d",
+            "AdaNavigation",
             "AdaTransform",
             "AdaText",
             "AdaAudio",
@@ -710,7 +773,8 @@ targets.append(
     .executableTarget(
         name: "AdaWebPlayer",
         dependencies: [
-            "AdaEngine", "AdaScriptCompilerCore",
+            .product(name: "AdaStudioCore", package: "StudioCore"),
+            "AdaEngine", "AdaScriptCompilerCore", "AdaAssets", "AdaScripting", "AdaA2UI", "AdaUIDescription",
             .product(name: "Yams", package: "Yams"),
             "AdaMultiplayer",
             .product(name: "JavaScriptKit", package: "JavaScriptKit", condition: .when(platforms: [.wasi])),
@@ -873,23 +937,17 @@ targets += [
     .target(
         name: "box2d",
         exclude: [
-            "shared",
-            "docs",
-            "samples",
-            "test",
-            "benchmark",
-            "extern",
-            "build.bat",
-            "build.sh",
-            "build_emscripten.sh",
-            "CMakeLists.txt",
-            "deploy_docs.sh",
-            "LICENSE"
+            "src/box2d.natvis",
+            "src/box2d.pc.in",
+            "src/CMakeLists.txt",
+            "src/contact_solver_wide.inl",
+            "src/recording_ops.inl"
         ],
+        sources: ["src"],
         publicHeadersPath: "include",
         cSettings: [
             .define("_POSIX_C_SOURCE", to: "200809L", .when(platforms: [.linux])),
-            .unsafeFlags(["-w"])
+            .unsafeFlags(["-w", "-ffp-contract=off"])
         ]
     ),
 
@@ -1299,7 +1357,7 @@ if isECSBenchmarkEnabled {
 targets += [
     .testTarget(
         name: "AdaEngineTests",
-        dependencies: ["AdaEngine"],
+        dependencies: ["AdaEngine", "AdaNavigationBaking", "AdaScriptAOTFixture", .product(name: "GravityAOT", package: "gravity-lang")],
         exclude: ["Fixtures"],
     ),
     .testTarget(
@@ -1335,7 +1393,9 @@ targets += [
     .testTarget(
         name: "AdaAudioTests",
         dependencies: [
-            "AdaAudio"
+            "AdaAudio",
+            "AdaAssets",
+            "AdaECS",
         ]
     ),
     .testTarget(
@@ -1412,6 +1472,10 @@ targets += [
     .testTarget(
         name: "AdaSceneTests",
         dependencies: [
+            "AdaNavigation",
+            "AdaNavigationBaking",
+            "AdaPhysics",
+            "AdaTransform",
             "AdaApp",
             "AdaAssets",
             "AdaScene",
@@ -1466,21 +1530,19 @@ let package = Package(
 if let gravityDevelopmentPath {
     package.dependencies.append(.package(name: "gravity-lang", path: gravityDevelopmentPath))
 } else {
-    package.dependencies.append(.package(
-        url: "https://github.com/AdaEngine/gravity-lang.git",
-        branch: "master"
-    ))
+    package.dependencies.append(.package(name: "gravity-lang", path: "Sources/gravity-lang"))
 }
 
 package.targets.append(.target(
     name: "AdaScriptAOTFixture",
     dependencies: [.product(name: "CGravity", package: "gravity-lang")],
     path: "Tests/AdaScriptAOTFixture",
-    exclude: ["Movement.ada", "HostAdapters.ada", "Async.ada"],
+    exclude: ["Movement.ada", "HostAdapters.ada", "Async.ada", "Navigation.ada"],
     publicHeadersPath: "include"
 ))
 
 package.dependencies += [
+    .package(path: "Editor/StudioCore"),
     .package(url: "https://github.com/apple/swift-collections", from: "1.3.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.8.0"),
     .package(url: "https://github.com/apple/swift-distributed-tracing", from: "1.0.0"),
@@ -1492,7 +1554,8 @@ package.dependencies += [
     .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.7.3"),
     .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", from: "0.36.0"),
     // TODO: SpectralDragon packages should move to AdaEngine
-    .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
+    ProcessInfo.processInfo.environment["ADAENGINE_YAMS_PACKAGE_PATH"].map { .package(name: "Yams", path: $0) }
+        ?? .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.5"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0"),

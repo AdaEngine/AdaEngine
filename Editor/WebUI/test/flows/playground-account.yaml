@@ -1,0 +1,46 @@
+url: http://localhost:8080/account?continue=%2Fcreate
+---
+- openLink: http://localhost:8080/account?continue=%2Fcreate
+- assertVisible:
+    text: "Sign in to Ada"
+- assertVisible:
+    text: "Draft legal documents.*"
+- evalScript: ${output.email = "qa-playground-" + Date.now() + "@example.test"}
+- tapOn:
+    css: "input[type=email]"
+- inputText: ${output.email}
+- tapOn:
+    css: "input[type=checkbox]"
+- tapOn:
+    text: "Send code"
+- assertVisible:
+    text: "OTP Code"
+- assertVisible:
+    text: "Open test inbox.*"
+- runScript:
+    file: read-local-inbox.js
+    env:
+      EMAIL: ${output.email}
+- tapOn:
+    css: "input[autocomplete=one-time-code]"
+- inputText: ${output.otp}
+- tapOn:
+    text: "Verify code"
+- assertVisible:
+    text: "Start from scratch"
+- takeScreenshot: create-authenticated
+- tapOn:
+    css: ".template-card.landscape"
+- assertVisible:
+    text: "AdaEngine · Scene editor"
+- takeScreenshot: editor
+- tapOn:
+    css: ".projects-link"
+- assertVisible:
+    text: "Publishing"
+- takeScreenshot: projects-authenticated
+- tapOn:
+    text: "Publishing"
+- assertVisible:
+    text: "Create your first game page"
+- takeScreenshot: publications
