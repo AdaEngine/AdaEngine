@@ -103,11 +103,7 @@ public struct Model3DSource: Codable, Equatable, Sendable {
             guard let index = Int(key), String(index) == key, model.materials.indices.contains(index), let source = graphMaterials[key] else {
                 throw ShaderGraphDiagnostic(code: .invalidReference, nodeID: key)
             }
-            let instance = try ShaderGraphMaterial(source: source)
-            guard instance.program.target == .pbrSurface else { throw ShaderGraphDiagnostic(code: .typeMismatch, nodeID: key) }
-            let material = PBRMaterial()
-            material.graphMaterial = instance
-            graphOverrides[index] = material
+            graphOverrides[index] = try Self.makeGraphOverride(copying: model.materials[index], source: source)
         }
         let root = model.instantiate(in: world)
         if !graphOverrides.isEmpty {
