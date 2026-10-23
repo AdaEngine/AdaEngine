@@ -35,7 +35,11 @@ struct EditorAdaScriptNativeExportOptions: Sendable {
 /// available until compilation, resource staging and platform packaging succeed.
 actor EditorAdaScriptNativeExporter {
     private let runner: any EditorProcessRunning
-    init(runner: any EditorProcessRunning = EditorProcessRunner()) { self.runner = runner }
+    private let distribution: EditorDistribution
+    init(runner: any EditorProcessRunning = EditorProcessRunner(), distribution: EditorDistribution = .current) {
+        self.runner = runner
+        self.distribution = distribution
+    }
 
     func export(
         project: AdaProject,
@@ -44,7 +48,7 @@ actor EditorAdaScriptNativeExporter {
         options: EditorAdaScriptNativeExportOptions,
         log: @Sendable @escaping (EditorProcessOutputEvent) async -> Void = { _ in }
     ) async throws -> URL {
-        try EditorDistribution.current.validate(buildSystem: .swiftpm)
+        try distribution.validate(buildSystem: .swiftpm)
         guard project.build.system.isAdaScript else { throw EditorPreviewBuildFailure(message: "Native export requires an AdaScript project.") }
         guard project.runtime.entry.view == nil else { throw EditorAdaScriptProjectBuildError.uiViewsUnavailable }
         let root = root.resolvingSymlinksInPath()
@@ -133,6 +137,7 @@ actor EditorAdaScriptNativeExporter {
             try FileManager.default.createDirectory(at: assets, withIntermediateDirectories: true)
         }
         try await Self.convertScenes(at: assets, originalRoot: originalAssets, sources: sources)
+        try Self.convertShaderGraphs(at: assets, originalRoot: originalAssets)
         try JSONEncoder().encode(project.inputActions).write(to: assets.appendingPathComponent("input-actions.json"))
         try JSONEncoder().encode(project).write(to: stage.appendingPathComponent("project.json"))
         let plugins = try EditorAdaScriptRuntimePluginResolver.resolve(project.runtime.plugins)
@@ -261,6 +266,24 @@ actor EditorAdaScriptNativeExporter {
         guard result.succeeded else { throw EditorPreviewBuildFailure(message: result.combinedOutput) }
     }
 
+    private static func convertShaderGraphs(at assets: URL, originalRoot: URL) throws {
+        if let files = FileManager.default.enumerator(at: assets, includingPropertiesForKeys: [.isRegularFileKey]) {
+            for case let file as URL in files where file.pathExtension == "shadergraph" {
+                var graph = try AssetsManager.loadFreshSync(ShaderGraphAsset.self, at: file.path).graph
+                for index in graph.nodes.indices {
+                    if graph.nodes[index].kind == ShaderGraph.Operation.texture.rawValue,
+                        let path = graph.nodes[index].reference {
+                        graph.nodes[index].reference = Self.detachReferences(path, originalRoot: originalRoot) as? String
+                    }
+                    if let path = graph.nodes[index].defaultTexture {
+                        graph.nodes[index].defaultTexture = Self.detachReferences(path, originalRoot: originalRoot) as? String
+                    }
+                }
+                try JSONEncoder().encode(graph).write(to: file)
+            }
+        }
+    }
+
     @MainActor
     private static func convertScenes(at assets: URL, originalRoot: URL, sources: [AdaScriptSource]) throws {
         EditorComponentRegistry.registerBuiltIns()
@@ -308,10 +331,22 @@ actor EditorAdaScriptNativeExporter {
                         }
                         let size = originalPayload["tileDisplaySize"]?.vector2Value
                         values[name] = try JSONEncoder().encode(AdaScriptNativeTileMapReference(path: reference, width: size?.x ?? 16, height: size?.y ?? 16))
+                    } else if name == EditorBuiltInComponentType.mesh3D {
+                        let data = try JSONEncoder().encode(EditorSceneValue.object(payload))
+                        let reference = try JSONDecoder().decode(PrimitiveMesh3DSource.self, from: data)
+                        try reference.validate()
+                        if let source = reference.graphMaterial {
+                            let graph = try ShaderGraphMaterial(source: source, resourceRootPath: originalRoot.path)
+                            guard graph.program.target == .pbrSurface else { throw ShaderGraphDiagnostic(code: .typeMismatch, nodeID: name) }
+                        }
+                        values[name] = try JSONEncoder().encode(reference)
                     } else if payload.isEmpty, RuntimeTypeRegistry.makeDefaultComponent(named: name) != nil {
                         values[name] = Data("{}".utf8)
                     } else {
-                        guard let value = try EditorComponentRegistry.decode(typeName: name, payload: payload) as? any Encodable else {
+                        let decoded = try ShaderGraphResourceScope.$rootPath.withValue(originalRoot.path) {
+                            try EditorComponentRegistry.decode(typeName: name, payload: payload)
+                        }
+                        guard let value = decoded as? any Encodable else {
                             throw EditorPreviewBuildFailure(message: "Native export cannot encode component '\(name)' in \(url.lastPathComponent).")
                         }
                         values[name] = try JSONEncoder().encode(value)
@@ -413,7 +448,7 @@ actor EditorAdaScriptNativeExporter {
         }
         let preloadExpression = preloadPaths.isEmpty
             ? "Self.preloadedAssetPaths(assets)"
-            : "[" + preloadPaths.map(quote).joined(separator: ", ") + "]"
+            : "[" + preloadPaths.map(quote).joined(separator: ", ") + "] + Self.preloadedAssetPaths(assets).filter { $0.hasSuffix(\".shadergraphlib\") }"
         let pluginCode = plugins.pluginIDs.compactMap { id -> String? in
             switch id {
             case .core2D: "app.addPlugin(Core2DPlugin())"

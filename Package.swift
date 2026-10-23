@@ -788,6 +788,7 @@ targets.append(
 )
 
 if isWebExportEnabled {
+    products.append(.executable(name: "AdaShaderGraphBaker", targets: ["AdaShaderGraphBaker"]))
     products.append(
         .plugin(name: "AdaWebExportPlugin", targets: [
             "AdaWebExportPlugin"
@@ -803,6 +804,12 @@ if isWebExportEnabled {
             path: "Plugins/AdaShaderTranspilerTool"
         )
     )
+
+    targets.append(.executableTarget(
+        name: "AdaShaderGraphBaker",
+        dependencies: ["AdaAssets", "AdaCorePipelines", "AdaRender", "AdaSprite"],
+        path: "Plugins/AdaShaderGraphBaker"
+    ))
 
     targets.append(
         .plugin(
