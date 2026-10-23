@@ -1,4 +1,4 @@
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
 @testable import AdaCorePipelines
 @testable import AdaRender
 import AdaScene
@@ -10,6 +10,35 @@ extension Render3DGPUTests {
     @MainActor
     @Suite("Shader Graph GPU rendering")
     struct ShaderGraphs {
+        @Test(.enabled(if: GoldenFrame.activeBackend == .webgpu && ProcessInfo.processInfo.environment["ADAENGINE_SHADER_GRAPH_ARCHIVE"] != nil))
+        func bakedTextureVariantsMatchLiveLayersAndMorphDefines() async throws {
+            let path = try #require(ProcessInfo.processInfo.environment["ADAENGINE_SHADER_GRAPH_ARCHIVE"])
+            let archive = try JSONDecoder().decode(ShaderGraphArchive.self, from: Data(contentsOf: URL(fileURLWithPath: path)))
+            try ShaderGraphRuntimeLibrary.install(archive)
+            let graph = try #require(archive.graphs.values.first { $0.target == .pbrSurface })
+            let instance = try ShaderGraphMaterial(source: .init(graph: graph))
+            let source = instance.program.inserting(in: try ShaderGraph3DPipeline.fragmentTemplate())
+            let scene = try await DebugViews.makeScene()
+            let material = try #require(scene.groundMaterial)
+            material.graphMaterial = instance
+            material.layerTextures = Dictionary(uniqueKeysWithValues: PBRLayerTexture.allCases.map { ($0, .init(texture: .whiteTexture)) })
+            for layers in 0..<8 {
+                material.clearcoatFactor = layers & 1 == 0 ? 0 : 1
+                material.sheenColorFactor = layers & 2 == 0 ? .zero : .one
+                material.anisotropyStrength = layers & 4 == 0 ? 0 : 0.5
+                for morph in [false, true] {
+                    var features = material.shaderFeatures
+                    if morph { features.insert(.morph) }
+                    let defines = features.enablingMacros.map { ShaderDefine.define($0) }
+                    let fragment = try #require(ShaderGraphRuntimeLibrary.fragment(source: source, defines: defines))
+                    #expect(fragment.wgsl.contains("@fragment"))
+                }
+                let image = try await scene.render(.albedo)
+                #expect(!image.data.isEmpty)
+                #expect(instance.hasPreparedPipeline && instance.compilationError == nil)
+            }
+        }
+
         @Test(.enabled(if: GoldenFrame.activeBackend == .webgpu && ProcessInfo.processInfo.environment["ADAENGINE_SHADER_GRAPH_ARCHIVE"] != nil))
         func hostBakedWGSLRendersThroughTheProductionSurfacePipeline() async throws {
             let path = try #require(ProcessInfo.processInfo.environment["ADAENGINE_SHADER_GRAPH_ARCHIVE"])

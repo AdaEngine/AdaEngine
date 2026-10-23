@@ -1,4 +1,4 @@
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
 @_spi(Internal) @testable import AdaApp
 import AdaAssets
 import AdaECS
@@ -8,7 +8,9 @@ import AdaTransform
 import AdaUtils
 import Foundation
 import Math
+#if canImport(Metal)
 import Metal
+#endif
 import Testing
 
 @testable import AdaCorePipelines
@@ -207,7 +209,9 @@ extension Render3DGPUTests {
             let device: RenderDevice
             let target: RenderTexture
             /// Metal only: a fence on the engine's queue. WebGPU readback waits for submitted work itself.
+            #if canImport(Metal)
             let queue: MTLCommandQueue?
+            #endif
             let camera: Entity
             let sun: Entity
             /// The ground's material, which tests edit between renders.
@@ -235,6 +239,7 @@ extension Render3DGPUTests {
                 for _ in 0..<frames {
                     try await app.update()
                 }
+                #if canImport(Metal)
                 if let queue {
                     let fence = try #require(queue.makeCommandBuffer())
                     await withCheckedContinuation { continuation in
@@ -242,6 +247,7 @@ extension Render3DGPUTests {
                         fence.commit()
                     }
                 }
+                #endif
                 return try #require(try await device.readImage(from: target))
             }
         }
@@ -259,7 +265,9 @@ extension Render3DGPUTests {
             // A silent fallback to another backend would make the references meaningless.
             try #require(unsafe RenderEngine.shared.type == requested, "The \(backend) backend must be active.")
             let device = unsafe RenderEngine.shared.renderDevice
+            #if canImport(Metal)
             let queue = backend == .metal ? try #require(MetalInterop.commandQueue(for: device)) : nil
+            #endif
             let app = AppWorlds(main: World())
             app.insertResource(OffscreenRenderWorld())
                 .insertResource(PrimaryWindowId(windowId: RID()))
@@ -339,8 +347,13 @@ extension Render3DGPUTests {
                 Mesh3DComponent(mesh: Mesh.generateCube(size: [10, 0.1, 10], renderDevice: device), materials: [ground])
                 Transform(position: [0, -0.05, 0])
             }
+            #if canImport(Metal)
             return Scene(app: app, device: device, target: target, queue: queue, camera: cameraEntity, sun: sunEntity,
                          groundMaterial: ground, sphereEntities: sphereEntities)
+            #else
+            return Scene(app: app, device: device, target: target, camera: cameraEntity, sun: sunEntity,
+                         groundMaterial: ground, sphereEntities: sphereEntities)
+            #endif
         }
 
         private static func expectGolden(_ image: Image, named name: String) throws {

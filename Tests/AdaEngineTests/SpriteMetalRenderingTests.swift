@@ -375,7 +375,7 @@ struct SpriteMetalRenderingTests {
         return result
     }
 }
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
 extension Render3DGPUTests {
     @MainActor @Suite("Sprite Shader Graph pixels") struct SpriteGraphs {
         @Test(.enabled(if: GoldenFrame.activeBackend != nil), arguments: [SpriteRenderingMode.batched, .automatic])
