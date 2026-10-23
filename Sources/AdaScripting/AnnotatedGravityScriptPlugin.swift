@@ -448,6 +448,15 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         )
     }
 
+    /// Shared by native AOT validation/setup so explicit access declarations
+    /// retain the same meaning as the VM's borrowed component capabilities.
+    static func declaredQueryAccess(for plan: AnnotatedSystemPlan, world: World) throws -> [ComponentId: QueryAccessLevel] {
+        let components = try prepareDynamicAccess(plan.access, systemIdentifier: plan.identifier, world: world)
+        return components.values.reduce(into: [:]) { result, component in
+            result[component.identifier] = max(result[component.identifier] ?? .read, component.isWritable ? .write : .read)
+        }
+    }
+
     private static func prepareDynamicAccess(
         _ plan: AnnotatedAccessPlan?,
         systemIdentifier: String,

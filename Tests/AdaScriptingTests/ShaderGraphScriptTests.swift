@@ -138,9 +138,11 @@ import Testing
         @Test func actualAOTModuleUsesTheSameGraphCapabilities() async throws {
             let pointer = try #require(ada_native_shader_graph_get_module())
             let module = unsafe try NativeModule(module: pointer)
-            let plugin = try AdaScriptNativePlugin(module: module, name: "GraphAOT")
+            let source = AdaScriptSource(path: "ShaderGraph.ada", source: try String(contentsOf: fixtureURL, encoding: .utf8))
             let graph = try material()
             let world = world(material: graph)
+            let plugin = try AdaScriptNativePlugin(module: module, name: "GraphAOT", sources: [source])
+            try plugin.validateBindings()
             plugin.setup(in: AppWorlds(main: world))
             await world.runScheduler(SchedulerName(rawValue: "shaderGraphTest"), deltaTime: 0.016)
             #expect(plugin.diagnostics.isEmpty, Comment(rawValue: plugin.diagnostics.joined(separator: "\n")))
