@@ -6,8 +6,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/AdaEngine/AdaMCP.git",
       "state" : {
-        "branch" : "v0.2.0",
-        "revision" : "165bd5c00857a760ecea859022d023393350baad"
+        "revision" : "ed7bb9076f9f8c91e2584ca9b7201df0e03defb1"
       }
     },
     {
