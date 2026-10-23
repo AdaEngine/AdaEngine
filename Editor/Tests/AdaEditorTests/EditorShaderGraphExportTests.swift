@@ -1,4 +1,4 @@
-#if os(macOS) && canImport(GravityAOT)
+#if (os(macOS) || os(Windows)) && canImport(GravityAOT)
 @testable import AdaEditor
 import AdaEngine
 @testable import AdaRender
@@ -25,19 +25,43 @@ struct EditorShaderGraphExportTests {
                 destination: destination,
                 gravityRoot: engine.appendingPathComponent("Sources/gravity-lang"),
                 engineRoot: engine,
-                swiftExecutable: "/usr/bin/swift"
+                swiftExecutable: EditorHostTools.executable("swift")
             )
+            #if os(macOS)
             options.buildsPlayer = destination == .macOS && environment["ADAENGINE_SHADER_GRAPH_EXPORT_BUILD_NATIVE"] == "1"
+            #else
+            options.buildsPlayer = false
+            #endif
             options.scratchDirectory = environment["ADAENGINE_SHADER_GRAPH_NATIVE_SCRATCH"].map { URL(fileURLWithPath: $0) }
             options.configuration = .debug
             let result = try await exporter.export(project: project, at: root, to: output.appendingPathComponent(destination.rawValue), options: options)
             let assets = result.appendingPathComponent("Sources/AdaNativeGame/GameAssets")
-            let graph = try JSONDecoder().decode(ShaderGraph.self, from: Data(contentsOf: assets.appendingPathComponent("Effects/Tint.shadergraph")))
-            #expect(graph.target == .sprite)
+            let graphPath = "Effects/Tint.shadergraph"
+            if FileManager.default.fileExists(atPath: root.appendingPathComponent("Assets/" + graphPath).path) {
+                let graph = try JSONDecoder().decode(ShaderGraph.self, from: Data(contentsOf: assets.appendingPathComponent(graphPath)))
+                #expect(graph.target == .sprite)
+            } else {
+                #expect(!FileManager.default.fileExists(atPath: assets.appendingPathComponent(graphPath).path))
+            }
             let player = try String(contentsOf: result.appendingPathComponent("Sources/AdaNativeGame/Game.swift"), encoding: .utf8)
             #expect(player.contains("preloadedAssetPaths"))
             #expect(!player.contains(root.path))
             #expect(FileManager.default.fileExists(atPath: assets.appendingPathComponent("Scenes/Main.ascn").path))
+            let pbrScene = assets.appendingPathComponent("Scenes/PBR.ascn")
+            if FileManager.default.fileExists(atPath: pbrScene.path) {
+                let scene = try JSONDecoder().decode(AdaScriptNativeSceneDocument.self, from: Data(contentsOf: pbrScene))
+                let primitives = try scene.entities.compactMap { item in
+                    try item.components[String(reflecting: Mesh3DComponent.self)].map { try JSONDecoder().decode(PrimitiveMesh3DSource.self, from: $0) }
+                }
+                #expect(Set(primitives.filter { $0.graphMaterial != nil }.map(\.mesh)) == [.quad, .circle, .cube, .sphere, .plane])
+                #expect(primitives.filter { $0.graphMaterial != nil }.allSatisfy { $0.castShadows && $0.receiveShadows })
+                let models = try scene.entities.compactMap { item in
+                    try item.components[String(reflecting: Model3DSource.self)].map { try JSONDecoder().decode(Model3DSource.self, from: $0) }
+                }
+                #expect(models.count == 2)
+                #expect(models.allSatisfy { $0.source.hasPrefix("@res://") && $0.graphMaterials["0"]?.path == "@res://Effects/Surface.shadergraph" })
+                #expect(models.first?.graphMaterials["0"]?.values != models.last?.graphMaterials["0"]?.values)
+            }
         }
     }
 }

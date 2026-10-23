@@ -103,6 +103,10 @@ const gravity_aot_module *{args.module}_get_module(void);
 
 
 if __name__ == "__main__":
+    # Studio consumes UTF-8 output through pipes, including portable project
+    # paths that the Windows console's legacy code page cannot represent.
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     try:
         main()
     except (OSError, subprocess.CalledProcessError) as error:
